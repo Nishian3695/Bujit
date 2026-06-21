@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:id="@+id/group_nav_main">
+        <item
+            android:id="@+id/income_streams"
+            android:title="Income Streams" />
+
+        <item
+            android:id="@+id/credit_util"
+            android:title="Credit Utilization" />
+
+        <item
+            android:id="@+id/banking"
+            android:title="Linked Accounts" />
+    </group>
+
+    <group android:id="@+id/group_nav_secondary">
+        <item
+            android:id="@+id/settings"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings" />
+    </group>
+
+</menu>

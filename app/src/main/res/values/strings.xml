@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Bujit</string>
+    <!--Arrays-->
+    <string-array name="expense_frequency_magnitude_spinner_items">
+        <item>Day(s)</item>
+        <item>Week(s)</item>
+        <item>Month(s)</item>
+        <item>Year(s)</item>
+    </string-array>
+
+    <string-array name="check_frequency_spinner_items">
+        <item>Weekly</item>
+        <item>Biweekly</item>
+        <item>Monthly</item>
+        <item>Yearly</item>
+    </string-array>
+    <!--Toggle open/close navigation menu-->
+    <string name="nav_open">Open</string>
+    <string name="nav_close">Close</string>
+    <!--Legal-->
+    <string name="disclaimer_text">"Bujit is a personal budgeting tool for informational purposes only. "
+    "It does not constitute financial advice.\n\nDisplayed balances may not reflect real-time account data. "
+    "Bank account data is accessed securely via Teller, a third-party service."
+    "\n\nBalance projections are estimates and should not be relied upon for financial decisions. "
+    "Users are themselves responsible for verifying all financial information and making informed decisions."
+    "\n\nYou may find Teller's legal and privacy information and this disclaimer in the settings menu."
+    </string>
+</resources>

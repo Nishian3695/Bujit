@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bujit – Privacy Policy</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 720px;
+            margin: 40px auto;
+            padding: 0 20px 60px;
+            color: #222;
+            line-height: 1.7;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 4px; }
+        h2 { font-size: 1.1rem; margin-top: 32px; margin-bottom: 6px; color: #444; }
+        .updated { color: #777; font-size: 0.9rem; margin-bottom: 32px; }
+        a { color: #1a73e8; }
+        hr { border: none; border-top: 1px solid #e0e0e0; margin: 40px 0; }
+    </style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated: June 21, 2026</p>
+
+<p>Bujit ("the app", "we", "us") is a personal budgeting tool developed by  Nishian3695. 
+This policy explains what data the app handles, where it goes, and your rights over it.</p>
+
+<h2>1. Data Stored Locally on Your Device</h2>
+<p>All core app data  (your expenses, income streams, balance, and settings) is stored exclusively
+on your device using Android's internal file storage. This data is never transmitted to any 
+Bujit-controlled server and is only accessible from within the app.</p>
+
+<h2>2. Bank Account Data (Teller)</h2>
+<p>If you choose to link a bank account, Bujit uses 
+<a href="https://teller.io" target="_blank">Teller</a>, a third-party financial data provider, 
+to fetch account balances. Your banking credentials are entered directly into Teller's secure 
+interface and are never seen or stored by Bujit. Teller access tokens are stored locally on 
+your device in encrypted SharedPreferences. All balance fetches go through a Bujit-hosted 
+backend that forwards the request to Teller using your token. No account data is logged or 
+retained on that backend.</p>
+<p>Teller's own privacy policy can be found at <a href="https://teller.io/legal" target="_blank">teller.io/legal/privacy</a>.</p>
+
+<h2>3. Google Account Data (Google Tasks / Calendar Sync)</h2>
+<p>If you enable Google Calendar Sync, the app uses Google Sign-In to obtain an OAuth token and 
+creates a task list ("Bujit") in your Google Tasks account containing your expenses and income 
+streams. No Google account data is stored by Bujit beyond the signed-in session managed by the 
+Google Sign-In SDK on your device. You can disconnect at any time from Settings, which removes 
+all Bujit-created tasks and signs out.</p>
+
+<h2>4. Firebase Authentication</h2>
+<p>Bujit uses Firebase Anonymous Authentication solely to authenticate requests to the Bujit 
+backend when fetching bank balances via Teller. No personal information is associated with this 
+anonymous session. Firebase may collect diagnostic data per 
+<a href="https://firebase.google.com/support/privacy" target="_blank">Google's Firebase privacy policy</a>.</p>
+
+<h2>5. Data We Do Not Collect</h2>
+<p>Bujit does not collect, transmit, or sell any personally identifiable information. 
+There are no analytics SDKs, advertising SDKs, or crash-reporting tools in the app.</p>
+
+<h2>6. Children's Privacy</h2>
+<p>Bujit is not directed at children under 13. We do not knowingly collect any data from children.</p>
+
+<h2>7. Changes to This Policy</h2>
+<p>If this policy changes materially, the "Last updated" date above will be updated. 
+Continued use of the app after changes are posted constitutes acceptance of the revised policy.</p>
+
+<h2>8. Contact</h2>
+<p>Questions or concerns? Open an issue at <a href="https://github.com/Nishian3695/Bujit/issues" target="_blank">github.com/Nishian3695/Bujit/issues</a>.</p>
+
+<hr>
+<p style="font-size:0.85rem; color:#999;">Bujit is a personal budgeting tool for informational 
+purposes only. It does not constitute financial advice. Balance projections are estimates 
+and should not be relied upon for financial decisions.</p>
+
+</body>
+</html>

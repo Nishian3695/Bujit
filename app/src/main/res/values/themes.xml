@@ -1,0 +1,52 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.Bujit" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorPrimaryVariant">@color/secondary_blue</item>
+        <item name="colorOnPrimary">@color/tertiary_blue</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/primary_green</item>
+        <item name="colorSecondaryVariant">@color/secondary_green</item>
+        <item name="colorOnSecondary">@color/tertiary_green</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+        <!-- Customize your theme here. -->
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="Theme.Bujit.Purple" parent="Theme.Bujit">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="colorPrimaryVariant">@color/accent_purple_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/accent_purple_dark</item>
+    </style>
+
+    <style name="Theme.Bujit.Green" parent="Theme.Bujit">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorPrimaryVariant">@color/accent_green_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/accent_green_dark</item>
+    </style>
+
+    <style name="Theme.Bujit.Orange" parent="Theme.Bujit">
+        <item name="colorPrimary">@color/accent_orange</item>
+        <item name="colorPrimaryVariant">@color/accent_orange_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/accent_orange_dark</item>
+    </style>
+
+    <style name="Theme.Bujit.Teal" parent="Theme.Bujit">
+        <item name="colorPrimary">@color/accent_teal</item>
+        <item name="colorPrimaryVariant">@color/accent_teal_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/accent_teal_dark</item>
+    </style>
+
+    <style name="Theme.Bujit.Rose" parent="Theme.Bujit">
+        <item name="colorPrimary">@color/accent_rose</item>
+        <item name="colorPrimaryVariant">@color/accent_rose_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/accent_rose_dark</item>
+    </style>
+</resources>

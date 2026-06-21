@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/income_stream_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="12dp"
+    app:strokeWidth="0dp"
+    app:cardBackgroundColor="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
+
+        <!-- Text content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/income_stream_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="16sp"
+                android:textColor="?attr/colorOnSurface"
+                android:text="Income Stream" />
+
+            <TextView
+                android:id="@+id/income_stream_details"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif"
+                android:textSize="13sp"
+                android:alpha="0.65"
+                android:textColor="?attr/colorOnSurface"
+                android:text="$0.00  ·  Weekly" />
+
+        </LinearLayout>
+
+        <!-- ACTIVE badge -->
+        <TextView
+            android:id="@+id/income_stream_active_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.06"
+            android:text="ACTIVE"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+        <!-- Edit icon -->
+        <ImageView
+            android:id="@+id/income_stream_edit_icon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_edit"
+            android:alpha="0.55"
+            android:contentDescription="Edit" />
+
+        <!-- Delete icon -->
+        <ImageView
+            android:id="@+id/income_stream_delete_icon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_delete"
+            android:alpha="0.55"
+            android:contentDescription="Delete" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

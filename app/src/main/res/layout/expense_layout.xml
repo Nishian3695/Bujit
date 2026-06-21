@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/expense_table_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clipChildren="true"
+    android:longClickable="true"
+    android:orientation="vertical">
+
+    <!-- Accent bar — visible only for Teller-linked expenses -->
+    <View
+        android:id="@+id/linked_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@color/primary_blue"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
+
+        <!--
+            Checkbox is always in the layout (takes up space) so columns never reflow.
+            Alpha and translationX are controlled in code for the slide-reveal animation.
+        -->
+        <CheckBox
+            android:id="@+id/expense_checkbox"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:alpha="0"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <!-- Content wrapper — slides right together with the checkbox reveal -->
+        <LinearLayout
+            android:id="@+id/expense_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <TextView
+                android:id="@+id/expense_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:singleLine="true"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/expense_date"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:alpha="0.55"
+                android:fontFamily="sans-serif"
+                android:gravity="center"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/expense_rate"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:alpha="0.45"
+                android:fontFamily="sans-serif"
+                android:gravity="center"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/expense_cost"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="end"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/expense_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Row divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?attr/colorControlHighlight" />
+
+</LinearLayout>

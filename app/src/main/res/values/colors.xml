@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="primary_blue">#2979FF</color>
+    <color name="secondary_blue">#75A7FF</color>
+    <color name="tertiary_blue">#004ECB</color>
+    <color name="primary_green">#00E676</color>
+    <color name="secondary_green">#66FFA6</color>
+    <color name="tertiary_green">#00B248</color>
+    <color name="balance_positive">#2E7D32</color>
+    <color name="balance_negative">#C62828</color>
+    <color name="linked_banner_bg">#E8F0FF</color>
+    <color name="util_warning">#F57C00</color>
+
+    <!-- Accent theme colors -->
+    <color name="accent_purple">#7B1FA2</color>
+    <color name="accent_purple_dark">#4A0072</color>
+    <color name="accent_green">#2E7D32</color>
+    <color name="accent_green_dark">#005005</color>
+    <color name="accent_orange">#E65100</color>
+    <color name="accent_orange_dark">#AC1900</color>
+    <color name="accent_teal">#00695C</color>
+    <color name="accent_teal_dark">#003D33</color>
+    <color name="accent_rose">#C62828</color>
+    <color name="accent_rose_dark">#8E0000</color>
+</resources>

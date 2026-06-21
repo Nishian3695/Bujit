@@ -1,0 +1,13 @@
+## This file must *NOT* be checked into Version Control Systems,
+# as it contains information specific to your local configuration.
+#
+# Location of the SDK. This is only used by Gradle.
+# For customization when using a Version Control System, please read the
+# header note.
+#Sat Sep 21 12:31:02 PDT 2024
+
+# Directory where the SDK is located. This is only used by Gradle.
+# Typically located at C:\Users\YourUserName\AppData\Local\Android\Sdk on Windows
+sdk.dir=Your/path/to/Android/Sdk
+# Your Teller app ID, used for authentication with the Teller API
+TELLER_APP_ID=your-teller-app-id
