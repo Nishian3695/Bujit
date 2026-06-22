@@ -13,7 +13,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.WindowCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyEditTextWatcher;
@@ -67,9 +69,15 @@ public class IncomeStreamsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_income_streams);
         ThemeHelper.tintActionBar(this);
+        ViewCompat.setOnApplyWindowInsetsListener(
+                ((android.view.ViewGroup) findViewById(android.R.id.content)).getChildAt(0),
+                (v, windowInsets) -> {
+                    Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    v.setPadding(0, insets.top, 0, insets.bottom);
+                    return WindowInsetsCompat.CONSUMED;
+                });
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);

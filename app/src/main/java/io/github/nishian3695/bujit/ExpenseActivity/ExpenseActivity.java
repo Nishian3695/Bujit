@@ -37,7 +37,9 @@ import android.widget.AutoCompleteTextView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.WindowCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
@@ -149,12 +151,16 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         onHomeScreen = true;
         setContentView(R.layout.activity_main);
         ThemeHelper.tintActionBar(this);
         // Set up layout items
         mainLayout = findViewById(R.id.main_constraint_layout);
+        ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(0, insets.top, 0, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
         ThemeHelper.tintPrimaryCard(findViewById(R.id.check_bar_card), this);
         addExpenseButton = findViewById(R.id.add_button);
         ThemeHelper.tintFab(addExpenseButton, this);
