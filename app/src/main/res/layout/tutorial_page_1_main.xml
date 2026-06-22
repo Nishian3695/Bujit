@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="📊"
+            android:textSize="52sp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="Your Expense Dashboard"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="The main screen shows your expenses for the current pay period, your balance, and how much you'll have left after everything is paid."
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:alpha="0.7"
+            android:lineSpacingMultiplier="1.5"
+            android:layout_marginBottom="20dp" />
+
+        <!-- Demo: Check navigation bar -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="?attr/colorPrimary">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="◀"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:alpha="0.6" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="This Check"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="▶"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:alpha="0.6" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Demo: Balance summary card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="CURRENT BALANCE"
+                        android:textSize="9sp"
+                        android:alpha="0.5"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="$2,450.00"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/colorControlHighlight" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AFTER THIS CHECK"
+                        android:textSize="9sp"
+                        android:alpha="0.5"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="$1,274.01"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/balance_positive" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Demo: Sample expense list -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="18dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:alpha="0.5">
+
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3" android:text="EXPENSE" android:textSize="9sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="DUE" android:textSize="9sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="RATE" android:textSize="9sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="AMOUNT" android:textSize="9sp" android:textColor="?attr/colorOnSurface" />
+
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorControlHighlight" />
+
+                <!-- Rent -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp" android:paddingTop="9dp" android:paddingBottom="9dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3" android:text="Rent" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Jul 1" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Monthly" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="$850.00" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorControlHighlight" android:alpha="0.4" />
+
+                <!-- Netflix -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp" android:paddingTop="9dp" android:paddingBottom="9dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3" android:text="Netflix" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Jul 7" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Monthly" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="$15.99" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorControlHighlight" android:alpha="0.4" />
+
+                <!-- Electric -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp" android:paddingTop="9dp" android:paddingBottom="9dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3" android:text="Electric Bill" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Jul 15" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="Monthly" android:textSize="11sp" android:alpha="0.55" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="$110.00" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Tips card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Tap + to add a new expense" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" android:layout_marginBottom="7dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Tap any expense row to edit or delete it" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" android:layout_marginBottom="7dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Drag expenses to reorder them" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" android:layout_marginBottom="7dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Tap ▶ next to &quot;This Check&quot; to project your balance into future paychecks based on your active income stream" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" android:layout_marginBottom="7dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Long-press &quot;This Check&quot; to project your balance using a custom time period" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" android:layout_marginBottom="7dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="• Long-press your balance to update it manually or link to an added bank account" android:textSize="13sp" android:textColor="?attr/colorOnSurface" android:alpha="0.75" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

@@ -21,6 +21,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
+import io.github.nishian3695.bujit.Tutorial.TutorialActivity;
 import io.github.nishian3695.bujit.ColorWheelView;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
 import io.github.nishian3695.bujit.R;
@@ -161,6 +162,7 @@ public class SettingsActivity extends AppCompatActivity {
         btnDisconnect.setOnClickListener(v -> confirmDisconnect());
 
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());
+        findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
@@ -342,6 +344,10 @@ public class SettingsActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void startTutorial() {
+        startActivity(new Intent(this, TutorialActivity.class));
     }
 
     private void openHelpEmail() {

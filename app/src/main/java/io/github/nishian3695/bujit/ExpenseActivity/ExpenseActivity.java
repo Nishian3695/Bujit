@@ -51,6 +51,7 @@ import io.github.nishian3695.bujit.NavigationItems.Banking.BankingActivity;
 import io.github.nishian3695.bujit.NavigationItems.CreditUtil.CreditUtilActivity;
 import io.github.nishian3695.bujit.NavigationItems.Settings.GoogleTasksHelper;
 import io.github.nishian3695.bujit.NavigationItems.Settings.SettingsActivity;
+import io.github.nishian3695.bujit.Tutorial.TutorialActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
@@ -232,16 +233,28 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     private void showDisclaimerIfNeeded() {
         SharedPreferences prefs = getSharedPreferences("bujit_legal_prefs", MODE_PRIVATE);
-        if (prefs.getBoolean("disclaimer_accepted", false)) return;
+        if (prefs.getBoolean("disclaimer_accepted", false)) {
+            showTutorialIfNeeded();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Before You Begin")
                 .setMessage(getString(R.string.disclaimer_text) + "\n\n" +
                         "By tapping \"I Understand\", you acknowledge that Bujit is not a financial advisor, " +
                         "balances may not reflect real-time data, projections are estimates, and should not be relied upon for financial decisions.")
-                .setPositiveButton("I Understand", (d, w) ->
-                        prefs.edit().putBoolean("disclaimer_accepted", true).apply())
+                .setPositiveButton("I Understand", (d, w) -> {
+                    prefs.edit().putBoolean("disclaimer_accepted", true).apply();
+                    showTutorialIfNeeded();
+                })
                 .setCancelable(false)
                 .show();
+    }
+
+    private void showTutorialIfNeeded() {
+        SharedPreferences prefs = getSharedPreferences(TutorialActivity.PREFS_NAME, MODE_PRIVATE);
+        if (!prefs.getBoolean(TutorialActivity.KEY_SEEN, false)) {
+            startActivity(new Intent(this, TutorialActivity.class));
+        }
     }
     // Recalculates ePerPay for every expense using the current check frequency.
     public void updateExpensePerPaid() {
