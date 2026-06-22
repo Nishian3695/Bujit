@@ -18,6 +18,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
@@ -101,6 +102,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.credit_util_layout);
         ThemeHelper.tintActionBar(this);
 

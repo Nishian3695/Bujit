@@ -13,6 +13,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyEditTextWatcher;
@@ -66,6 +67,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_income_streams);
         ThemeHelper.tintActionBar(this);
 

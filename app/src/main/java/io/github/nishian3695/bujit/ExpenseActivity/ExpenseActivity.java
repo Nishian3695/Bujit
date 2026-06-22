@@ -37,6 +37,7 @@ import android.widget.AutoCompleteTextView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
@@ -148,6 +149,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         onHomeScreen = true;
         setContentView(R.layout.activity_main);
         ThemeHelper.tintActionBar(this);

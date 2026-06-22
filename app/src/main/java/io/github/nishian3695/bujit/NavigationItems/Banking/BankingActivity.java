@@ -12,6 +12,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.tasks.Tasks;
@@ -79,6 +80,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         WebView.setWebContentsDebuggingEnabled(false);
         setContentView(R.layout.activity_banking);
         ThemeHelper.tintActionBar(this);

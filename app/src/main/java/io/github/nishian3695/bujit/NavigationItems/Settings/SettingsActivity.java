@@ -17,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import io.github.nishian3695.bujit.ColorWheelView;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
@@ -96,6 +97,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_settings);
         ThemeHelper.tintActionBar(this);
 
