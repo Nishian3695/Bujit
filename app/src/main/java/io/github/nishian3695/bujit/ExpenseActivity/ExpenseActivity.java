@@ -1,6 +1,7 @@
 package io.github.nishian3695.bujit.ExpenseActivity;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.view.ActionMode;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -149,8 +150,46 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     // Google Tasks helper (lazy-init, non-null after first access)
     private GoogleTasksHelper googleTasksHelper;
-    private OnBackPressedCallback selectionBackCallback;
+    private ActionMode activeActionMode;
     private OnBackPressedCallback projectionBackCallback;
+
+    private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            mode.getMenuInflater().inflate(R.menu.contextual_selection_menu, menu);
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            MenuItem selectAll = menu.findItem(R.id.action_select_all);
+            if (selectAll != null) {
+                boolean allSelected = expenseAdapter != null && expenseAdapter.isAllSelected();
+                selectAll.setIcon(allSelected ? R.drawable.ic_select_all : R.drawable.ic_select);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            if (item.getItemId() == R.id.action_select_all) {
+                expenseAdapter.selectAll();
+                mode.invalidate();
+                return true;
+            }
+            if (item.getItemId() == R.id.action_delete_selected) {
+                showDeleteConfirmation();
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            activeActionMode = null;
+            if (expenseAdapter != null) expenseAdapter.exitSelectionMode();
+        }
+    };
     // endregion
 
     @SuppressLint("ClickableViewAccessibility")
@@ -928,29 +967,23 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }, new ExpenseAdapter.SelectionCallback() {
             @Override
             public void onEnterSelectionMode() {
-                if (selectionBackCallback != null) selectionBackCallback.setEnabled(true);
-                invalidateOptionsMenu();
+                activeActionMode = startSupportActionMode(actionModeCallback);
             }
 
             @Override
             public void onExitSelectionMode() {
-                if (selectionBackCallback != null) selectionBackCallback.setEnabled(false);
-                invalidateOptionsMenu();
+                if (activeActionMode != null) {
+                    ActionMode m = activeActionMode;
+                    activeActionMode = null;
+                    m.finish();
+                }
             }
 
             @Override
             public void onSelectionCountChanged(int count) {
-                invalidateOptionsMenu();
+                if (activeActionMode != null) activeActionMode.invalidate();
             }
         });
-
-        selectionBackCallback = new OnBackPressedCallback(false) {
-            @Override
-            public void handleOnBackPressed() {
-                if (expenseAdapter != null) expenseAdapter.exitSelectionMode();
-            }
-        };
-        getOnBackPressedDispatcher().addCallback(this, selectionBackCallback);
 
         projectionBackCallback = new OnBackPressedCallback(false) {
             @Override
@@ -1483,42 +1516,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        boolean inSelection = expenseAdapter != null && expenseAdapter.isInSelectionMode();
-        int selectedCount = inSelection ? expenseAdapter.getSelectedPositions().size() : 0;
-
-        MenuItem selectItem = menu.findItem(R.id.action_select);
-        if (selectItem != null) {
-            selectItem.setVisible(true);
-            boolean allSelected = inSelection && expenseAdapter.isAllSelected();
-            selectItem.setIcon(allSelected ? R.drawable.ic_select_all : R.drawable.ic_select);
-        }
-
-        MenuItem deleteItem = menu.findItem(R.id.action_delete_selected);
-        if (deleteItem != null) {
-            deleteItem.setVisible(inSelection);
-            boolean hasSelection = selectedCount > 0;
-            deleteItem.setEnabled(hasSelection);
-            if (deleteItem.getIcon() != null) {
-                deleteItem.getIcon().mutate().setAlpha(hasSelection ? 255 : 100);
-            }
-        }
-
-        return super.onPrepareOptionsMenu(menu);
-    }
-
-    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_select) {
-            if (expenseAdapter.isInSelectionMode()) {
-                expenseAdapter.selectAll();
-            } else {
-                expenseAdapter.enterSelectionMode();
-            }
-            return true;
-        }
-        if (item.getItemId() == R.id.action_delete_selected) {
-            showDeleteConfirmation();
+            expenseAdapter.enterSelectionMode();
             return true;
         }
         if (actionBarDrawerToggle.onOptionsItemSelected(item)) {
