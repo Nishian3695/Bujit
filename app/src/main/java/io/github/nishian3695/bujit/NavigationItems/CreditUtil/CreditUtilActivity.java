@@ -36,6 +36,9 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
+import android.view.ViewGroup;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputLayout;
@@ -77,6 +80,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private static final String ADD = "ADD";
     private static final String DEL = "DEL";
 
+    private TutorialOverlayLayout tutorialOverlay;
     private ArrayList<ExpenseModel> expenseModelsList;
     private ArrayList<ExpenseModel> notCreditList;
     private ArrayList<Integer>      notCreditPosList;
@@ -660,9 +664,60 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        maybeShowTutorial();
+    }
+
+    @Override
     protected void onPause() {
+        removeTutorialOverlay();
         super.onPause();
         persistChanges();
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, CreditUtilActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+        removeTutorialOverlay();
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this);
+                removeTutorialOverlay();
+                if (def.nextActivity != null) {
+                    startActivity(new android.content.Intent(this, def.nextActivity));
+                }
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                removeTutorialOverlay();
+                Intent home = new Intent(this, io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity.class);
+                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            });
+
+        ((ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
+        }
     }
 
     @Override

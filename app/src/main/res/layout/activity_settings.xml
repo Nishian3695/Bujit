@@ -23,7 +23,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="APPEARANCE"
+            android:text="🎨 APPEARANCE"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -300,7 +300,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="INTEGRATIONS"
+            android:text="📅 INTEGRATIONS"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -426,7 +426,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="SUPPORT"
+            android:text="❓ SUPPORT"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -550,7 +550,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="DATA"
+            android:text="🗑 DATA"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -600,7 +600,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="LEGAL"
+            android:text="⚖️ LEGAL"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 

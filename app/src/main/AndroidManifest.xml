@@ -35,8 +35,6 @@
         <activity android:name=".NavigationItems.Settings.SettingsActivity">
         </activity>
 
-        <activity android:name=".Tutorial.TutorialActivity">
-        </activity>
     </application>
 
 </manifest>

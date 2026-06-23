@@ -21,7 +21,9 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
-import io.github.nishian3695.bujit.Tutorial.TutorialActivity;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
+import android.view.ViewGroup;
 import io.github.nishian3695.bujit.ColorWheelView;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
 import io.github.nishian3695.bujit.R;
@@ -79,6 +81,7 @@ public class SettingsActivity extends AppCompatActivity {
     private View     rowGoogleConnected;
     private TextView tvGoogleAccount;
 
+    private TutorialOverlayLayout tutorialOverlay;
     private GoogleSignInClient googleSignInClient;
     private boolean calendarSyncChanged = false;
 
@@ -347,7 +350,8 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void startTutorial() {
-        startActivity(new Intent(this, TutorialActivity.class));
+        TutorialManager.reset(this);
+        finish();
     }
 
     private void openHelpEmail() {
@@ -383,6 +387,62 @@ public class SettingsActivity extends AppCompatActivity {
                 .setMessage(getString(R.string.disclaimer_text))
                 .setPositiveButton("OK", null)
                 .show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeShowTutorial();
+    }
+
+    @Override
+    protected void onPause() {
+        removeTutorialOverlay();
+        super.onPause();
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, SettingsActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+        removeTutorialOverlay();
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this); // marks KEY_SEEN at the last step
+                removeTutorialOverlay();
+                Intent home = new Intent(this, ExpenseActivity.class);
+                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                removeTutorialOverlay();
+                Intent home = new Intent(this, ExpenseActivity.class);
+                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            });
+
+        ((ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
+        }
     }
 
     private float dpToPx(int dp) {

@@ -1,5 +1,6 @@
 package io.github.nishian3695.bujit.NavigationItems.Banking;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +27,9 @@ import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
 import io.github.nishian3695.bujit.ThemeHelper;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
+import android.view.ViewGroup;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,6 +78,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     private Button       connectBtn;
     private Button       disconnectBtn;
     private BankAccountAdapter adapter;
+    private TutorialOverlayLayout tutorialOverlay;
     private final List<BankAccountModel> accounts = new ArrayList<>();
     private final ExecutorService executor    = Executors.newSingleThreadExecutor();
     private final Handler         mainHandler = new Handler(Looper.getMainLooper());
@@ -444,6 +449,62 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     private void flagExpenseDataChanged() {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit().putBoolean(KEY_BANKING_EXPENSE_CHANGED, true).apply();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeShowTutorial();
+    }
+
+    @Override
+    protected void onPause() {
+        removeTutorialOverlay();
+        super.onPause();
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, BankingActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+        removeTutorialOverlay();
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this);
+                removeTutorialOverlay();
+                if (def.nextActivity != null) {
+                    startActivity(new android.content.Intent(this, def.nextActivity));
+                }
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                removeTutorialOverlay();
+                Intent home = new Intent(this, io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity.class);
+                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            });
+
+        ((ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
+        }
     }
 
     @Override
