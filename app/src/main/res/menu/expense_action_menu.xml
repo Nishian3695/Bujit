@@ -1,21 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <!-- Visible only when NOT in selection mode -->
-    <item
-        android:id="@+id/action_select"
-        android:icon="@drawable/ic_select"
-        android:title="Select"
-        app:showAsAction="always" />
     <!-- Visible only when in selection mode -->
-    <item
-        android:id="@+id/action_edit_selected"
-        android:icon="@drawable/ic_edit"
-        android:title="Edit"
-        app:showAsAction="always" />
     <item
         android:id="@+id/action_delete_selected"
         android:icon="@drawable/ic_delete"
         android:title="Delete"
+        app:showAsAction="always" />
+    <!-- Always visible; acts as select-all when in selection mode -->
+    <item
+        android:id="@+id/action_select"
+        android:icon="@drawable/ic_select"
+        android:title="Select"
         app:showAsAction="always" />
 </menu>

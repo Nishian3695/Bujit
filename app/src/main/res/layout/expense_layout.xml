@@ -35,7 +35,8 @@
             android:layout_height="wrap_content"
             android:alpha="0"
             android:clickable="false"
-            android:focusable="false" />
+            android:focusable="false"
+            android:visibility="gone" />
 
         <!-- Content wrapper — slides right together with the checkbox reveal -->
         <LinearLayout
@@ -63,10 +64,11 @@
                 android:id="@+id/expense_date"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
+                android:layout_weight="2.5"
                 android:alpha="0.55"
                 android:fontFamily="sans-serif"
                 android:gravity="center"
+                android:maxLines="1"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="13sp" />
 
@@ -88,6 +90,7 @@
                 android:layout_weight="2"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="end"
+                android:maxLines="1"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="15sp" />
 
