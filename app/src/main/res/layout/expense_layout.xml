@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/expense_table_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -16,37 +17,26 @@
         android:background="@color/primary_blue"
         android:visibility="gone" />
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipChildren="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
         android:paddingTop="14dp"
         android:paddingBottom="14dp">
 
-        <!--
-            Checkbox is always in the layout (takes up space) so columns never reflow.
-            Alpha and translationX are controlled in code for the slide-reveal animation.
-        -->
-        <CheckBox
-            android:id="@+id/expense_checkbox"
-            android:layout_width="48dp"
-            android:layout_height="wrap_content"
-            android:alpha="0"
-            android:clickable="false"
-            android:focusable="false" />
-
-        <!-- Content wrapper — slides right together with the checkbox reveal -->
+        <!-- Content fills the full row width. -->
         <LinearLayout
             android:id="@+id/expense_content"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="16dp"
-            android:paddingEnd="16dp">
+            android:paddingEnd="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/expense_name"
@@ -63,10 +53,11 @@
                 android:id="@+id/expense_date"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
+                android:layout_weight="2.5"
                 android:alpha="0.55"
                 android:fontFamily="sans-serif"
                 android:gravity="center"
+                android:maxLines="1"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="13sp" />
 
@@ -88,6 +79,7 @@
                 android:layout_weight="2"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="end"
+                android:maxLines="1"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="15sp" />
 
@@ -101,7 +93,24 @@
 
         </LinearLayout>
 
-    </LinearLayout>
+        <!--
+            Checkbox slides in over the content start. layout_height="0dp" with
+            top/bottom constraints forces ConstraintLayout to clamp its height to
+            the content row — the widget's own Material touch-target minimum is ignored.
+        -->
+        <CheckBox
+            android:id="@+id/expense_checkbox"
+            android:layout_width="48dp"
+            android:layout_height="0dp"
+            android:alpha="0"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/expense_content"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/expense_content" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Row divider -->
     <View

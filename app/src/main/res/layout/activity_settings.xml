@@ -23,7 +23,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="APPEARANCE"
+            android:text="🎨 APPEARANCE"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -300,7 +300,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="INTEGRATIONS"
+            android:text="📅 INTEGRATIONS"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -426,7 +426,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="SUPPORT"
+            android:text="❓ SUPPORT"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -438,47 +438,104 @@
             app:cardElevation="1dp">
 
             <LinearLayout
-                android:id="@+id/row_help_suggestions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="16dp">
+                android:orientation="vertical">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:id="@+id/row_help_suggestions"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Help / Suggestions"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:alpha="0.6"
+                            android:text="Send feedback or report an issue"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Help / Suggestions"
+                        android:alpha="0.4"
+                        android:text="›"
                         android:textColor="?attr/colorOnSurface"
-                        android:textSize="15sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:alpha="0.6"
-                        android:text="Send feedback or report an issue"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="13sp" />
+                        android:textSize="20sp" />
 
                 </LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="?attr/colorControlHighlight" />
+
+                <LinearLayout
+                    android:id="@+id/row_tutorial"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:alpha="0.4"
-                    android:text="›"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="20sp" />
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tutorial"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:alpha="0.6"
+                            android:text="Replay the getting started walkthrough"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:alpha="0.4"
+                        android:text="›"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="20sp" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -493,7 +550,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="DATA"
+            android:text="🗑 DATA"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 
@@ -543,7 +600,7 @@
             android:layout_marginBottom="6dp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.1"
-            android:text="LEGAL"
+            android:text="⚖️ LEGAL"
             android:textColor="?attr/colorPrimary"
             android:textSize="11sp" />
 

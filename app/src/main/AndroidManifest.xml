@@ -34,6 +34,7 @@
 
         <activity android:name=".NavigationItems.Settings.SettingsActivity">
         </activity>
+
     </application>
 
 </manifest>

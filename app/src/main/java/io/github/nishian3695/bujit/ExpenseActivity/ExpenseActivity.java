@@ -1,5 +1,7 @@
 package io.github.nishian3695.bujit.ExpenseActivity;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.view.ActionMode;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -51,6 +53,8 @@ import io.github.nishian3695.bujit.NavigationItems.Banking.BankingActivity;
 import io.github.nishian3695.bujit.NavigationItems.CreditUtil.CreditUtilActivity;
 import io.github.nishian3695.bujit.NavigationItems.Settings.GoogleTasksHelper;
 import io.github.nishian3695.bujit.NavigationItems.Settings.SettingsActivity;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import androidx.appcompat.widget.SwitchCompat;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
@@ -115,6 +119,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     // Keeping track
     private boolean onHomeScreen;
+    private Runnable pendingTutorialShow;
     // Data Storage
     private StorageManager storageManager;
     private StorageHolder storageHolder;
@@ -129,6 +134,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private Button nextCheckButton, prevCheckButton;
     private TextView currentBankBalance, finalBalance, checkName, syncLabel, checkBarSubtitle;
     private SwipeRefreshLayout swipeRefreshLayout;
+    private TutorialOverlayLayout tutorialOverlay;
     // ActivityResultLaunchers
     ActivityResultLauncher<Intent> getBalanceOptionsContent, creditUtilizationContent, settingsContent;
     // Data variables
@@ -144,6 +150,46 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     // Google Tasks helper (lazy-init, non-null after first access)
     private GoogleTasksHelper googleTasksHelper;
+    private ActionMode activeActionMode;
+    private OnBackPressedCallback projectionBackCallback;
+
+    private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            mode.getMenuInflater().inflate(R.menu.contextual_selection_menu, menu);
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            MenuItem selectAll = menu.findItem(R.id.action_select_all);
+            if (selectAll != null) {
+                boolean allSelected = expenseAdapter != null && expenseAdapter.isAllSelected();
+                selectAll.setIcon(allSelected ? R.drawable.ic_select_all : R.drawable.ic_select);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            if (item.getItemId() == R.id.action_select_all) {
+                expenseAdapter.selectAll();
+                mode.invalidate();
+                return true;
+            }
+            if (item.getItemId() == R.id.action_delete_selected) {
+                showDeleteConfirmation();
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            activeActionMode = null;
+            if (expenseAdapter != null) expenseAdapter.exitSelectionMode();
+        }
+    };
     // endregion
 
     @SuppressLint("ClickableViewAccessibility")
@@ -154,6 +200,26 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         onHomeScreen = true;
         setContentView(R.layout.activity_main);
         ThemeHelper.tintActionBar(this);
+        // Extend the action bar visually into the transparent status-bar area so the
+        // NavigationView isn't visible behind it when the drawer slides in. The decor
+        // layer renders above both content and drawer views, so a view added here will
+        // cover the nav drawer in that region regardless of Z-order inside DrawerLayout.
+        android.view.ViewGroup decorView = (android.view.ViewGroup) getWindow().getDecorView();
+        View statusBarCover = new View(this);
+        int[] colorAttr = { android.R.attr.colorPrimary };
+        android.content.res.TypedArray ta = obtainStyledAttributes(colorAttr);
+        statusBarCover.setBackgroundColor(ta.getColor(0, 0));
+        ta.recycle();
+        decorView.addView(statusBarCover, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0));
+        statusBarCover.post(() -> {
+            WindowInsetsCompat wi = ViewCompat.getRootWindowInsets(statusBarCover);
+            if (wi != null) {
+                android.view.ViewGroup.LayoutParams lp = statusBarCover.getLayoutParams();
+                lp.height = wi.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+                statusBarCover.setLayoutParams(lp);
+            }
+        });
         // Set up layout items
         mainLayout = findViewById(R.id.main_constraint_layout);
         ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, windowInsets) -> {
@@ -232,16 +298,106 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     private void showDisclaimerIfNeeded() {
         SharedPreferences prefs = getSharedPreferences("bujit_legal_prefs", MODE_PRIVATE);
-        if (prefs.getBoolean("disclaimer_accepted", false)) return;
+        if (prefs.getBoolean("disclaimer_accepted", false)) {
+            showTutorialIfNeeded();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Before You Begin")
                 .setMessage(getString(R.string.disclaimer_text) + "\n\n" +
                         "By tapping \"I Understand\", you acknowledge that Bujit is not a financial advisor, " +
                         "balances may not reflect real-time data, projections are estimates, and should not be relied upon for financial decisions.")
-                .setPositiveButton("I Understand", (d, w) ->
-                        prefs.edit().putBoolean("disclaimer_accepted", true).apply())
+                .setPositiveButton("I Understand", (d, w) -> {
+                    prefs.edit().putBoolean("disclaimer_accepted", true).apply();
+                    showTutorialIfNeeded();
+                })
                 .setCancelable(false)
                 .show();
+    }
+
+    private void showTutorialIfNeeded() {
+        if (!TutorialManager.isActive(this) || pendingTutorialShow != null) return;
+        pendingTutorialShow = () -> {
+            pendingTutorialShow = null;
+            maybeShowTutorial();
+        };
+        mainHandler.postDelayed(pendingTutorialShow, 400);
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, ExpenseActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+
+        // For the nav-drawer step: open the drawer first, then re-enter after animation.
+        if (def.viewId == R.id.main_navigation_view && !drawerLayout.isDrawerOpen(navigationView)) {
+            // Block all touches during the drawer-open animation so the user can't swipe it away.
+            android.view.ViewGroup decor = (android.view.ViewGroup) getWindow().getDecorView();
+            View blocker = new View(this);
+            blocker.setTag("tutorial_touch_blocker");
+            blocker.setOnTouchListener((v, e) -> true);
+            decor.addView(blocker, new android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+            drawerLayout.openDrawer(navigationView);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                View b = decor.findViewWithTag("tutorial_touch_blocker");
+                if (b != null) decor.removeView(b);
+                showTutorialStep(step);
+            }, 350);
+            return;
+        }
+
+        removeTutorialOverlay();
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this);
+                removeTutorialOverlay();
+                if (def.nextActivity == IncomeStreamsActivity.class) {
+                    // Close drawer (if open for the nav step) then navigate
+                    if (drawerLayout.isDrawerOpen(navigationView)) {
+                        drawerLayout.closeDrawer(navigationView);
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            Intent i = new Intent(this, IncomeStreamsActivity.class);
+                            i.putExtra("incomeStreamList", incomeStreamList);
+                            startActivity(i);
+                        }, 280);
+                    } else {
+                        Intent i = new Intent(this, IncomeStreamsActivity.class);
+                        i.putExtra("incomeStreamList", incomeStreamList);
+                        startActivity(i);
+                    }
+                } else if (!isLast && TutorialManager.hasStepsForActivity(this, ExpenseActivity.class)) {
+                    showTutorialStep(TutorialManager.getCurrentStep(this));
+                }
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                if (drawerLayout.isDrawerOpen(navigationView)) drawerLayout.closeDrawer(navigationView);
+                removeTutorialOverlay();
+            });
+
+        ((android.view.ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            android.view.ViewGroup p = (android.view.ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
+        }
     }
     // Recalculates ePerPay for every expense using the current check frequency.
     public void updateExpensePerPaid() {
@@ -696,6 +852,75 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     @SuppressLint("ClickableViewAccessibility")
+    // Inserts demo expenses, credit cards, income stream, and a starting balance the very first
+    // time the app runs on a clean install. Skipped for existing users (disclaimer accepted or
+    // lists already populated) and never runs again after the flag is set.
+    private void seedSampleDataIfNeeded() {
+        SharedPreferences prefs = getSharedPreferences("bujit_app_prefs", MODE_PRIVATE);
+        if (prefs.getBoolean("sample_data_seeded", false)) return;
+
+        // Skip silently for existing users — their data is already in the lists.
+        boolean disclaimerAccepted = getSharedPreferences("bujit_legal_prefs", MODE_PRIVATE)
+                .getBoolean("disclaimer_accepted", false);
+        if (disclaimerAccepted || !expenseListStor.isEmpty() || !incomeStreamList.isEmpty()) {
+            prefs.edit().putBoolean("sample_data_seeded", true).apply();
+            return;
+        }
+
+        // Use dates relative to today so no expense is in the past on first launch —
+        // this ensures bringDataUpToDate() subtracts nothing and curBalance stays at 3500.
+        ExpenseModel rent = new ExpenseModel(
+                "Rent", "850.00", mToday.plusDays(2), 1, ChronoUnit.MONTHS, false);
+        ExpenseModel netflix = new ExpenseModel(
+                "Netflix", "15.99", mToday.plusDays(5), 1, ChronoUnit.MONTHS, false);
+        ExpenseModel electric = new ExpenseModel(
+                "Electric Bill", "110.00", mToday.plusDays(9), 1, ChronoUnit.MONTHS, false);
+
+        // Credit cards (appear in expense list and credit utilization screen)
+        ExpenseModel everyday = new ExpenseModel(
+                "Everyday Card", "450.00", mToday.plusDays(3), 1, ChronoUnit.MONTHS, false);
+        everyday.setIsCredit(true);
+        everyday.setCreditLimit("2000.00");
+        ExpenseModel travel = new ExpenseModel(
+                "Travel Card", "1200.00", mToday.plusDays(13), 1, ChronoUnit.MONTHS, false);
+        travel.setIsCredit(true);
+        travel.setCreditLimit("3000.00");
+        ExpenseModel hobby = new ExpenseModel(
+                "Hobby Card", "6000.00", mToday.plusDays(7), 1, ChronoUnit.MONTHS, false);
+        hobby.setIsCredit(true);
+        hobby.setCreditLimit("6200.00");
+
+        // Prepend: Rent, Netflix, Electric, Everyday Card, Travel Card
+        expenseListStor.add(0, hobby);
+        expenseListStor.add(0, travel);
+        expenseListStor.add(0, everyday);
+        expenseListStor.add(0, electric);
+        expenseListStor.add(0, netflix);
+        expenseListStor.add(0, rent);
+
+        // Biweekly income stream
+        String checkDateStr = calendarToString(mToday, STORE_FORMAT);
+        IncomeStreamModel mainJob = new IncomeStreamModel(
+                "Main Job", "2400.00", checkDateStr, 2, WEEK_INT);
+        mainJob.setSelected(true);
+        incomeStreamList.add(0, mainJob);
+
+        // Starting balance so the dashboard looks healthy from day one
+        curBalance = 3500f;
+
+        // Update derived check-period fields so checkForNextCheck() has the right baseline
+        averageCheck      = mainJob.getAmountFloat();
+        checkFrequency    = mainJob.getFrequency();
+        checkFrequencyTag = ChronoUnit.WEEKS;
+        curCheckDate      = mToday;
+        nextCheckDate     = mToday.plus(checkFrequency, checkFrequencyTag);
+        begCheckDate      = curCheckDate;
+        endCheckDate      = nextCheckDate;
+
+        prefs.edit().putBoolean("sample_data_seeded", true).apply();
+        saveNow();
+    }
+
     private void getExpenses() throws IOException, ClassNotFoundException {
         // Reference RecyclerView
         expenseTable = findViewById(R.id.expense_table);
@@ -745,6 +970,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             lastOpened = mToday;
         }
 
+        seedSampleDataIfNeeded();
         checkForNextCheck();
         resetProjToActiveStream();
         bringDataUpToDate(false);
@@ -761,19 +987,31 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }, new ExpenseAdapter.SelectionCallback() {
             @Override
             public void onEnterSelectionMode() {
-                invalidateOptionsMenu();
+                activeActionMode = startSupportActionMode(actionModeCallback);
             }
 
             @Override
             public void onExitSelectionMode() {
-                invalidateOptionsMenu();
+                if (activeActionMode != null) {
+                    ActionMode m = activeActionMode;
+                    activeActionMode = null;
+                    m.finish();
+                }
             }
 
             @Override
             public void onSelectionCountChanged(int count) {
-                invalidateOptionsMenu();
+                if (activeActionMode != null) activeActionMode.invalidate();
             }
         });
+
+        projectionBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                getPrevCheck();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, projectionBackCallback);
 
         // Set adapter to RecyclerView
         expenseTable.setAdapter(expenseAdapter);
@@ -1175,6 +1413,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             return;
         }
         onHomeScreen = false;
+        if (projectionBackCallback != null) projectionBackCallback.setEnabled(true);
         projStepsForward++;
         currentBankBalance.setClickable(false);
         expenseTable.setClickable(false);
@@ -1234,6 +1473,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         // Change floating action button icon back to "add"
         addExpenseButton.setImageResource(R.drawable.sharp_add);
         onHomeScreen = true;
+        if (projectionBackCallback != null) projectionBackCallback.setEnabled(false);
     }
 
     /*
@@ -1296,65 +1536,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        boolean inSelection = expenseAdapter != null && expenseAdapter.isInSelectionMode();
-        int selectedCount = inSelection ? expenseAdapter.getSelectedPositions().size() : 0;
-
-        MenuItem selectItem = menu.findItem(R.id.action_select);
-        if (selectItem != null) {
-            selectItem.setVisible(!inSelection);
-        }
-
-        MenuItem deleteItem = menu.findItem(R.id.action_delete_selected);
-        if (deleteItem != null) {
-            deleteItem.setVisible(inSelection);
-        }
-
-        MenuItem editItem = menu.findItem(R.id.action_edit_selected);
-        if (editItem != null) {
-            editItem.setVisible(inSelection);
-            boolean singleSelected = selectedCount == 1;
-            editItem.setEnabled(singleSelected);
-            if (editItem.getIcon() != null) {
-                editItem.getIcon().mutate().setAlpha(singleSelected ? 255 : 100);
-            }
-        }
-
-        return super.onPrepareOptionsMenu(menu);
-    }
-
-    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_select) {
             expenseAdapter.enterSelectionMode();
-            return true;
-        }
-        if (item.getItemId() == R.id.action_edit_selected) {
-            Set<Integer> selected = expenseAdapter.getSelectedPositions();
-            if (selected.size() == 1) {
-                int position = selected.iterator().next();
-                expenseAdapter.exitSelectionMode();
-                addEditExpenseDialog(EDIT, position).show();
-            }
-            return true;
-        }
-        if (item.getItemId() == R.id.action_delete_selected) {
-            showDeleteConfirmation();
             return true;
         }
         if (actionBarDrawerToggle.onOptionsItemSelected(item)) {
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (expenseAdapter != null && expenseAdapter.isInSelectionMode()) {
-            expenseAdapter.exitSelectionMode();
-        } else {
-            super.onBackPressed();
-        }
     }
 
     private void showDeleteConfirmation() {
@@ -1779,6 +1969,14 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 triggerInitialCalendarSync();
             }
         }
+
+        // Show tutorial if still active. Both paths (first-launch and Settings replay via
+        // recreate) go through showTutorialIfNeeded so the pendingTutorialShow null-check
+        // prevents a double-fire when onCreate already posted the 400ms callback.
+        if (getSharedPreferences("bujit_legal_prefs", MODE_PRIVATE)
+                .getBoolean("disclaimer_accepted", false)) {
+            showTutorialIfNeeded();
+        }
     }
 
     private void reloadExpenseListFromDisk() {
@@ -1841,6 +2039,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Save data before app closed
     @Override
     protected void onPause() {
+        if (pendingTutorialShow != null) {
+            mainHandler.removeCallbacks(pendingTutorialShow);
+            pendingTutorialShow = null;
+        }
+        removeTutorialOverlay();
         super.onPause();
         try {
             goHomePage();

@@ -93,7 +93,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     public ExpenseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View expenseView = LayoutInflater.from(context)
                 .inflate(R.layout.expense_layout, parent, false);
-        return new ExpenseViewHolder(expenseView);
+        ExpenseViewHolder holder = new ExpenseViewHolder(expenseView);
+        return holder;
     }
 
     @Override
@@ -190,6 +191,24 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         return new HashSet<>(selectedPositions);
     }
 
+    public boolean isAllSelected() {
+        return !expenseList.isEmpty() && selectedPositions.size() == expenseList.size();
+    }
+
+    public void selectAll() {
+        if (isAllSelected()) {
+            selectedPositions.clear();
+            notifyDataSetChanged();
+            if (selectionCallback != null) selectionCallback.onSelectionCountChanged(0);
+        } else {
+            for (int i = 0; i < expenseList.size(); i++) {
+                selectedPositions.add(i);
+            }
+            notifyDataSetChanged();
+            if (selectionCallback != null) selectionCallback.onSelectionCountChanged(selectedPositions.size());
+        }
+    }
+
     private void toggleSelection(int position) {
         if (selectedPositions.contains(position)) {
             selectedPositions.remove(position);
@@ -227,24 +246,33 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     */
     private void applySelectionState(CheckBox cb, LinearLayout content,
                                      boolean inSelection, boolean animate) {
-        float targetCbX      = inSelection ? 0f : -checkboxOffset;
-        float targetCbAlpha  = inSelection ? 1f : 0f;
-        float targetContentX = inSelection ? 0f : -checkboxOffset;
-
         if (animate) {
-            cb.animate()
-                    .translationX(targetCbX)
-                    .alpha(targetCbAlpha)
-                    .setDuration(ANIM_DURATION)
-                    .start();
-            content.animate()
-                    .translationX(targetContentX)
-                    .setDuration(ANIM_DURATION)
-                    .start();
+            if (inSelection) {
+                cb.setTranslationX(-checkboxOffset);
+                cb.setAlpha(0f);
+                cb.setVisibility(View.VISIBLE);
+                cb.animate().translationX(0f).alpha(1f).setDuration(ANIM_DURATION).start();
+                content.animate().translationX(checkboxOffset).setDuration(ANIM_DURATION).start();
+            } else {
+                cb.animate().translationX(-checkboxOffset).alpha(0f).setDuration(ANIM_DURATION)
+                        .withEndAction(() -> {
+                            cb.setVisibility(View.GONE);
+                            cb.setTranslationX(0f);
+                        }).start();
+                content.animate().translationX(0f).setDuration(ANIM_DURATION).start();
+            }
         } else {
-            cb.setTranslationX(targetCbX);
-            cb.setAlpha(targetCbAlpha);
-            content.setTranslationX(targetContentX);
+            if (inSelection) {
+                cb.setTranslationX(0f);
+                cb.setAlpha(1f);
+                cb.setVisibility(View.VISIBLE);
+                content.setTranslationX(checkboxOffset);
+            } else {
+                cb.setAlpha(0f);
+                cb.setVisibility(View.GONE);
+                cb.setTranslationX(0f);
+                content.setTranslationX(0f);
+            }
         }
     }
 
