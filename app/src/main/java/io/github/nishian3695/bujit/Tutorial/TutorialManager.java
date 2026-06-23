@@ -46,7 +46,7 @@ public class TutorialManager {
             12),
         new StepDef(ExpenseActivity.class, R.id.balance_card,
             "Balance at a glance",
-            "Left: your current bank balance (long-press to update it).\nRight: what you'll have left after every expense due this check is paid.",
+            "Left: your current bank balance. Long-press to update it or link it to a connected account.\nRight: what you'll have left after every expense due this check is paid.",
             12),
         new StepDef(ExpenseActivity.class, R.id.expense_table,
             "Expense list",
@@ -54,7 +54,7 @@ public class TutorialManager {
             8),
         new StepDef(ExpenseActivity.class, R.id.add_button,
             "Add an expense",
-            "Tap + to add a recurring expense — rent, subscriptions, utilities. Set the amount, frequency, and start date.",
+            "Tap + to add a recurring expense (e.g., rent, subscriptions, utilities). Set the amount, frequency, and start date.",
             20),
         // Step 4: show the navigation drawer
         new StepDef(ExpenseActivity.class, R.id.main_navigation_view,
@@ -68,15 +68,12 @@ public class TutorialManager {
             8),
         new StepDef(IncomeStreamsActivity.class, R.id.income_streams_fab,
             "Add an income source",
-            "Tap + to add a paycheck — your job, a side hustle, or any recurring income. Each stream has its own frequency and start date.",
+            "Tap + to add a paycheck, like your job, a side hustle, or any recurring income. Each stream has its own frequency and start date.",
             20, CreditUtilActivity.class),
         // CreditUtilActivity: step 7
         new StepDef(CreditUtilActivity.class, R.id.credit_recyclerview,
             "Credit Utilization",
-            "Track your credit card balances against their limits. Bujit highlights utilization:\n\
-            ✅ 0-30%: Good utilization\n\
-            ⚠️ 31-50%: Moderate utilization\n\
-            ❌ 51%+: High utilization",
+            "Track your credit card balances against their limits. Bujit highlights utilization:\n✅ 0-30%: Good utilization\n⚠️ 31-50%: Moderate utilization\n❌ 51%+: High utilization",
             8, BankingActivity.class),
         // BankingActivity: step 8
         new StepDef(BankingActivity.class, R.id.btn_connect_bank,

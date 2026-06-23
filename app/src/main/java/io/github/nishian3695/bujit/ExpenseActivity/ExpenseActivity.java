@@ -1,5 +1,6 @@
 package io.github.nishian3695.bujit.ExpenseActivity;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -148,6 +149,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     // Google Tasks helper (lazy-init, non-null after first access)
     private GoogleTasksHelper googleTasksHelper;
+    private OnBackPressedCallback selectionBackCallback;
+    private OnBackPressedCallback projectionBackCallback;
     // endregion
 
     @SuppressLint("ClickableViewAccessibility")
@@ -805,28 +808,31 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             return;
         }
 
-        int y = mToday.getYear();
-        int m = mToday.getMonthValue();
-
-        // Regular expenses
+        // Use dates relative to today so no expense is in the past on first launch —
+        // this ensures bringDataUpToDate() subtracts nothing and curBalance stays at 3500.
         ExpenseModel rent = new ExpenseModel(
-                "Rent", "850.00", LocalDate.of(y, m, 1), 1, ChronoUnit.MONTHS, false);
+                "Rent", "850.00", mToday.plusDays(2), 1, ChronoUnit.MONTHS, false);
         ExpenseModel netflix = new ExpenseModel(
-                "Netflix", "15.99", LocalDate.of(y, m, 7), 1, ChronoUnit.MONTHS, false);
+                "Netflix", "15.99", mToday.plusDays(5), 1, ChronoUnit.MONTHS, false);
         ExpenseModel electric = new ExpenseModel(
-                "Electric Bill", "110.00", LocalDate.of(y, m, 15), 1, ChronoUnit.MONTHS, false);
+                "Electric Bill", "110.00", mToday.plusDays(9), 1, ChronoUnit.MONTHS, false);
 
         // Credit cards (appear in expense list and credit utilization screen)
         ExpenseModel everyday = new ExpenseModel(
-                "Everyday Card", "450.00", LocalDate.of(y, m, 1), 1, ChronoUnit.MONTHS, false);
+                "Everyday Card", "450.00", mToday.plusDays(3), 1, ChronoUnit.MONTHS, false);
         everyday.setIsCredit(true);
         everyday.setCreditLimit("2000.00");
         ExpenseModel travel = new ExpenseModel(
-                "Travel Card", "1100.00", LocalDate.of(y, m, 1), 1, ChronoUnit.MONTHS, false);
+                "Travel Card", "1200.00", mToday.plusDays(13), 1, ChronoUnit.MONTHS, false);
         travel.setIsCredit(true);
         travel.setCreditLimit("3000.00");
+        ExpenseModel hobby = new ExpenseModel(
+                "Hobby Card", "6000.00", mToday.plusDays(7), 1, ChronoUnit.MONTHS, false);
+        hobby.setIsCredit(true);
+        hobby.setCreditLimit("6200.00");
 
         // Prepend: Rent, Netflix, Electric, Everyday Card, Travel Card
+        expenseListStor.add(0, hobby);
         expenseListStor.add(0, travel);
         expenseListStor.add(0, everyday);
         expenseListStor.add(0, electric);
@@ -922,11 +928,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }, new ExpenseAdapter.SelectionCallback() {
             @Override
             public void onEnterSelectionMode() {
+                if (selectionBackCallback != null) selectionBackCallback.setEnabled(true);
                 invalidateOptionsMenu();
             }
 
             @Override
             public void onExitSelectionMode() {
+                if (selectionBackCallback != null) selectionBackCallback.setEnabled(false);
                 invalidateOptionsMenu();
             }
 
@@ -935,6 +943,22 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 invalidateOptionsMenu();
             }
         });
+
+        selectionBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                if (expenseAdapter != null) expenseAdapter.exitSelectionMode();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, selectionBackCallback);
+
+        projectionBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                getPrevCheck();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, projectionBackCallback);
 
         // Set adapter to RecyclerView
         expenseTable.setAdapter(expenseAdapter);
@@ -1336,6 +1360,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             return;
         }
         onHomeScreen = false;
+        if (projectionBackCallback != null) projectionBackCallback.setEnabled(true);
         projStepsForward++;
         currentBankBalance.setClickable(false);
         expenseTable.setClickable(false);
@@ -1395,6 +1420,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         // Change floating action button icon back to "add"
         addExpenseButton.setImageResource(R.drawable.sharp_add);
         onHomeScreen = true;
+        if (projectionBackCallback != null) projectionBackCallback.setEnabled(false);
     }
 
     /*
@@ -1463,21 +1489,18 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
         MenuItem selectItem = menu.findItem(R.id.action_select);
         if (selectItem != null) {
-            selectItem.setVisible(!inSelection);
+            selectItem.setVisible(true);
+            boolean allSelected = inSelection && expenseAdapter.isAllSelected();
+            selectItem.setIcon(allSelected ? R.drawable.ic_select_all : R.drawable.ic_select);
         }
 
         MenuItem deleteItem = menu.findItem(R.id.action_delete_selected);
         if (deleteItem != null) {
             deleteItem.setVisible(inSelection);
-        }
-
-        MenuItem editItem = menu.findItem(R.id.action_edit_selected);
-        if (editItem != null) {
-            editItem.setVisible(inSelection);
-            boolean singleSelected = selectedCount == 1;
-            editItem.setEnabled(singleSelected);
-            if (editItem.getIcon() != null) {
-                editItem.getIcon().mutate().setAlpha(singleSelected ? 255 : 100);
+            boolean hasSelection = selectedCount > 0;
+            deleteItem.setEnabled(hasSelection);
+            if (deleteItem.getIcon() != null) {
+                deleteItem.getIcon().mutate().setAlpha(hasSelection ? 255 : 100);
             }
         }
 
@@ -1487,15 +1510,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_select) {
-            expenseAdapter.enterSelectionMode();
-            return true;
-        }
-        if (item.getItemId() == R.id.action_edit_selected) {
-            Set<Integer> selected = expenseAdapter.getSelectedPositions();
-            if (selected.size() == 1) {
-                int position = selected.iterator().next();
-                expenseAdapter.exitSelectionMode();
-                addEditExpenseDialog(EDIT, position).show();
+            if (expenseAdapter.isInSelectionMode()) {
+                expenseAdapter.selectAll();
+            } else {
+                expenseAdapter.enterSelectionMode();
             }
             return true;
         }
@@ -1507,15 +1525,6 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (expenseAdapter != null && expenseAdapter.isInSelectionMode()) {
-            expenseAdapter.exitSelectionMode();
-        } else {
-            super.onBackPressed();
-        }
     }
 
     private void showDeleteConfirmation() {

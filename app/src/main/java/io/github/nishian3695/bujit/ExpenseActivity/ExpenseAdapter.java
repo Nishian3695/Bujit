@@ -190,6 +190,24 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         return new HashSet<>(selectedPositions);
     }
 
+    public boolean isAllSelected() {
+        return !expenseList.isEmpty() && selectedPositions.size() == expenseList.size();
+    }
+
+    public void selectAll() {
+        if (isAllSelected()) {
+            selectedPositions.clear();
+            notifyDataSetChanged();
+            if (selectionCallback != null) selectionCallback.onSelectionCountChanged(0);
+        } else {
+            for (int i = 0; i < expenseList.size(); i++) {
+                selectedPositions.add(i);
+            }
+            notifyDataSetChanged();
+            if (selectionCallback != null) selectionCallback.onSelectionCountChanged(selectedPositions.size());
+        }
+    }
+
     private void toggleSelection(int position) {
         if (selectedPositions.contains(position)) {
             selectedPositions.remove(position);
@@ -227,24 +245,25 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     */
     private void applySelectionState(CheckBox cb, LinearLayout content,
                                      boolean inSelection, boolean animate) {
-        float targetCbX      = inSelection ? 0f : -checkboxOffset;
-        float targetCbAlpha  = inSelection ? 1f : 0f;
-        float targetContentX = inSelection ? 0f : -checkboxOffset;
-
+        content.setTranslationX(0f);
         if (animate) {
-            cb.animate()
-                    .translationX(targetCbX)
-                    .alpha(targetCbAlpha)
-                    .setDuration(ANIM_DURATION)
-                    .start();
-            content.animate()
-                    .translationX(targetContentX)
-                    .setDuration(ANIM_DURATION)
-                    .start();
+            if (inSelection) {
+                cb.setAlpha(0f);
+                cb.setVisibility(View.VISIBLE);
+                cb.animate().alpha(1f).setDuration(ANIM_DURATION).start();
+            } else {
+                cb.animate().alpha(0f).setDuration(ANIM_DURATION)
+                        .withEndAction(() -> cb.setVisibility(View.GONE))
+                        .start();
+            }
         } else {
-            cb.setTranslationX(targetCbX);
-            cb.setAlpha(targetCbAlpha);
-            content.setTranslationX(targetContentX);
+            if (inSelection) {
+                cb.setAlpha(1f);
+                cb.setVisibility(View.VISIBLE);
+            } else {
+                cb.setAlpha(0f);
+                cb.setVisibility(View.GONE);
+            }
         }
     }
 
