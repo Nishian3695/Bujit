@@ -200,6 +200,26 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         onHomeScreen = true;
         setContentView(R.layout.activity_main);
         ThemeHelper.tintActionBar(this);
+        // Extend the action bar visually into the transparent status-bar area so the
+        // NavigationView isn't visible behind it when the drawer slides in. The decor
+        // layer renders above both content and drawer views, so a view added here will
+        // cover the nav drawer in that region regardless of Z-order inside DrawerLayout.
+        android.view.ViewGroup decorView = (android.view.ViewGroup) getWindow().getDecorView();
+        View statusBarCover = new View(this);
+        int[] colorAttr = { android.R.attr.colorPrimary };
+        android.content.res.TypedArray ta = obtainStyledAttributes(colorAttr);
+        statusBarCover.setBackgroundColor(ta.getColor(0, 0));
+        ta.recycle();
+        decorView.addView(statusBarCover, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0));
+        statusBarCover.post(() -> {
+            WindowInsetsCompat wi = ViewCompat.getRootWindowInsets(statusBarCover);
+            if (wi != null) {
+                android.view.ViewGroup.LayoutParams lp = statusBarCover.getLayoutParams();
+                lp.height = wi.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+                statusBarCover.setLayoutParams(lp);
+            }
+        });
         // Set up layout items
         mainLayout = findViewById(R.id.main_constraint_layout);
         ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, windowInsets) -> {
