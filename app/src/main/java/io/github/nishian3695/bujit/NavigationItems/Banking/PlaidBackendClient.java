@@ -141,6 +141,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
                 account.setInstitutionName(obj.optString("institution_name"));
                 account.setLedgerBalance(obj.optString("ledger", "—"));
                 account.setAvailableBalance(obj.optString("available", "—"));
+                if (!obj.isNull("limit")) account.setCreditLimit(obj.optString("limit"));
                 accounts.add(account);
             }
         } catch (JSONException e) {
@@ -157,10 +158,11 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
             checkForAuthError(r);
             if (!r.isSuccessful())
                 throw new IOException("Backend " + path + " failed: HTTP " + r.code());
-            JSONObject bal      = new JSONObject(r.body().string());
-            float ledger        = parseFloatSafe(bal.optString("ledger",    "0"));
-            float available     = parseFloatSafe(bal.optString("available", "0"));
-            return new float[]{ledger, available};
+            JSONObject bal  = new JSONObject(r.body().string());
+            float ledger    = parseFloatSafe(bal.optString("ledger",    "0"));
+            float available = parseFloatSafe(bal.optString("available", "0"));
+            float limit     = !bal.isNull("limit") ? parseFloatSafe(bal.optString("limit", "0")) : 0f;
+            return new float[]{ledger, available, limit};
         } catch (JSONException e) {
             throw new IOException("Parse error for " + accountId + ": " + e.getMessage(), e);
         }

@@ -123,7 +123,9 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
             JSONObject bal = new JSONObject(r.body().string());
             float ledger    = parseFloatSafe(bal.optString("ledger",    "0"));
             float available = parseFloatSafe(bal.optString("available", "0"));
-            return new float[]{ledger, available};
+            // Teller does not expose the credit limit directly; 0 signals the caller to
+            // fall back to ledger + available as an approximation.
+            return new float[]{ledger, available, 0f};
         } catch (JSONException e) {
             throw new IOException("Parse error for " + accountId + ": " + e.getMessage(), e);
         }

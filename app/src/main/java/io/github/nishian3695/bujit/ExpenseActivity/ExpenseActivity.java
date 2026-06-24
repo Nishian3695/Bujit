@@ -1722,8 +1722,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken);
                         if (expense.getIsCredit()) {
                             float[] pair  = client.fetchAccountBalancePair(expense.getLinkedAccountId());
+                            // pair[2] > 0: provider returned the actual credit limit (Plaid).
+                            // pair[2] == 0: Teller fallback — ledger + available understates by pending amount.
+                            float limitFloat = pair[2] > 0f ? pair[2] : pair[0] + pair[1];
                             String debt   = String.format(Locale.US, "%.2f", pair[0]);
-                            String limit  = String.format(Locale.US, "%.2f", pair[0] + pair[1]);
+                            String limit  = String.format(Locale.US, "%.2f", limitFloat);
                             expense.setCost(debt);
                             expense.setShownCost(debt);
                             expense.setCreditLimit(limit);

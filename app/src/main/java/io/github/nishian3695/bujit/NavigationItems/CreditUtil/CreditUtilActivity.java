@@ -490,7 +490,14 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             BankAccountModel sel = accounts.get(idx);
                             float ledger = parseFloatSafe(sel.getLedgerBalance());
                             float avail  = parseFloatSafe(sel.getAvailableBalance());
-                            float limit  = ledger + avail;
+                            // Use the provider's reported credit limit when available (Plaid
+                            // exposes balances.limit directly). For Teller, fall back to
+                            // ledger + available, which understates the limit by any pending
+                            // amount but is the best approximation without a limit field.
+                            String rawLimit = sel.getCreditLimit();
+                            float limit = (rawLimit != null && !rawLimit.isEmpty())
+                                    ? parseFloatSafe(rawLimit) : ledger + avail;
+                            if (limit <= 0f) limit = ledger + avail;
 
                             String display = sel.getInstitutionName()
                                     + " " + sel.getDisplayType()
@@ -541,8 +548,11 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     float[] pair  = client.fetchAccountBalancePair(credit.getLinkedAccountId());
                     float ledger  = pair[0];
                     float avail   = pair[1];
+                    // pair[2] > 0: provider returned the actual credit limit (Plaid balances.limit).
+                    // pair[2] == 0: Teller fallback — ledger + available understates by pending amount.
+                    float limitFloat = pair[2] > 0f ? pair[2] : ledger + avail;
                     String debt   = String.format(Locale.US, "%.2f", ledger);
-                    String limit  = String.format(Locale.US, "%.2f", ledger + avail);
+                    String limit  = String.format(Locale.US, "%.2f", limitFloat);
                     credit.setCost(debt);
                     credit.setShownCost(debt);
                     credit.setCreditLimit(limit);

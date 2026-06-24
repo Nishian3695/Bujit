@@ -48,6 +48,7 @@ import io.teller.connect.sdk.Registration;
 import androidx.activity.result.ActivityResultLauncher;
 import com.plaid.link.OpenPlaidLink;
 import com.plaid.link.configuration.LinkTokenConfiguration;
+import com.plaid.link.result.LinkExit;
 import com.plaid.link.result.LinkResult;
 import com.plaid.link.result.LinkSuccess;
 
@@ -210,8 +211,14 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
             String publicToken = ((LinkSuccess) result).getPublicToken();
             Log.d(TAG, "handlePlaidResult: success, exchanging public token");
             exchangePlaidPublicToken(publicToken);
-        } else {
-            Log.d(TAG, "handlePlaidResult: user exited without linking");
+        } else if (result instanceof LinkExit) {
+            LinkExit exit = (LinkExit) result;
+            if (exit.getError() != null) {
+                Log.e(TAG, "handlePlaidResult: exit error=" + exit.getError().getErrorCode()
+                        + " message=" + exit.getError().getErrorMessage());
+            } else {
+                Log.d(TAG, "handlePlaidResult: user exited without linking");
+            }
             if (accounts.isEmpty()) showEmptyState();
         }
     }

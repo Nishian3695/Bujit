@@ -13,16 +13,33 @@ admin.initializeApp();
 const tellerCert = defineSecret("TELLER_CERT");
 const tellerKey = defineSecret("TELLER_PRIVATE_KEY");
 
-// Plaid secrets
-const plaidClientId = defineSecret("PLAID_CLIENT_ID");
-const plaidSecret = defineSecret("PLAID_SECRET");
+// Plaid secrets, selected at runtime by PLAID_ENV.
+const plaidClientId          = defineSecret("PLAID_CLIENT_ID");
+const plaidSecretSandbox     = defineSecret("PLAID_SECRET_SANDBOX");
+const plaidSecretProduction  = defineSecret("PLAID_SECRET_PRODUCTION");
 
-// Plaid environment. 
-// Set to "https://sandbox.plaid.com" for sandbox testing.
-// Set to "https://production.plaid.com" for production.
-// Deploy with: firebase functions:secrets:set PLAID_BASE_URL
-// Defaults to sandbox.
-const PLAID_BASE_URL = defineString("PLAID_BASE_URL", {default: "https://sandbox.plaid.com"});
+function plaidSecretValue() {
+  switch (PLAID_ENV.value()) {
+    case "sandbox":     return plaidSecretSandbox.value();
+    case "production":  return plaidSecretProduction.value();
+    default:            return plaidSecretSandbox.value();  // fallback to sandbox if PLAID_ENV is invalid
+  }
+}
+
+// Plaid environment. Set PLAID_ENV in .env.<project> to one of:
+//   sandbox | development | production   (defaults to production)
+const PLAID_ENV = defineString("PLAID_ENV", {default: "production"});
+
+// Plaid base URL based on environment.
+// Sandbox: https://sandbox.plaid.com
+// Development/Production: https://production.plaid.com (they use the same now)
+function plaidBaseUrl() {
+  switch (PLAID_ENV.value()) {
+    case "sandbox":     return "https://sandbox.plaid.com";
+    case "production":  return "https://production.plaid.com";
+    default:            return "https://sandbox.plaid.com";  // fallback to sandbox if PLAID_ENV is invalid
+  }
+}
 
 // Set ENFORCE_APP_CHECK=true in production to require Firebase App Check tokens.
 // Flip this via Cloud Run env vars; leave false during initial rollout/testing.
@@ -66,8 +83,8 @@ async function verifyAppCheck(req, res) {
 
 async function handlePlaidRequest(req, res, decodedToken) {
   const clientId = plaidClientId.value();
-  const secret = plaidSecret.value();
-  const baseUrl = PLAID_BASE_URL.value();
+  const secret = plaidSecretValue();
+  const baseUrl = plaidBaseUrl();
 
   try {
     // POST /plaid/link/token
@@ -80,6 +97,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
         products: ["transactions"],
         country_codes: ["US"],
         language: "en",
+        android_package_name: "io.github.nishian3695.bujit",
       });
       res.json({link_token: response.data.link_token});
       return;
@@ -155,6 +173,8 @@ async function handlePlaidRequest(req, res, decodedToken) {
         institution_name: institutionName,
         ledger: acct.balances.current != null ? acct.balances.current.toString() : "—",
         available: acct.balances.available != null ? acct.balances.available.toString() : "—",
+        // limit is only non-null for credit-type accounts; null for depository/investment.
+        limit: acct.balances.limit != null ? acct.balances.limit.toString() : null,
       }));
 
       res.json(result);
@@ -180,6 +200,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
       res.json({
         ledger: balances.current != null ? balances.current.toString() : "—",
         available: balances.available != null ? balances.available.toString() : "—",
+        limit: balances.limit != null ? balances.limit.toString() : null,
       });
       return;
     }
@@ -253,7 +274,7 @@ async function handleTellerRequest(req, res, agent) {
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 exports.tellerProxy = onRequest(
-  {secrets: [tellerCert, tellerKey, plaidClientId, plaidSecret], invoker: "public"},
+  {secrets: [tellerCert, tellerKey, plaidClientId, plaidSecretSandbox, plaidSecretProduction], invoker: "public"},
   async (req, res) => {
     // Step 1: Verify App Check token (when enforcement is enabled).
     if (!await verifyAppCheck(req, res)) return;
