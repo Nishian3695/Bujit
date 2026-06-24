@@ -8,7 +8,6 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -19,45 +18,18 @@ import okhttp3.Response;
 HTTP client that proxies Plaid API calls through the Firebase Cloud Function backend.
 The Plaid client_id and secret live in Firebase Secret Manager, not in the APK.
 
-Expected backend endpoints (all under the same proxy base URL as Teller):
+All requests are made with a shared OkHttpClient that includes:
+  - Certificate pinning to the backend's intermediate and root CA.
+  - Firebase App Check token interceptor.
 
-  POST /plaid/link/token
-    Headers: Authorization: Bearer <firebaseIdToken>
-    Response: { "link_token": "link-sandbox-..." }
-
-  POST /plaid/exchange
-    Headers: Authorization: Bearer <firebaseIdToken>
-    Body:     { "public_token": "public-sandbox-..." }
-    Response: { "access_token": "access-sandbox-..." }
-
-  GET /plaid/accounts
-    Headers: Authorization: Bearer <firebaseIdToken>
-             X-Plaid-Token: <accessToken>
-    Response: JSON array where each element has:
-      {
-        "id":               "account_id from Plaid",
-        "name":             "account name",
-        "type":             "depository",
-        "subtype":          "checking",
-        "mask":             "0000",
-        "institution_name": "Chase",
-        "ledger":           "110.00",
-        "available":        "100.00"
-      }
-
-  GET /plaid/accounts/{id}/balance
-    Headers: Authorization: Bearer <firebaseIdToken>
-             X-Plaid-Token: <accessToken>
-    Response: { "ledger": "110.00", "available": "100.00" }
-
-All instance methods are blocking and must be called from a background thread.
-Static methods (fetchLinkToken, exchangePublicToken) are also blocking.
+HTTP 401 responses are surfaced as BankingAuthException to signal that the stored
+access token has been revoked and the user must re-link their bank account.
 */
 public class PlaidBackendClient implements PlaidApi, BankingApiClient {
 
-    private static final String TAG              = "BujitBanking";
-    private static final String BACKEND_BASE_URL = "https://tellerproxy-kswzrkdipq-uc.a.run.app";
-    private static final MediaType JSON          = MediaType.get("application/json; charset=utf-8");
+    private static final String TAG     = "BujitBanking";
+    private static final String BASE    = "https://" + BankingProviderConfig.BACKEND_HOST;
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final OkHttpClient http;
     private final String accessToken;
@@ -66,28 +38,22 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
     public PlaidBackendClient(Context context, String accessToken, String firebaseIdToken) {
         this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
-        this.http = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
+        this.http            = BankingProviderConfig.buildSecureHttpClient();
     }
 
     // Requests a Plaid link_token from the backend so the Plaid Link SDK can be initialized.
-    // Returns the raw link_token string.
     public static String fetchLinkToken(Context context, String firebaseIdToken) throws IOException {
-        OkHttpClient http = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
-        RequestBody body = RequestBody.create("{}", MediaType.get("application/json; charset=utf-8"));
+        OkHttpClient http = BankingProviderConfig.buildSecureHttpClient();
+        RequestBody body = RequestBody.create("{}", JSON);
         Request request = new Request.Builder()
-                .url(BACKEND_BASE_URL + "/plaid/link/token")
+                .url(BASE + "/plaid/link/token")
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
                 .post(body)
                 .build();
         Log.d(TAG, "PlaidBackendClient: POST /plaid/link/token");
         try (Response response = http.newCall(request).execute()) {
             Log.d(TAG, "PlaidBackendClient: /plaid/link/token → HTTP " + response.code());
+            checkForAuthError(response);
             if (!response.isSuccessful()) {
                 String err = response.body() != null ? response.body().string() : "(no body)";
                 throw new IOException("Backend /plaid/link/token failed: HTTP " + response.code() + " " + err);
@@ -100,27 +66,25 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
     }
 
     // Exchanges a Plaid public_token (from the SDK callback) for a permanent access_token.
-    // The backend calls Plaid's /item/public_token/exchange and returns the access_token.
-    public static String exchangePublicToken(Context context, String publicToken, String firebaseIdToken) throws IOException {
-        OkHttpClient http = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
+    public static String exchangePublicToken(Context context, String publicToken,
+            String firebaseIdToken) throws IOException {
+        OkHttpClient http = BankingProviderConfig.buildSecureHttpClient();
         String bodyStr;
         try {
             bodyStr = new JSONObject().put("public_token", publicToken).toString();
         } catch (JSONException e) {
             throw new IOException("Failed to build exchange request body", e);
         }
-        RequestBody body = RequestBody.create(bodyStr, MediaType.get("application/json; charset=utf-8"));
+        RequestBody body = RequestBody.create(bodyStr, JSON);
         Request request = new Request.Builder()
-                .url(BACKEND_BASE_URL + "/plaid/exchange")
+                .url(BASE + "/plaid/exchange")
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
                 .post(body)
                 .build();
         Log.d(TAG, "PlaidBackendClient: POST /plaid/exchange");
         try (Response response = http.newCall(request).execute()) {
             Log.d(TAG, "PlaidBackendClient: /plaid/exchange → HTTP " + response.code());
+            checkForAuthError(response);
             if (!response.isSuccessful()) {
                 String err = response.body() != null ? response.body().string() : "(no body)";
                 throw new IOException("Backend /plaid/exchange failed: HTTP " + response.code() + " " + err);
@@ -133,11 +97,31 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
     }
 
     @Override
+    public void revokeToken() throws IOException {
+        RequestBody body = RequestBody.create("{}", JSON);
+        Request request = new Request.Builder()
+                .url(BASE + "/plaid/remove")
+                .header("X-Plaid-Token", accessToken)
+                .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .post(body)
+                .build();
+        Log.d(TAG, "PlaidBackendClient: POST /plaid/remove");
+        try (Response response = http.newCall(request).execute()) {
+            Log.d(TAG, "PlaidBackendClient: /plaid/remove → HTTP " + response.code());
+            if (!response.isSuccessful()) {
+                String err = response.body() != null ? response.body().string() : "(no body)";
+                throw new IOException("Backend /plaid/remove failed: HTTP " + response.code() + " " + err);
+            }
+        }
+    }
+
+    @Override
     public List<BankAccountModel> fetchAccounts() throws IOException {
         Log.d(TAG, "PlaidBackendClient: GET /plaid/accounts");
         List<BankAccountModel> accounts = new ArrayList<>();
         try (Response response = http.newCall(buildRequest("/plaid/accounts")).execute()) {
             Log.d(TAG, "PlaidBackendClient: /plaid/accounts → HTTP " + response.code());
+            checkForAuthError(response);
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "(no body)";
                 Log.e(TAG, "PlaidBackendClient: /plaid/accounts error body: " + errorBody);
@@ -170,6 +154,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         String path = "/plaid/accounts/" + accountId + "/balance";
         Log.d(TAG, "PlaidBackendClient: GET " + path);
         try (Response r = http.newCall(buildRequest(path)).execute()) {
+            checkForAuthError(r);
             if (!r.isSuccessful())
                 throw new IOException("Backend " + path + " failed: HTTP " + r.code());
             JSONObject bal      = new JSONObject(r.body().string());
@@ -186,6 +171,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         String path = "/plaid/accounts/" + accountId + "/balance";
         Log.d(TAG, "PlaidBackendClient: GET " + path);
         try (Response r = http.newCall(buildRequest(path)).execute()) {
+            checkForAuthError(r);
             if (!r.isSuccessful())
                 throw new IOException("Backend " + path + " failed: HTTP " + r.code());
             JSONObject bal = new JSONObject(r.body().string());
@@ -197,10 +183,27 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
 
     private Request buildRequest(String path) {
         return new Request.Builder()
-                .url(BACKEND_BASE_URL + path)
+                .url(BASE + path)
                 .header("X-Plaid-Token", accessToken)
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
                 .build();
+    }
+
+    // Throws BankingAuthException when the backend returns HTTP 401, which signals that the
+    // Plaid access token is revoked (ITEM_LOGIN_REQUIRED or ACCESS_NOT_GRANTED).
+    // The response body is consumed here to extract the error code for logging.
+    private static void checkForAuthError(Response response) throws IOException {
+        if (response.code() == 401) {
+            String errorCode = "AUTH_REQUIRED";
+            try {
+                if (response.body() != null) {
+                    JSONObject body = new JSONObject(response.body().string());
+                    errorCode = body.optString("error", errorCode);
+                }
+            } catch (Exception ignored) {}
+            Log.w(TAG, "Plaid 401 received: " + errorCode);
+            throw new BankingAuthException(errorCode);
+        }
     }
 
     private float parseFloatSafe(String s) {
