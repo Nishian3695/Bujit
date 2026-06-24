@@ -242,7 +242,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         checkName.setOnLongClickListener(v -> { showProjectionSettingsDialog(); return true; });
         swipeRefreshLayout = findViewById(R.id.swipe_refresh);
         ThemeHelper.tintSwipeRefresh(swipeRefreshLayout, this);
-        swipeRefreshLayout.setOnRefreshListener(this::refreshLinkedBankBalance);
+        swipeRefreshLayout.setOnRefreshListener(() -> refreshLinkedBankBalance(false));
         // Set up navigation drawer
         drawerLayout = findViewById(R.id.main_drawer_layout);
         actionBarDrawerToggle = new ActionBarDrawerToggle(this, drawerLayout,
@@ -1063,7 +1063,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
         // Show last sync time immediately, then a background refresh if accounts are linked.
         updateSyncLabel();
-        refreshLinkedBankBalance();
+        refreshLinkedBankBalance(true);
     }
 
     public AlertDialog addEditExpenseDialog(String method, int position) {
@@ -1684,9 +1684,17 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         syncLabel.setText(label);
     }
 
-    // Fetches the latest balance for every linked main-balance account and every linked expense.
-    // Shows the SwipeRefreshLayout spinner; safe to call on startup or pull-to-refresh.
-    private void refreshLinkedBankBalance() {
+    private static final long BALANCE_TTL_MS = 15 * 60 * 1000L;
+
+    // Fetches balances for every linked account using one fetchAccounts() call per unique token
+    // (hitting /accounts/get, which returns Plaid's cached data) rather than a per-account
+    // /accounts/balance/get call. When skipIfRecent is true the fetch is skipped entirely if the
+    // last sync was less than BALANCE_TTL_MS ago — used on startup to avoid a call every app open.
+    private void refreshLinkedBankBalance(boolean skipIfRecent) {
+        if (skipIfRecent && System.currentTimeMillis() - loadLastSyncTime() < BALANCE_TTL_MS) {
+            return;
+        }
+
         Map<String, List<String>> tokenToIds = loadLinkedAccounts();
         boolean hasLinkedExpenses = hasAnyLinkedExpenses();
 
@@ -1697,54 +1705,80 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         swipeRefreshLayout.setRefreshing(true);
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
-            // Sync main balance
+
+            // Collect all unique tokens across main-balance accounts and linked expenses.
+            Set<String> allTokens = new HashSet<>(tokenToIds.keySet());
+            if (expenseListStor != null) {
+                for (ExpenseModel expense : expenseListStor) {
+                    if (!expense.isLinkedToBank()) continue;
+                    String tok = expense.getLinkedAccountToken();
+                    if (tok == null) tok = BankingProviderConfig.getTokenForAccount(this, expense.getLinkedAccountId());
+                    if (tok != null) allTokens.add(tok);
+                }
+            }
+
+            // One fetchAccounts() call per token covers all accounts for that institution.
+            Map<String, BankAccountModel> accountMap = new HashMap<>();
+            for (String tok : allTokens) {
+                BankingApiClient client = BankingProviderConfig.createClient(this, tok, idToken);
+                try {
+                    for (BankAccountModel acct : client.fetchAccounts()) {
+                        accountMap.put(acct.getId(), acct);
+                    }
+                } catch (Exception e) {
+                    Log.e("BalanceSync", "fetchAccounts failed: " + e.getMessage());
+                }
+            }
+
+            // Sum main balance from the batch result.
             float total = 0;
             boolean anyFetched = false;
-            for (Map.Entry<String, List<String>> entry : tokenToIds.entrySet()) {
-                BankingApiClient client = BankingProviderConfig.createClient(this, entry.getKey(), idToken);
-                for (String accountId : entry.getValue()) {
+            for (List<String> ids : tokenToIds.values()) {
+                for (String accountId : ids) {
+                    BankAccountModel acct = accountMap.get(accountId);
+                    if (acct == null) continue;
                     try {
-                        total += client.fetchAccountBalance(accountId);
+                        total += Float.parseFloat(acct.getLedgerBalance());
                         anyFetched = true;
-                    } catch (Exception e) {
-                        Log.e("BalanceSync", "fetch failed [" + accountId + "]: " + e.getMessage());
+                    } catch (NumberFormatException e) {
+                        Log.e("BalanceSync", "parse failed [" + accountId + "]: " + e.getMessage());
                     }
                 }
             }
-            // Sync linked expense amounts and credit limits for credit cards
+
+            // Update linked expense amounts and credit limits from the batch result.
             boolean expensesUpdated = false;
             if (expenseListStor != null) {
                 for (ExpenseModel expense : expenseListStor) {
                     if (!expense.isLinkedToBank()) continue;
+                    BankAccountModel acct = accountMap.get(expense.getLinkedAccountId());
+                    if (acct == null) continue;
                     try {
-                        String tellerToken = expense.getLinkedAccountToken();
-                        if (tellerToken == null) tellerToken = BankingProviderConfig.getTokenForAccount(this, expense.getLinkedAccountId());
-                        BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken);
                         if (expense.getIsCredit()) {
-                            float[] pair  = client.fetchAccountBalancePair(expense.getLinkedAccountId());
-                            // pair[2] > 0: provider returned the actual credit limit (Plaid).
-                            // pair[2] == 0: Teller fallback — ledger + available understates by pending amount.
-                            float limitFloat = pair[2] > 0f ? pair[2] : pair[0] + pair[1];
-                            String debt   = String.format(Locale.US, "%.2f", pair[0]);
-                            String limit  = String.format(Locale.US, "%.2f", limitFloat);
-                            expense.setCost(debt);
-                            expense.setShownCost(debt);
-                            expense.setCreditLimit(limit);
+                            float ledger    = parseBalanceSafe(acct.getLedgerBalance());
+                            float available = parseBalanceSafe(acct.getAvailableBalance());
+                            String limitRaw = acct.getCreditLimit();
+                            // Use the provider's reported limit when available (Plaid sets this);
+                            // fall back to ledger + available as an approximation (Teller path).
+                            float limitFloat = (limitRaw != null) ? parseBalanceSafe(limitRaw) : ledger + available;
+                            expense.setCost(String.format(Locale.US, "%.2f", ledger));
+                            expense.setShownCost(String.format(Locale.US, "%.2f", ledger));
+                            expense.setCreditLimit(String.format(Locale.US, "%.2f", limitFloat));
                         } else {
-                            float balance = client.fetchAccountBalance(expense.getLinkedAccountId());
-                            String formatted = String.format(Locale.US, "%.2f", balance);
+                            String formatted = String.format(Locale.US, "%.2f", parseBalanceSafe(acct.getLedgerBalance()));
                             expense.setCost(formatted);
                             expense.setShownCost(formatted);
                         }
                         expensesUpdated = true;
                     } catch (Exception e) {
-                        Log.e("LinkedExpenseSync", "fetch failed [" + expense.getName() + "]: " + e.getMessage());
+                        Log.e("LinkedExpenseSync", "update failed [" + expense.getName() + "]: " + e.getMessage());
                     }
                 }
             }
-            final float finalTotal      = total;
-            final boolean fetched       = anyFetched;
-            final boolean expUpdated    = expensesUpdated;
+
+            final float finalTotal   = total;
+            final boolean fetched    = anyFetched;
+            final boolean expUpdated = expensesUpdated;
             mainHandler.post(() -> {
                 swipeRefreshLayout.setRefreshing(false);
                 if (fetched) {
@@ -1762,6 +1796,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 }
             });
         });
+    }
+
+    private float parseBalanceSafe(String s) {
+        if (s == null || s.equals("—")) return 0f;
+        try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }
 
     // Fetches all accounts from every stored token, then shows a multi-select dialog so
