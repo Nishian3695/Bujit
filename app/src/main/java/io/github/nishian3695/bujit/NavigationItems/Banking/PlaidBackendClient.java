@@ -106,7 +106,12 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
                 .build();
-        String bodyStr = "{\"public_token\":\"" + publicToken + "\"}";
+        String bodyStr;
+        try {
+            bodyStr = new JSONObject().put("public_token", publicToken).toString();
+        } catch (JSONException e) {
+            throw new IOException("Failed to build exchange request body", e);
+        }
         RequestBody body = RequestBody.create(bodyStr, MediaType.get("application/json; charset=utf-8"));
         Request request = new Request.Builder()
                 .url(BACKEND_BASE_URL + "/plaid/exchange")

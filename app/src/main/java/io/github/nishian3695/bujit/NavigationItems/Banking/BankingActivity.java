@@ -321,7 +321,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
 
     @Override
     public void onEvent(String name, Map<String, ? extends Object> data) {
-        Log.d(TAG, "onEvent: " + name + " data=" + data);
+        Log.d(TAG, "onEvent: " + name);
     }
 
     // Fetches accounts from every stored token and merges them into one list.

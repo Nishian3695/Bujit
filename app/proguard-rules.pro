@@ -2,6 +2,15 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# Strip verbose/debug/info log calls from release builds.
+# Log.w and Log.e are kept for crash-reporting purposes.
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
