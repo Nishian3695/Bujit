@@ -31,10 +31,16 @@ public class BankingPrefs {
     private static final String KEYSTORE_ALIAS = "bujit_banking_key_v2";
     private static final String PREFS_FILE     = "bujit_banking_v2";
 
+    // Teller storage keys
     static final String KEY_TOKENS          = "tokens";
     static final String KEY_LINKED_ACCOUNTS = "linked_accounts";
     private static final String KEY_LAST_SYNC         = "last_sync";
     private static final String KEY_ACCOUNT_TOKEN_MAP = "account_token_map";
+
+    // Plaid storage keys, namespaced separately so switching providers never pollutes the other set
+    private static final String KEY_PLAID_TOKENS           = "plaid_tokens";
+    private static final String KEY_PLAID_LINKED_ACCOUNTS  = "plaid_linked_accounts";
+    private static final String KEY_PLAID_ACCOUNT_TOKEN_MAP = "plaid_account_token_map";
 
     // Public API
 
@@ -85,6 +91,57 @@ public class BankingPrefs {
         } catch (Exception e) {
             Log.e(TAG, "BankingPrefs.saveAccountToken failed", e);
         }
+    }
+
+    // Plaid public API
+    public static Set<String> loadPlaidTokens(Context ctx) {
+        return loadEncryptedSet(ctx, KEY_PLAID_TOKENS);
+    }
+
+    public static void savePlaidTokens(Context ctx, Set<String> tokens) {
+        saveEncryptedSet(ctx, KEY_PLAID_TOKENS, tokens);
+    }
+
+    public static Set<String> loadPlaidLinkedAccounts(Context ctx) {
+        return loadEncryptedSet(ctx, KEY_PLAID_LINKED_ACCOUNTS);
+    }
+
+    public static void savePlaidLinkedAccounts(Context ctx, Set<String> accounts) {
+        saveEncryptedSet(ctx, KEY_PLAID_LINKED_ACCOUNTS, accounts);
+    }
+
+    public static String getPlaidTokenForAccount(Context ctx, String accountId) {
+        if (accountId == null) return null;
+        try {
+            String encoded = prefs(ctx).getString(KEY_PLAID_ACCOUNT_TOKEN_MAP, null);
+            if (encoded == null) return null;
+            return new JSONObject(decryptString(encoded)).optString(accountId, null);
+        } catch (Exception e) {
+            Log.e(TAG, "BankingPrefs.getPlaidTokenForAccount failed", e);
+            return null;
+        }
+    }
+
+    public static void savePlaidAccountToken(Context ctx, String accountId, String token) {
+        if (accountId == null || token == null) return;
+        try {
+            JSONObject map = new JSONObject();
+            String existing = prefs(ctx).getString(KEY_PLAID_ACCOUNT_TOKEN_MAP, null);
+            if (existing != null) map = new JSONObject(decryptString(existing));
+            map.put(accountId, token);
+            prefs(ctx).edit().putString(KEY_PLAID_ACCOUNT_TOKEN_MAP, encryptString(map.toString())).apply();
+        } catch (Exception e) {
+            Log.e(TAG, "BankingPrefs.savePlaidAccountToken failed", e);
+        }
+    }
+
+    // Clears only Plaid data; leaves Teller tokens and Keystore key intact.
+    public static void clearPlaid(Context ctx) {
+        prefs(ctx).edit()
+                .remove(KEY_PLAID_TOKENS)
+                .remove(KEY_PLAID_LINKED_ACCOUNTS)
+                .remove(KEY_PLAID_ACCOUNT_TOKEN_MAP)
+                .apply();
     }
 
     public static void clear(Context ctx) {

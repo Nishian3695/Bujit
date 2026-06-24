@@ -377,6 +377,19 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         removeTutorialOverlay();
         super.onPause();
         persistToStorage();
+        // Signal ExpenseActivity to reload income streams from disk on its next resume.
+        // This is the primary save mechanism: even if setResult is never delivered
+        // (backswipe, home gesture, process kill), ExpenseActivity will re-read the
+        // data that persistToStorage() just wrote rather than overwriting it with a
+        // stale in-memory copy.
+        getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                .edit().putBoolean("income_streams_changed", true).apply();
+        // Belt-and-suspenders: also set the result so the ActivityResultLauncher
+        // callback fires when the Activity actually finishes (works for all normal
+        // navigation paths where setResult is delivered).
+        Intent result = new Intent();
+        result.putExtra("incomeStreamList", streamList);
+        setResult(RESULT_OK, result);
     }
 
     private void maybeShowTutorial() {

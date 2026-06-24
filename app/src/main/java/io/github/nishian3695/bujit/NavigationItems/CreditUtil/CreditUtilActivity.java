@@ -30,7 +30,8 @@ import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankAccountModel;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
-import io.github.nishian3695.bujit.NavigationItems.Banking.TellerBackendClient;
+import io.github.nishian3695.bujit.NavigationItems.Banking.BankingApiClient;
+import io.github.nishian3695.bujit.NavigationItems.Banking.BankingProviderConfig;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -267,7 +268,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     newEntry.setCreditLimit(limitStr);
                     if (isConnected) {
                         newEntry.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
-                        BankingPrefs.saveAccountToken(this, linkedId[0], linkedToken[0]);
+                        BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
                     }
 
                     creditList.add(newEntry);
@@ -324,7 +325,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         String[] linkedId      = {credit.getLinkedAccountId()};
         String storedToken     = credit.getLinkedAccountToken();
         if (storedToken == null && credit.getLinkedAccountId() != null) {
-            storedToken = BankingPrefs.getTokenForAccount(this, credit.getLinkedAccountId());
+            storedToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
         }
         String[] linkedToken = {storedToken};
         String[] linkedDisplay = {credit.getLinkedAccountDisplay()};
@@ -358,7 +359,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
                     if (linkedId[0] != null) {
                         credit.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
-                        BankingPrefs.saveAccountToken(this, linkedId[0], linkedToken[0]);
+                        BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
                     } else {
                         credit.clearLinkedAccount();
                     }
@@ -453,7 +454,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             List<BankAccountModel> accounts = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    TellerBackendClient client = new TellerBackendClient(this, token, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken);
                     List<BankAccountModel> all = client.fetchAccounts();
                     for (BankAccountModel m : all) {
                         String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
@@ -535,8 +536,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 if (!credit.isLinkedToBank()) continue;
                 try {
                     String tellerToken = credit.getLinkedAccountToken();
-                    if (tellerToken == null) tellerToken = BankingPrefs.getTokenForAccount(this, credit.getLinkedAccountId());
-                    TellerBackendClient client = new TellerBackendClient(this, tellerToken, idToken);
+                    if (tellerToken == null) tellerToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
+                    BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken);
                     float[] pair  = client.fetchAccountBalancePair(credit.getLinkedAccountId());
                     float ledger  = pair[0];
                     float avail   = pair[1];
@@ -602,7 +603,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     }
 
     private Set<String> loadBankTokens() {
-        return BankingPrefs.loadTokens(this);
+        return BankingProviderConfig.loadTokens(this);
     }
 
     private float parseFloatSafe(String s) {
@@ -612,7 +613,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private void updateSyncLabel() {
         boolean anyLinked = false;
         for (ExpenseModel e : creditList) { if (e.isLinkedToBank()) { anyLinked = true; break; } }
-        syncLabel.setText(anyLinked ? "Pull down to sync Teller balances" : "—");
+        syncLabel.setText(anyLinked ? "Pull down to sync balances" : "—");
     }
 
     // Persist to storage
@@ -674,6 +675,28 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         removeTutorialOverlay();
         super.onPause();
         persistChanges();
+        // Always set the result when there are changes so ExpenseActivity's callback
+        // fires regardless of whether the user used the back arrow, a swipe gesture,
+        // or the system killed the process. setResult only delivers when the Activity
+        // actually finishes, so this is harmless on a plain home-button press.
+        if (dataChanged) {
+            // Signal ExpenseActivity to reload the expense list from disk on its next
+            // resume. This is the primary save mechanism — persists regardless of how
+            // the user exits (backswipe, home gesture, process kill).
+            getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                    .edit().putBoolean("credit_util_changed", true).apply();
+            // Belt-and-suspenders: also set the result for the ActivityResultLauncher
+            // callback (works for all normal navigation paths).
+            Intent intent = new Intent();
+            intent.putIntegerArrayListExtra("changedList",        changedList);
+            intent.putStringArrayListExtra("howChangedList",      howChangedList);
+            intent.putStringArrayListExtra("changedCredUseList",  changedCredUseList);
+            intent.putStringArrayListExtra("changedCredLimList",  changedCredLimList);
+            if (!newCreditModels.isEmpty()) {
+                intent.putExtra("newCreditList", newCreditModels);
+            }
+            setResult(RESULT_OK, intent);
+        }
     }
 
     private void maybeShowTutorial() {

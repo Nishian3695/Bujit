@@ -48,6 +48,11 @@ import io.teller.connect.sdk.Error;
 import io.teller.connect.sdk.Payee;
 import io.teller.connect.sdk.Payment;
 import io.teller.connect.sdk.Registration;
+import androidx.activity.result.ActivityResultLauncher;
+import com.plaid.link.OpenPlaidLink;
+import com.plaid.link.configuration.LinkTokenConfiguration;
+import com.plaid.link.result.LinkResult;
+import com.plaid.link.result.LinkSuccess;
 
 /*
 Activity for connecting bank accounts via the Teller SDK.
@@ -83,10 +88,20 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     private final ExecutorService executor    = Executors.newSingleThreadExecutor();
     private final Handler         mainHandler = new Handler(Looper.getMainLooper());
 
+    // Plaid Link SDK launcher, registered in onCreate, only used when ACTIVE_PROVIDER == PLAID
+    private ActivityResultLauncher<LinkTokenConfiguration> plaidLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        // Plaid launcher must be registered before the Activity reaches STARTED state.
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            plaidLauncher = registerForActivityResult(
+                    new OpenPlaidLink(),
+                    this::handlePlaidResult
+            );
+        }
         WebView.setWebContentsDebuggingEnabled(false);
         setContentView(R.layout.activity_banking);
         ThemeHelper.tintActionBar(this);
@@ -115,12 +130,18 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         accountList.setLayoutManager(new LinearLayoutManager(this));
         accountList.setAdapter(adapter);
 
-        connectBtn.setOnClickListener(v -> launchTellerConnect());
+        connectBtn.setOnClickListener(v -> {
+            if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+                launchPlaidLink();
+            } else {
+                launchTellerConnect();
+            }
+        });
         disconnectBtn.setOnClickListener(v -> confirmDisconnect());
 
         mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
-            // Sign in anonymously - silent, no prompt. Gives the Cloud Function
+            // Sign in anonymously. Silent, no prompt. Gives the Cloud Function
             // a verifiable token without requiring the user to have a Google account.
             mAuth.signInAnonymously().addOnCompleteListener(this, task -> {
                 if (task.isSuccessful()) {
@@ -155,6 +176,74 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
             Log.d(TAG, "loadAccountsIfAny: no stored tokens — showing empty state");
             showEmptyState();
         }
+    }
+
+    // Plaid Link SDK
+    private void launchPlaidLink() {
+        showLoading();
+        executor.execute(() -> {
+            try {
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                String idToken = null;
+                if (user != null) {
+                    idToken = Tasks.await(user.getIdToken(false)).getToken();
+                }
+                String linkToken = PlaidBackendClient.fetchLinkToken(this, idToken);
+                String finalLinkToken = linkToken;
+                mainHandler.post(() -> {
+                    LinkTokenConfiguration config = new LinkTokenConfiguration.Builder()
+                            .token(finalLinkToken)
+                            .build();
+                    plaidLauncher.launch(config);
+                    // Restore UI while the Plaid Activity is in the foreground
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "launchPlaidLink: failed to fetch link token: " + e.getMessage(), e);
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Failed to start bank connection", Toast.LENGTH_LONG).show();
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            }
+        });
+    }
+
+    private void handlePlaidResult(LinkResult result) {
+        if (result instanceof LinkSuccess) {
+            String publicToken = ((LinkSuccess) result).getPublicToken();
+            Log.d(TAG, "handlePlaidResult: success, exchanging public token");
+            exchangePlaidPublicToken(publicToken);
+        } else {
+            Log.d(TAG, "handlePlaidResult: user exited without linking");
+            if (accounts.isEmpty()) showEmptyState();
+        }
+    }
+
+    private void exchangePlaidPublicToken(String publicToken) {
+        showLoading();
+        executor.execute(() -> {
+            try {
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                String idToken = null;
+                if (user != null) {
+                    idToken = Tasks.await(user.getIdToken(false)).getToken();
+                }
+                String accessToken = PlaidBackendClient.exchangePublicToken(this, publicToken, idToken);
+                Log.d(TAG, "exchangePlaidPublicToken: access token received");
+                addPlaidToken(accessToken);
+                Set<String> tokens = loadAllTokens();
+                fetchAndShowAllAccounts(tokens);
+            } catch (Exception e) {
+                Log.e(TAG, "exchangePlaidPublicToken: failed: " + e.getMessage(), e);
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Failed to complete bank connection", Toast.LENGTH_LONG).show();
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            }
+        });
     }
 
     // Teller Connect SDK
@@ -253,8 +342,12 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
             List<BankAccountModel> allAccounts = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    TellerBackendClient client = new TellerBackendClient(this, token, idToken);
-                    List<BankAccountModel> fetched = client.fetchAccounts();
+                    List<BankAccountModel> fetched;
+                    if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+                        fetched = new PlaidBackendClient(this, token, idToken).fetchAccounts();
+                    } else {
+                        fetched = new TellerBackendClient(this, token, idToken).fetchAccounts();
+                    }
                     Log.d(TAG, "  token → " + fetched.size() + " account(s)");
                     allAccounts.addAll(fetched);
                 } catch (Exception e) {
@@ -369,29 +462,54 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         disconnectBtn.setVisibility(View.VISIBLE);
     }
 
-    // Token storage -- one per enrolled bank
+    // Token storage -- one per enrolled bank, routed to the active provider's namespace
 
     private Set<String> loadAllTokens() {
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            return BankingPrefs.loadPlaidTokens(this);
+        }
         return BankingPrefs.loadTokens(this);
     }
 
+    // Teller enrollment callback path
     private void addToken(String token) {
         Set<String> tokens = new HashSet<>(BankingPrefs.loadTokens(this));
         tokens.add(token);
         BankingPrefs.saveTokens(this, tokens);
     }
 
+    // Plaid exchange callback path
+    private void addPlaidToken(String token) {
+        Set<String> tokens = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
+        tokens.add(token);
+        BankingPrefs.savePlaidTokens(this, tokens);
+    }
+
     private void clearAllTokens() {
-        BankingPrefs.clear(this);
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            BankingPrefs.clearPlaid(this);
+        } else {
+            BankingPrefs.clear(this);
+        }
     }
 
     private void removeTokens(Set<String> tokensToRemove) {
-        Set<String> current = new HashSet<>(BankingPrefs.loadTokens(this));
-        current.removeAll(tokensToRemove);
-        if (current.isEmpty()) {
-            BankingPrefs.clear(this);
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            Set<String> current = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
+            current.removeAll(tokensToRemove);
+            if (current.isEmpty()) {
+                BankingPrefs.clearPlaid(this);
+            } else {
+                BankingPrefs.savePlaidTokens(this, current);
+            }
         } else {
-            BankingPrefs.saveTokens(this, current);
+            Set<String> current = new HashSet<>(BankingPrefs.loadTokens(this));
+            current.removeAll(tokensToRemove);
+            if (current.isEmpty()) {
+                BankingPrefs.clear(this);
+            } else {
+                BankingPrefs.saveTokens(this, current);
+            }
         }
     }
 
@@ -411,7 +529,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                     }
                 }
                 // Fallback: check the persisted account→token map when in-memory list is stale
-                String storedToken = BankingPrefs.getTokenForAccount(this, accountId);
+                String storedToken = BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID
+                        ? BankingPrefs.getPlaidTokenForAccount(this, accountId)
+                        : BankingPrefs.getTokenForAccount(this, accountId);
                 return storedToken != null && tokensToRemove.contains(storedToken);
             });
             if (list.size() != before) {

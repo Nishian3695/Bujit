@@ -24,7 +24,7 @@ Authorization -- a Firebase ID token so the Cloud Function can verify the caller
 
 All methods are blocking and must be called from a background thread.
 */
-public class TellerBackendClient implements TellerApi {
+public class TellerBackendClient implements TellerApi, BankingApiClient {
 
     private static final String TAG = "BujitBanking";
     private static final String BACKEND_BASE_URL = "https://tellerproxy-kswzrkdipq-uc.a.run.app";

@@ -53,7 +53,7 @@ Expected backend endpoints (all under the same proxy base URL as Teller):
 All instance methods are blocking and must be called from a background thread.
 Static methods (fetchLinkToken, exchangePublicToken) are also blocking.
 */
-public class PlaidBackendClient implements PlaidApi {
+public class PlaidBackendClient implements PlaidApi, BankingApiClient {
 
     private static final String TAG              = "BujitBanking";
     private static final String BACKEND_BASE_URL = "https://tellerproxy-kswzrkdipq-uc.a.run.app";
