@@ -2,4 +2,8 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="bujit_calendar_prefs.xml" />
     <exclude domain="file" path="BujitExpenseData/" />
+    <!-- Banking tokens are encrypted with a device-specific AndroidKeyStore key.
+         Backing them up would produce unreadable ciphertext on a restored device,
+         and represents unnecessary exposure of financial credential data. -->
+    <exclude domain="sharedpref" path="bujit_banking_v2.xml" />
 </full-backup-content>
