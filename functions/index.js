@@ -205,6 +205,75 @@ async function handlePlaidRequest(req, res, decodedToken) {
       return;
     }
 
+    // TODO: On-the-fly refresh, Layer 2. User-triggered real-time balance refresh with server-side rate limiting.
+    //
+    // Adds POST /plaid/accounts/{id}/balance/refresh: calls /accounts/balance/get (real-time,
+    // charged per call) but enforces a per-user per-account cooldown via Firestore so no single
+    // user can drive up Plaid costs. The client calls this only when the user explicitly requests
+    // a "force refresh"; normal startup/pull-to-refresh continues to use /accounts/get (free).
+    //
+    // ── To change the cooldown, edit this one line: ──────────────────────────────────────────
+    // const REAL_TIME_BALANCE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour  (change this value)
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    //
+    // Firestore path: users/{uid}/balanceCache/{accountId}
+    //   Fields: { ledger, available, limit, fetchedAt }
+    // Data is scoped to the Firebase Auth UID that is already verified above, so one user's
+    // cache cannot be read or poisoned by another. No PII is stored beyond what Plaid returns.
+    //
+    // HTTP 200 → fresh real-time data was fetched and cached.
+    // HTTP 429 → cooldown not elapsed; cached values are returned alongside retryAfter (seconds)
+    //            so the client can tell the user when they can refresh again.
+    //
+    // const REAL_TIME_BALANCE_COOLDOWN_MS = 60 * 60 * 1000; // ← change this (currently 1 hour)
+    //
+    // const refreshMatch = req.path.match(/^\/plaid\/accounts\/([^/]+)\/balance\/refresh$/);
+    // if (req.method === "POST" && refreshMatch) {
+    //   const accountId = refreshMatch[1];
+    //   const db        = admin.firestore();
+    //   const cacheRef  = db.collection("users").doc(decodedToken.uid)
+    //                       .collection("balanceCache").doc(accountId);
+    //
+    //   const cached = await cacheRef.get();
+    //   if (cached.exists) {
+    //     const { fetchedAt, ledger, available, limit } = cached.data();
+    //     if (Date.now() - fetchedAt < REAL_TIME_BALANCE_COOLDOWN_MS) {
+    //       // Within cooldown — return the cached snapshot and signal the client.
+    //       res.status(429).json({
+    //         ledger, available, limit: limit ?? null,
+    //         retryAfter: Math.ceil((fetchedAt + REAL_TIME_BALANCE_COOLDOWN_MS - Date.now()) / 1000),
+    //       });
+    //       return;
+    //     }
+    //   }
+    //
+    //   // Cooldown elapsed (or first call) — hit /accounts/balance/get for a real-time pull.
+    //   const response = await axios.post(`${baseUrl}/accounts/balance/get`, {
+    //     client_id:    clientId,
+    //     secret:       secret,
+    //     access_token: accessToken,
+    //     options:      { account_ids: [accountId] },
+    //   });
+    //   const accts = response.data.accounts;
+    //   if (!accts || accts.length === 0) {
+    //     res.status(404).json({ error: "Account not found" });
+    //     return;
+    //   }
+    //   const balances = accts[0].balances;
+    //   const result = {
+    //     ledger:    balances.current   != null ? balances.current.toString()   : "—",
+    //     available: balances.available != null ? balances.available.toString() : "—",
+    //     limit:     balances.limit     != null ? balances.limit.toString()     : null,
+    //   };
+    //
+    //   // Persist under the authenticated UID — Firestore rules should restrict reads/writes
+    //   // to the owning user (users/{uid}/balanceCache/{accountId} → request.auth.uid == uid).
+    //   await cacheRef.set({ ...result, fetchedAt: Date.now() });
+    //
+    //   res.json(result);
+    //   return;
+    // }
+
     res.status(404).json({error: "Unknown Plaid route"});
   } catch (e) {
     const status = e.response?.status ?? 500;

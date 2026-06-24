@@ -1684,6 +1684,12 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         syncLabel.setText(label);
     }
 
+    // TODO: On-the-fly refresh, Layer 2 (client side). When the server-side rate-limited refresh endpoint is
+    // enabled (see index.js TODO for POST /plaid/accounts/{id}/balance/refresh), expose a
+    // "Force refresh" button or long-press gesture here. On trigger, call that endpoint once
+    // per linked account (or once per token via a batch variant). On HTTP 429, show
+    // "Balance refreshed recently — try again in X minutes" using the retryAfter field.
+
     private static final long BALANCE_TTL_MS = 15 * 60 * 1000L;
 
     // Fetches balances for every linked account using one fetchAccounts() call per unique token
