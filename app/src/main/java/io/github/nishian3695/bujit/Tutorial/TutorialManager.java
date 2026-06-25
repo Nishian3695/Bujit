@@ -94,7 +94,11 @@ public class TutorialManager {
             "Spending categories",
             "Your expenses estimated per pay check, broken down by category. Tap any slice to see the dollar amount, and tap a legend chip to show or hide that category.\nThe lower chart excludes credit card entries for a cleaner view of regular spending.",
             8, SettingsActivity.class),
-        // SettingsActivity: step 12 (final)
+        // SettingsActivity: steps 12–13
+        new StepDef(SettingsActivity.class, R.id.row_categories,
+            "Manage categories",
+            "Add, edit, or delete categories to customize how your expenses are grouped. You can also drag to reorder where they appear when adding or editing expenses.",
+            8),
         new StepDef(SettingsActivity.class, R.id.row_tutorial,
             "You're all set!",
             "Explore settings to change your theme, connect Google Calendar, or manage integrations. You can replay this tutorial here at any time.",

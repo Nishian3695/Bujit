@@ -484,11 +484,15 @@ public class SettingsActivity extends AppCompatActivity {
 
         tutorialOverlay.showStep(target, def.title, def.message, nextText,
             () -> {
-                TutorialManager.advance(this); // marks KEY_SEEN at the last step
+                TutorialManager.advance(this);
                 removeTutorialOverlay();
-                Intent home = new Intent(this, ExpenseActivity.class);
-                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(home);
+                if (TutorialManager.hasStepsForActivity(this, SettingsActivity.class)) {
+                    showTutorialStep(TutorialManager.getCurrentStep(this));
+                } else {
+                    Intent home = new Intent(this, ExpenseActivity.class);
+                    home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(home);
+                }
             },
             () -> {
                 TutorialManager.markDone(this);
