@@ -2,10 +2,14 @@ package io.github.nishian3695.bujit.NavigationItems.Visuals;
 
 import android.content.res.TypedArray;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,7 +19,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import android.widget.TextView;
 import com.github.mikephil.charting.charts.BarChart;
-import com.github.mikephil.charting.charts.HorizontalBarChart;
+import com.github.mikephil.charting.charts.PieChart;
+import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.MarkerView;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
@@ -23,7 +28,9 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.Entry;
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.data.PieData;
+import com.github.mikephil.charting.data.PieDataSet;
+import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.listener.ChartTouchListener;
@@ -41,10 +48,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /*
 Displays two chart views for the user's financial data.
@@ -55,9 +64,10 @@ Cash Flow tab — a 12-month BarChart (5 months back, current month, 6 months fo
   GROSS shows both bars stacked from the zero line for each month; NET collapses them
   into a single bar (green = income > expenses, red = expenses > income).
 
-Categories tab — a HorizontalBarChart grouping expenses by inferred category using
-  keyword matching on the expense name. Each bar shows the estimated monthly cost
-  for that category. Plaid transaction-level categorization is a future enhancement.
+Categories tab — two PieCharts showing estimated per-check spending broken down by
+  inferred category (keyword-matched from expense names). The first chart includes all
+  categories; the second excludes credit card entries. Both charts support a custom
+  legend where tapping a category chip toggles it on/off.
 */
 public class VisualsActivity extends AppCompatActivity {
 
@@ -82,13 +92,17 @@ public class VisualsActivity extends AppCompatActivity {
     private ArrayList<ExpenseModel>      expenseList;
     private ArrayList<IncomeStreamModel> incomeList;
     private BarChart             cashFlowChart;
-    private HorizontalBarChart   categoriesChart;
+    private PieChart             categoriesChart;
+    private PieChart             perCheckChart;
+    private LinearLayout         categoriesLegend;
+    private LinearLayout         perCheckLegend;
+    private final Set<String>    hiddenTop    = new HashSet<>();
+    private final Set<String>    hiddenBottom = new HashSet<>();
     private View                 cashFlowPanel;
     private View                 categoriesPanel;
     private View                 legendExpensesRow;
     private View                 legendIncomeSwatch;
     private TextView             legendIncomeLabel;
-    private String[]             categoryAxisLabels  = new String[0];
     private float[]              grossIncomeTotals      = new float[0];
     private float[]              grossExpenseTotals     = new float[0];
     private boolean              grossLastTapWasExpense = false;
@@ -125,6 +139,9 @@ public class VisualsActivity extends AppCompatActivity {
 
         cashFlowChart    = findViewById(R.id.cash_flow_chart);
         categoriesChart  = findViewById(R.id.categories_chart);
+        perCheckChart    = findViewById(R.id.per_check_chart);
+        categoriesLegend = findViewById(R.id.categories_legend);
+        perCheckLegend   = findViewById(R.id.per_check_legend);
         cashFlowPanel    = findViewById(R.id.cash_flow_panel);
         categoriesPanel  = findViewById(R.id.categories_panel);
         legendExpensesRow  = findViewById(R.id.legend_expenses_row);
@@ -162,6 +179,7 @@ public class VisualsActivity extends AppCompatActivity {
 
         buildCashFlowChart(true);
         buildCategoriesChart();
+        buildPerCheckChart();
     }
 
     // ── Cash Flow ────────────────────────────────────────────────────────────
@@ -298,6 +316,7 @@ public class VisualsActivity extends AppCompatActivity {
         YAxis leftAxis = cashFlowChart.getAxisLeft();
         leftAxis.resetAxisMinimum();
         leftAxis.resetAxisMaximum();
+        leftAxis.setSpaceBottom(3f);
         leftAxis.setTextColor(textColor);
         leftAxis.setTextSize(10f);
         leftAxis.setGridColor(gridColor);
@@ -310,6 +329,7 @@ public class VisualsActivity extends AppCompatActivity {
             }
         });
         cashFlowChart.getAxisRight().setEnabled(false);
+        cashFlowChart.setExtraBottomOffset(10f);
 
         BarData barData;
         if (gross) {
@@ -481,98 +501,166 @@ public class VisualsActivity extends AppCompatActivity {
     // ── Categories ───────────────────────────────────────────────────────────
 
     private void buildCategoriesChart() {
-        int textColor = getThemeTextColor();
-
-        // Sum monthly-equivalent cost per category
+        double payPeriodDays = getPayPeriodDays();
         Map<String, Float> amounts = new LinkedHashMap<>();
         for (String cat : CATEGORY_ORDER) amounts.put(cat, 0f);
-
         for (ExpenseModel e : expenseList) {
-            float monthly = monthlyEquivalent(e);
-            if (monthly <= 0) continue;
-            amounts.merge(inferCategory(e), monthly, Float::sum);
+            float pc = perCheckEquivalent(e, payPeriodDays);
+            if (pc <= 0) continue;
+            amounts.merge(inferCategory(e), pc, Float::sum);
         }
+        buildPieChart(categoriesChart, categoriesLegend, amounts, hiddenTop,
+                this::buildCategoriesChart);
+    }
 
-        // Sort descending by amount, drop zeros
-        List<String> cats = new ArrayList<>();
-        List<Float>  vals = new ArrayList<>();
+    private void buildPerCheckChart() {
+        double payPeriodDays = getPayPeriodDays();
+        Map<String, Float> amounts = new LinkedHashMap<>();
+        for (String cat : CATEGORY_ORDER) amounts.put(cat, 0f);
+        for (ExpenseModel e : expenseList) {
+            if (e.getIsCredit()) continue;
+            float pc = perCheckEquivalent(e, payPeriodDays);
+            if (pc <= 0) continue;
+            amounts.merge(inferCategory(e), pc, Float::sum);
+        }
+        buildPieChart(perCheckChart, perCheckLegend, amounts, hiddenBottom,
+                this::buildPerCheckChart);
+    }
+
+    private void buildPieChart(PieChart chart, LinearLayout legendContainer,
+                                Map<String, Float> amounts, Set<String> hidden,
+                                Runnable rebuild) {
+        List<String>   allCats   = new ArrayList<>();
+        List<Integer>  allColors = new ArrayList<>();
+        List<PieEntry> entries   = new ArrayList<>();
+        List<Integer>  colors    = new ArrayList<>();
+
         amounts.entrySet().stream()
                 .filter(en -> en.getValue() > 0.01f)
                 .sorted((a, b) -> Float.compare(b.getValue(), a.getValue()))
-                .forEach(en -> { cats.add(en.getKey()); vals.add(en.getValue()); });
+                .forEach(en -> {
+                    String name  = en.getKey();
+                    int    color = categoryColor(name);
+                    allCats.add(name);
+                    allColors.add(color);
+                    if (!hidden.contains(name)) {
+                        entries.add(new PieEntry(en.getValue(), name));
+                        colors.add(color);
+                    }
+                });
 
-        if (cats.isEmpty()) {
-            categoriesChart.setVisibility(View.GONE);
+        buildLegend(legendContainer, allCats, allColors, hidden, rebuild);
+
+        if (allCats.isEmpty()) {
+            chart.setVisibility(View.GONE);
+            legendContainer.setVisibility(View.GONE);
+            return;
+        }
+        chart.setVisibility(View.VISIBLE);
+        legendContainer.setVisibility(View.VISIBLE);
+
+        if (entries.isEmpty()) {
+            chart.clear();
+            chart.invalidate();
             return;
         }
 
-        int n = cats.size();
-
-        // Build entries bottom-to-top so the highest bar appears at the top visually
-        List<BarEntry> entries   = new ArrayList<>();
-        List<Integer>  barColors = new ArrayList<>();
-        categoryAxisLabels = new String[n];
-        for (int i = 0; i < n; i++) {
-            int rev = n - 1 - i;
-            entries.add(new BarEntry(i, vals.get(rev)));
-            barColors.add(categoryColor(cats.get(rev)));
-            categoryAxisLabels[i] = cats.get(rev);
-        }
-
-        BarDataSet dataSet = new BarDataSet(entries, "");
-        dataSet.setColors(barColors);
-        dataSet.setDrawValues(true);
-        dataSet.setValueTextColor(textColor);
+        PieDataSet dataSet = new PieDataSet(entries, "");
+        dataSet.setColors(colors);
         dataSet.setValueTextSize(10f);
+        dataSet.setValueTextColor(Color.WHITE);
+        dataSet.setSliceSpace(2f);
+        dataSet.setSelectionShift(8f);
         dataSet.setValueFormatter(new ValueFormatter() {
             @Override public String getFormattedValue(float value) {
-                return "$" + Math.round(value) + "/mo";
+                return String.format(Locale.US, "%.0f%%", value);
             }
         });
 
-        BarData barData = new BarData(dataSet);
-        barData.setBarWidth(0.55f);
-        categoriesChart.setData(barData);
-
-        // Adjust chart height so each bar has ~52dp of vertical space
-        float density = getResources().getDisplayMetrics().density;
-        ViewGroup.LayoutParams lp = categoriesChart.getLayoutParams();
-        lp.height = (int)(Math.max(200, n * 52) * density);
-        categoriesChart.setLayoutParams(lp);
-
-        categoriesChart.getDescription().setEnabled(false);
-        categoriesChart.getLegend().setEnabled(false);
-        categoriesChart.setDrawGridBackground(false);
-        categoriesChart.setDrawBorders(false);
-        categoriesChart.setScaleEnabled(false);
-        categoriesChart.setPinchZoom(false);
-        categoriesChart.setHighlightPerTapEnabled(true);
-        categoriesChart.setDrawValueAboveBar(true);
-
-        // Explicit axis bounds ensure every bar label is rendered; setLabelCount with
-        // "force" conflicts with granularity in HorizontalBarChart and drops labels.
-        XAxis xAxis = categoriesChart.getXAxis();
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(categoryAxisLabels));
-        xAxis.setAxisMinimum(-0.5f);
-        xAxis.setAxisMaximum(n - 0.5f);
-        xAxis.setGranularity(1f);
-        xAxis.setTextColor(textColor);
-        xAxis.setTextSize(11f);
-        xAxis.setDrawGridLines(false);
-        xAxis.setDrawAxisLine(false);
-
-        categoriesChart.getAxisLeft().setEnabled(false);
-        categoriesChart.getAxisRight().setEnabled(false);
-
-        final String[] snapLabels = categoryAxisLabels;
-        categoriesChart.setMarker(new ChartMarker((e, h) -> {
-            int idx = Math.round(e.getX());
-            String cat = (idx >= 0 && idx < snapLabels.length) ? snapLabels[idx] : "?";
-            return cat + ": $" + Math.round(e.getY()) + "/mo";
+        PieData pieData = new PieData(dataSet);
+        chart.setData(pieData);
+        chart.setUsePercentValues(true);
+        chart.getDescription().setEnabled(false);
+        chart.getLegend().setEnabled(false);
+        chart.setDrawHoleEnabled(true);
+        chart.setHoleRadius(38f);
+        chart.setTransparentCircleRadius(43f);
+        chart.setHoleColor(Color.TRANSPARENT);
+        chart.setDrawEntryLabels(false);
+        chart.setHighlightPerTapEnabled(true);
+        chart.setMarker(new ChartMarker((e, h) -> {
+            PieEntry pe = (PieEntry) e;
+            return pe.getLabel() + "\n$" + String.format(Locale.US, "%.2f", pe.getValue()) + "/check";
         }));
+        chart.animateY(700);
+        chart.invalidate();
+    }
 
-        categoriesChart.animateX(700);
-        categoriesChart.invalidate();
+    private void buildLegend(LinearLayout container, List<String> names, List<Integer> colors,
+                              Set<String> hidden, Runnable rebuild) {
+        container.removeAllViews();
+        float density    = getResources().getDisplayMetrics().density;
+        int   swatchSize = (int)(12 * density);
+        int   gap        = (int)(6 * density);
+        int   padH       = (int)(8 * density);
+        int   padV       = (int)(6 * density);
+
+        TypedValue ripple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+
+        LinearLayout row = null;
+        for (int i = 0; i < names.size(); i++) {
+            if (i % 2 == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                container.addView(row, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+
+            final String name  = names.get(i);
+            final int    color = colors.get(i);
+            boolean      off   = hidden.contains(name);
+
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.HORIZONTAL);
+            item.setGravity(Gravity.CENTER_VERTICAL);
+            item.setPadding(padH, padV, padH, padV);
+            item.setClickable(true);
+            item.setFocusable(true);
+            item.setBackgroundResource(ripple.resourceId);
+
+            View swatch = new View(this);
+            swatch.setBackgroundColor(off ? withAlpha(color, 0x60) : color);
+            LinearLayout.LayoutParams swatchLp = new LinearLayout.LayoutParams(swatchSize, swatchSize);
+            swatchLp.setMarginEnd(gap);
+            swatch.setLayoutParams(swatchLp);
+            item.addView(swatch);
+
+            TextView label = new TextView(this);
+            label.setText(name);
+            label.setTextSize(11f);
+            label.setTextColor(getThemeTextColor());
+            if (off) {
+                label.setPaintFlags(label.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                label.setAlpha(0.4f);
+            }
+            item.addView(label);
+
+            item.setOnClickListener(v -> {
+                if (hidden.contains(name)) hidden.remove(name);
+                else hidden.add(name);
+                rebuild.run();
+            });
+
+            if (row != null) {
+                row.addView(item, new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            }
+        }
+        if (names.size() % 2 != 0 && row != null) {
+            row.addView(new View(this), new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
     }
 
     // ── Data helpers ─────────────────────────────────────────────────────────
@@ -646,8 +734,20 @@ public class VisualsActivity extends AppCompatActivity {
         return count;
     }
 
-    // Converts a recurring expense cost to its average monthly dollar amount.
-    private float monthlyEquivalent(ExpenseModel e) {
+    // Returns the shortest income pay-period length in days (defaults to 30.44 if none set).
+    private double getPayPeriodDays() {
+        double best = Double.MAX_VALUE;
+        for (IncomeStreamModel inc : incomeList) {
+            int f = inc.getFrequency();
+            if (f <= 0) continue;
+            double d = periodToDays(f, incomeFreqToChronoUnit(inc.getFrequencyTag()));
+            if (d < best) best = d;
+        }
+        return (best == Double.MAX_VALUE || best <= 0) ? 30.44 : best;
+    }
+
+    // Converts a recurring expense cost to its per-pay-period dollar amount.
+    private float perCheckEquivalent(ExpenseModel e, double payPeriodDays) {
         float cost;
         try { cost = Float.parseFloat(e.getCost()); }
         catch (NumberFormatException ex) { return 0f; }
@@ -662,7 +762,7 @@ public class VisualsActivity extends AppCompatActivity {
         else if (ChronoUnit.YEARS.equals(tag))  daysPerPeriod = freq * 365.25f;
         else                                    daysPerPeriod = 30.44f;
 
-        return cost * (30.44f / daysPerPeriod);
+        return cost * ((float) payPeriodDays / daysPerPeriod);
     }
 
     // Infers a spending category by keyword-matching the expense name.

@@ -182,14 +182,59 @@
                 android:paddingBottom="4dp"
                 android:paddingStart="16dp"
                 android:paddingTop="14dp"
-                android:text="ESTIMATED MONTHLY SPENDING"
+                android:text="ESTIMATED SPENDING THIS CHECK"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="10sp" />
 
-            <com.github.mikephil.charting.charts.HorizontalBarChart
+            <com.github.mikephil.charting.charts.PieChart
                 android:id="@+id/categories_chart"
                 android:layout_width="match_parent"
-                android:layout_height="320dp" />
+                android:layout_height="300dp" />
+
+            <LinearLayout
+                android:id="@+id/categories_legend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:background="?attr/colorControlHighlight" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.55"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.06"
+                android:paddingBottom="4dp"
+                android:paddingStart="16dp"
+                android:paddingTop="14dp"
+                android:text="ESTIMATED PER-CHECK SPENDING"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="10sp" />
+
+            <com.github.mikephil.charting.charts.PieChart
+                android:id="@+id/per_check_chart"
+                android:layout_width="match_parent"
+                android:layout_height="300dp" />
+
+            <LinearLayout
+                android:id="@+id/per_check_legend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp" />
 
             <TextView
                 android:id="@+id/categories_note"
