@@ -219,20 +219,14 @@ public class VisualsActivity extends AppCompatActivity {
         float[] incomeTotals  = new float[numBars];
         float[] expenseTotals = new float[numBars];
         String[] periodLabels = new String[numBars];
-        DateTimeFormatter dayFmt3    = DateTimeFormatter.ofPattern("d",     Locale.US);
-        DateTimeFormatter monthDayFmt = DateTimeFormatter.ofPattern("MMM d", Locale.US);
+        DateTimeFormatter periodLabelFmt = DateTimeFormatter.ofPattern("MMM'. 'd", Locale.US);
+        DateTimeFormatter markerDateFmt  = DateTimeFormatter.ofPattern("MMM'. 'd", Locale.US);
         LocalDate today = LocalDate.now();
 
         for (int i = 0; i < numBars; i++) {
             LocalDate periodStart = payDates.get(i);
             LocalDate periodEnd   = (i + 1 < numBars) ? payDates.get(i + 1) : yearEnd;
-            boolean newMonth = (i == 0)
-                    || !periodStart.getMonth().equals(payDates.get(i - 1).getMonth());
-            // Month boundaries get "MMM d"; other periods just show the day.
-            // At -90° rotation these single-line labels never overlap.
-            periodLabels[i] = newMonth
-                    ? periodStart.format(monthDayFmt)
-                    : periodStart.format(dayFmt3);
+            periodLabels[i] = periodStart.format(periodLabelFmt);
 
             // TODO: replace with stored transaction history for past periods.
             // Until data persistence is implemented, past periods show $0.
@@ -292,10 +286,11 @@ public class VisualsActivity extends AppCompatActivity {
         xAxis.setLabelRotationAngle(-90f);
         xAxis.setValueFormatter(periodFmt);
         // Granularity=1 places labels only at integer x positions (bar centres).
-        // Avoid setLabelCount with force=true — it would also emit a label at the
-        // axis minimum (-0.5) which the formatter maps to index 0, duplicating it.
+        // setLabelCount with force=false gives MPAndroidChart a density hint so it
+        // renders all numBars labels rather than its default ~6.
         xAxis.setGranularity(1f);
         xAxis.setGranularityEnabled(true);
+        xAxis.setLabelCount(numBars, false);
         xAxis.setAxisMinimum(-0.5f);
         xAxis.setAxisMaximum(numBars - 0.5f);
         xAxis.setCenterAxisLabels(false);
@@ -343,27 +338,48 @@ public class VisualsActivity extends AppCompatActivity {
             // in onChartSingleTapped so we can target whichever bar was actually tapped.
             cashFlowChart.setHighlightPerTapEnabled(false);
 
+            final List<LocalDate> grossPayDates = payDates;
             cashFlowChart.setOnChartGestureListener(new OnChartGestureListener() {
                 @Override public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture cg) {}
                 @Override public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture cg) {}
                 @Override public void onChartLongPressed(MotionEvent me) {}
                 @Override public void onChartDoubleTapped(MotionEvent me) {}
                 @Override public void onChartSingleTapped(MotionEvent me) {
+                    // Convert tap pixel → data coordinates.
                     float[] zeroInPixels = {0f, 0f};
                     cashFlowChart.getTransformer(YAxis.AxisDependency.LEFT)
                             .pointValuesToPixel(zeroInPixels);
                     grossLastTapWasExpense = me.getY() > zeroInPixels[1];
 
-                    // Auto-highlight is disabled for GROSS mode; apply it manually so
-                    // we can target the correct dataset (0=income, 1=expenses).
                     float[] tapPt = {me.getX(), me.getY()};
                     cashFlowChart.getTransformer(YAxis.AxisDependency.LEFT)
                             .pixelsToValue(tapPt);
                     int barIdx = Math.round(tapPt[0]);
-                    int dsIdx  = grossLastTapWasExpense ? 1 : 0;
-                    if (barIdx >= 0 && barIdx < grossIncomeTotals.length) {
-                        cashFlowChart.highlightValue(barIdx, dsIdx, false);
+
+                    if (barIdx < 0 || barIdx >= grossIncomeTotals.length) {
+                        cashFlowChart.highlightValue(null, false);
+                        return;
                     }
+
+                    // Reject taps that are in the empty column space above/below the bar.
+                    // tapPt[1] is now in data-space: positive = above zero, negative = below.
+                    float dataY = tapPt[1];
+                    boolean onBar;
+                    if (grossLastTapWasExpense) {
+                        float barFloor = -grossExpenseTotals[barIdx];
+                        onBar = grossExpenseTotals[barIdx] > 0f && dataY <= 0f && dataY >= barFloor;
+                    } else {
+                        float barTop = grossIncomeTotals[barIdx];
+                        onBar = grossIncomeTotals[barIdx] > 0f && dataY >= 0f && dataY <= barTop;
+                    }
+
+                    if (!onBar) {
+                        cashFlowChart.highlightValue(null, false);
+                        return;
+                    }
+
+                    int dsIdx = grossLastTapWasExpense ? 1 : 0;
+                    cashFlowChart.highlightValue(barIdx, dsIdx, false);
                 }
                 @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float vX, float vY) {}
                 @Override public void onChartScale(MotionEvent me, float scX, float scY) {}
@@ -371,26 +387,29 @@ public class VisualsActivity extends AppCompatActivity {
             });
             cashFlowChart.setMarker(new ChartMarker((e, h) -> {
                 int idx = Math.round(e.getX());
+                String dateStr = (idx >= 0 && idx < grossPayDates.size())
+                        ? grossPayDates.get(idx).format(markerDateFmt) : "";
                 if (grossLastTapWasExpense) {
                     float val = (idx >= 0 && idx < grossExpenseTotals.length) ? grossExpenseTotals[idx] : 0f;
-                    return "Expenses: $" + String.format(Locale.US, "%.2f", val);
+                    return "Expenses: $" + String.format(Locale.US, "%.2f", val) + "\n" + dateStr;
                 } else {
                     float val = (idx >= 0 && idx < grossIncomeTotals.length) ? grossIncomeTotals[idx] : 0f;
-                    return "Income: $" + String.format(Locale.US, "%.2f", val);
+                    return "Income: $" + String.format(Locale.US, "%.2f", val) + "\n" + dateStr;
                 }
             }, true));
             if (legendIncomeSwatch != null) legendIncomeSwatch.setVisibility(View.VISIBLE);
             if (legendIncomeLabel  != null) legendIncomeLabel.setText("Income");
             if (legendExpensesRow  != null) legendExpensesRow.setVisibility(View.VISIBLE);
         } else {
-            cashFlowChart.setOnChartGestureListener(null);
             grossLastTapWasExpense = false;
             List<BarEntry> netEntries = new ArrayList<>();
             List<Integer>  colors     = new ArrayList<>();
             float maxNet = 0f, minNet = 0f;
+            final float[] netValues = new float[numBars];
             for (int i = 0; i < numBars; i++) {
                 boolean future = payDates.get(i).isAfter(today);
                 float net = incomeTotals[i] - expenseTotals[i];
+                netValues[i] = net;
                 netEntries.add(new BarEntry(i, net));
                 int baseColor = net >= 0 ? green : red;
                 colors.add(future ? withAlpha(baseColor, 0x80) : baseColor);
@@ -403,14 +422,52 @@ public class VisualsActivity extends AppCompatActivity {
             barData = new BarData(netSet);
             barData.setBarWidth(0.6f);
             cashFlowChart.setData(barData);
+            cashFlowChart.setHighlightPerTapEnabled(false);
             float pad = Math.max(Math.abs(maxNet), Math.abs(minNet)) * 0.12f;
             if (pad < 1f) pad = 10f;
             leftAxis.setAxisMinimum(Math.min(minNet, 0f) - pad);
             leftAxis.setAxisMaximum(Math.max(maxNet, 0f) + pad);
+            final List<LocalDate> netPayDates = payDates;
+            cashFlowChart.setOnChartGestureListener(new OnChartGestureListener() {
+                @Override public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture cg) {}
+                @Override public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture cg) {}
+                @Override public void onChartLongPressed(MotionEvent me) {}
+                @Override public void onChartDoubleTapped(MotionEvent me) {}
+                @Override public void onChartSingleTapped(MotionEvent me) {
+                    float[] tapPt = {me.getX(), me.getY()};
+                    cashFlowChart.getTransformer(YAxis.AxisDependency.LEFT)
+                            .pixelsToValue(tapPt);
+                    int barIdx = Math.round(tapPt[0]);
+
+                    if (barIdx < 0 || barIdx >= netValues.length) {
+                        cashFlowChart.highlightValue(null, false);
+                        return;
+                    }
+
+                    float netVal = netValues[barIdx];
+                    float dataY  = tapPt[1];
+                    boolean onBar = netVal >= 0f
+                            ? (netVal > 0f && dataY >= 0f && dataY <= netVal)
+                            : (netVal < 0f && dataY <= 0f && dataY >= netVal);
+
+                    if (!onBar) {
+                        cashFlowChart.highlightValue(null, false);
+                        return;
+                    }
+                    cashFlowChart.highlightValue(barIdx, 0, false);
+                }
+                @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float vX, float vY) {}
+                @Override public void onChartScale(MotionEvent me, float scX, float scY) {}
+                @Override public void onChartTranslate(MotionEvent me, float dX, float dY) {}
+            });
             cashFlowChart.setMarker(new ChartMarker((e, h) -> {
+                int idx = Math.round(e.getX());
+                String dateStr = (idx >= 0 && idx < netPayDates.size())
+                        ? netPayDates.get(idx).format(markerDateFmt) : "";
                 float val = e.getY();
                 String sign = val >= 0 ? "+" : "-";
-                return "Net: " + sign + "$" + String.format(Locale.US, "%.2f", Math.abs(val));
+                return "Net: " + sign + "$" + String.format(Locale.US, "%.2f", Math.abs(val))
+                        + "\n" + dateStr;
             }, true));
             if (legendIncomeSwatch != null) legendIncomeSwatch.setVisibility(View.GONE);
             if (legendIncomeLabel  != null) legendIncomeLabel.setText("Net Change");
