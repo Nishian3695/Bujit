@@ -98,6 +98,10 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private CreditAdapter        creditAdapter;
     private SwipeRefreshLayout   swipeRefreshLayout;
     private TextView             syncLabel;
+    private TextView             totalDebtView;
+    private TextView             totalLimitView;
+    private TextView             totalUtilView;
+    private ProgressBar          totalUtilBar;
 
     private boolean dataChanged;
     private Intent  returnIntent;
@@ -135,6 +139,10 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
         swipeRefreshLayout = findViewById(R.id.credit_swipe_refresh);
         syncLabel          = findViewById(R.id.credit_sync_label);
+        totalDebtView      = findViewById(R.id.credit_total_debt);
+        totalLimitView     = findViewById(R.id.credit_total_limit);
+        totalUtilView      = findViewById(R.id.credit_total_util);
+        totalUtilBar       = findViewById(R.id.credit_total_util_bar);
         RecyclerView creditRecyclerView = findViewById(R.id.credit_recyclerview);
         FloatingActionButton addBtn     = findViewById(R.id.add_credit_button);
         ThemeHelper.tintFab(addBtn, this);
@@ -171,6 +179,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         swipeRefreshLayout.setOnRefreshListener(this::syncLinkedCredits);
 
         updateSyncLabel();
+        updateTotalUtilization();
     }
 
     // Add credit dialog
@@ -275,6 +284,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     creditPosList.add(-1);
                     newCreditModels.add(newEntry);
                     creditAdapter.notifyItemInserted(creditList.size() - 1);
+                    updateTotalUtilization();
                 }
                 // TODO: Re-enable "link to existing expense" once the expense-to-credit sync
                 // is fixed. The block below correctly tracks the change in changedList/
@@ -373,6 +383,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     }
                     dataChanged = true;
                     creditAdapter.notifyItemChanged(position);
+                    updateTotalUtilization();
                 })
                 .create();
 
@@ -396,6 +407,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             creditList.remove(position);
                             creditPosList.remove(position);
                             creditAdapter.notifyItemRemoved(position);
+                            updateTotalUtilization();
                             notCreditList.add(credit);
                             notCreditPosList.add(expPos >= 0 ? expPos : expenseModelsList.size());
                             dataChanged = true;
@@ -575,6 +587,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 if (didUpdate) {
                     dataChanged = true;
                     creditAdapter.notifyDataSetChanged();
+                    updateTotalUtilization();
                     syncLabel.setText("Synced just now");
                 }
             });
@@ -618,6 +631,30 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     private float parseFloatSafe(String s) {
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
+    }
+
+    private void updateTotalUtilization() {
+        float totalDebt  = 0f;
+        float totalLimit = 0f;
+        for (ExpenseModel e : creditList) {
+            try { totalDebt  += Float.parseFloat(e.getCost()); }        catch (NumberFormatException ignored) {}
+            try { totalLimit += Float.parseFloat(e.getCreditLimit()); } catch (NumberFormatException ignored) {}
+        }
+        int utilPct = (totalLimit > 0) ? Math.min(100, Math.round(totalDebt / totalLimit * 100)) : 0;
+
+        totalDebtView.setText("$" + String.format(Locale.US, "%.2f", totalDebt));
+        totalLimitView.setText("$" + String.format(Locale.US, "%.2f", totalLimit));
+        totalUtilView.setText(utilPct + "%");
+        totalUtilBar.setProgress(utilPct);
+
+        int color;
+        if (utilPct < 30)      color = R.color.balance_positive;
+        else if (utilPct < 70) color = R.color.util_warning;
+        else                   color = R.color.balance_negative;
+
+        int resolved = androidx.core.content.ContextCompat.getColor(this, color);
+        totalUtilView.setTextColor(resolved);
+        totalUtilBar.setProgressTintList(android.content.res.ColorStateList.valueOf(resolved));
     }
 
     private void updateSyncLabel() {

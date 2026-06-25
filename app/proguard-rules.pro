@@ -51,3 +51,6 @@
 
 # Jetpack Security Crypto
 -keep class androidx.security.crypto.** { *; }
+
+# MPAndroidChart
+-keep class com.github.mikephil.charting.** { *; }

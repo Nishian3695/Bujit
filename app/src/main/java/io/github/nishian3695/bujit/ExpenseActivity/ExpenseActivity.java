@@ -1608,6 +1608,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 creditUtilizationContent.launch(creditUtilizationIntent);
                 break;
             }
+            case R.id.visuals: {
+                Intent visualsIntent = new Intent(this,
+                        io.github.nishian3695.bujit.NavigationItems.Visuals.VisualsActivity.class);
+                visualsIntent.putExtra("expenseList", expenseListStor);
+                visualsIntent.putExtra("incomeList", incomeStreamList);
+                startActivity(visualsIntent);
+                drawerLayout.close();
+                break;
+            }
         }
         return true;
     }
