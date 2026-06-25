@@ -6,7 +6,8 @@ import java.util.List;
 /*
 Contract for fetching bank data from the Teller API (via the backend proxy).
 fetchAccounts returns all enrolled accounts for a given access token.
-fetchAccountBalancePair returns {ledger, available} balances for one account.
+fetchAccountBalancePair returns {ledger, available, creditLimit} for one account.
+creditLimit is 0 for Teller (not exposed by the API; caller falls back to ledger + available).
 fetchAccountBalance returns just the ledger balance for one account.
 */
 interface TellerApi {

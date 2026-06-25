@@ -8,38 +8,56 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /*
 HTTP client that proxies Teller API calls through the Firebase Cloud Function backend.
-The mTLS certificate and private key live in Firebase Secret Manager, not in the APK,
-so this client never needs to bundle sensitive credentials.
+The mTLS certificate and private key live in Firebase Secret Manager, not in the APK.
 
-Each request carries two authentication headers:
-X-Teller-Token -- the Teller enrollment access token for the enrolled bank
-Authorization -- a Firebase ID token so the Cloud Function can verify the caller
+All requests are made with a shared OkHttpClient that includes:
+  - Certificate pinning to the backend's intermediate and root CA.
+  - Firebase App Check token interceptor.
 
-All methods are blocking and must be called from a background thread.
+HTTP 401 responses are surfaced as BankingAuthException to signal that the stored
+access token has been revoked (enrollment disconnected) and the user must re-link.
 */
-public class TellerBackendClient implements TellerApi {
+public class TellerBackendClient implements TellerApi, BankingApiClient {
 
-    private static final String TAG = "BujitBanking";
-    private static final String BACKEND_BASE_URL = "https://tellerproxy-kswzrkdipq-uc.a.run.app";
+    private static final String TAG     = "BujitBanking";
+    private static final String BASE    = "https://" + BankingProviderConfig.BACKEND_HOST;
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final OkHttpClient http;
     private final String accessToken;
     private final String firebaseIdToken;
 
     public TellerBackendClient(Context context, String accessToken, String firebaseIdToken) {
-        this.accessToken = accessToken;
+        this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
-        this.http = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
+        this.http            = BankingProviderConfig.buildSecureHttpClient();
+    }
+
+    @Override
+    public void revokeToken() throws IOException {
+        RequestBody body = RequestBody.create("{}", JSON);
+        Request request = new Request.Builder()
+                .url(BASE + "/teller/remove")
+                .header("X-Teller-Token", accessToken)
+                .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .post(body)
                 .build();
+        Log.d(TAG, "TellerBackendClient: POST /teller/remove");
+        try (Response response = http.newCall(request).execute()) {
+            Log.d(TAG, "TellerBackendClient: /teller/remove → HTTP " + response.code());
+            if (!response.isSuccessful()) {
+                String err = response.body() != null ? response.body().string() : "(no body)";
+                throw new IOException("Backend /teller/remove failed: HTTP " + response.code() + " " + err);
+            }
+        }
     }
 
     @Override
@@ -48,6 +66,7 @@ public class TellerBackendClient implements TellerApi {
         List<BankAccountModel> accounts = new ArrayList<>();
         try (Response response = http.newCall(buildRequest("/accounts")).execute()) {
             Log.d(TAG, "TellerBackendClient: /accounts → HTTP " + response.code());
+            checkForAuthError(response);
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "(no body)";
                 Log.e(TAG, "TellerBackendClient: /accounts error body: " + errorBody);
@@ -98,12 +117,15 @@ public class TellerBackendClient implements TellerApi {
         String path = "/accounts/" + accountId + "/balances";
         Log.d(TAG, "TellerBackendClient: GET " + path);
         try (Response r = http.newCall(buildRequest(path)).execute()) {
+            checkForAuthError(r);
             if (!r.isSuccessful())
                 throw new IOException("Backend " + path + " failed: HTTP " + r.code());
             JSONObject bal = new JSONObject(r.body().string());
             float ledger    = parseFloatSafe(bal.optString("ledger",    "0"));
             float available = parseFloatSafe(bal.optString("available", "0"));
-            return new float[]{ledger, available};
+            // Teller does not expose the credit limit directly; 0 signals the caller to
+            // fall back to ledger + available as an approximation.
+            return new float[]{ledger, available, 0f};
         } catch (JSONException e) {
             throw new IOException("Parse error for " + accountId + ": " + e.getMessage(), e);
         }
@@ -114,6 +136,7 @@ public class TellerBackendClient implements TellerApi {
         String path = "/accounts/" + accountId + "/balances";
         Log.d(TAG, "TellerBackendClient: GET " + path);
         try (Response r = http.newCall(buildRequest(path)).execute()) {
+            checkForAuthError(r);
             if (!r.isSuccessful())
                 throw new IOException("Backend " + path + " failed: HTTP " + r.code());
             JSONObject bal = new JSONObject(r.body().string());
@@ -125,10 +148,18 @@ public class TellerBackendClient implements TellerApi {
 
     private Request buildRequest(String path) {
         return new Request.Builder()
-                .url(BACKEND_BASE_URL + path)
+                .url(BASE + path)
                 .header("X-Teller-Token", accessToken)
-                .header("Authorization", "Bearer " + firebaseIdToken)
+                .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
                 .build();
+    }
+
+    // Throws BankingAuthException on HTTP 401 — signals a disconnected Teller enrollment.
+    private static void checkForAuthError(Response response) throws BankingAuthException {
+        if (response.code() == 401) {
+            Log.w(TAG, "Teller 401 received — enrollment likely disconnected");
+            throw new BankingAuthException("enrollment.disconnected");
+        }
     }
 
     private float parseFloatSafe(String s) {

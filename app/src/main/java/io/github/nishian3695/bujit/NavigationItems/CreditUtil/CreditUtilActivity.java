@@ -30,7 +30,8 @@ import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankAccountModel;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
-import io.github.nishian3695.bujit.NavigationItems.Banking.TellerBackendClient;
+import io.github.nishian3695.bujit.NavigationItems.Banking.BankingApiClient;
+import io.github.nishian3695.bujit.NavigationItems.Banking.BankingProviderConfig;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -97,6 +98,10 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private CreditAdapter        creditAdapter;
     private SwipeRefreshLayout   swipeRefreshLayout;
     private TextView             syncLabel;
+    private TextView             totalDebtView;
+    private TextView             totalLimitView;
+    private TextView             totalUtilView;
+    private ProgressBar          totalUtilBar;
 
     private boolean dataChanged;
     private Intent  returnIntent;
@@ -134,6 +139,10 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
         swipeRefreshLayout = findViewById(R.id.credit_swipe_refresh);
         syncLabel          = findViewById(R.id.credit_sync_label);
+        totalDebtView      = findViewById(R.id.credit_total_debt);
+        totalLimitView     = findViewById(R.id.credit_total_limit);
+        totalUtilView      = findViewById(R.id.credit_total_util);
+        totalUtilBar       = findViewById(R.id.credit_total_util_bar);
         RecyclerView creditRecyclerView = findViewById(R.id.credit_recyclerview);
         FloatingActionButton addBtn     = findViewById(R.id.add_credit_button);
         ThemeHelper.tintFab(addBtn, this);
@@ -170,6 +179,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         swipeRefreshLayout.setOnRefreshListener(this::syncLinkedCredits);
 
         updateSyncLabel();
+        updateTotalUtilization();
     }
 
     // Add credit dialog
@@ -267,13 +277,14 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     newEntry.setCreditLimit(limitStr);
                     if (isConnected) {
                         newEntry.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
-                        BankingPrefs.saveAccountToken(this, linkedId[0], linkedToken[0]);
+                        BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
                     }
 
                     creditList.add(newEntry);
                     creditPosList.add(-1);
                     newCreditModels.add(newEntry);
                     creditAdapter.notifyItemInserted(creditList.size() - 1);
+                    updateTotalUtilization();
                 }
                 // TODO: Re-enable "link to existing expense" once the expense-to-credit sync
                 // is fixed. The block below correctly tracks the change in changedList/
@@ -324,7 +335,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         String[] linkedId      = {credit.getLinkedAccountId()};
         String storedToken     = credit.getLinkedAccountToken();
         if (storedToken == null && credit.getLinkedAccountId() != null) {
-            storedToken = BankingPrefs.getTokenForAccount(this, credit.getLinkedAccountId());
+            storedToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
         }
         String[] linkedToken = {storedToken};
         String[] linkedDisplay = {credit.getLinkedAccountDisplay()};
@@ -358,7 +369,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
                     if (linkedId[0] != null) {
                         credit.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
-                        BankingPrefs.saveAccountToken(this, linkedId[0], linkedToken[0]);
+                        BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
                     } else {
                         credit.clearLinkedAccount();
                     }
@@ -372,6 +383,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     }
                     dataChanged = true;
                     creditAdapter.notifyItemChanged(position);
+                    updateTotalUtilization();
                 })
                 .create();
 
@@ -395,6 +407,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             creditList.remove(position);
                             creditPosList.remove(position);
                             creditAdapter.notifyItemRemoved(position);
+                            updateTotalUtilization();
                             notCreditList.add(credit);
                             notCreditPosList.add(expPos >= 0 ? expPos : expenseModelsList.size());
                             dataChanged = true;
@@ -453,7 +466,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             List<BankAccountModel> accounts = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    TellerBackendClient client = new TellerBackendClient(this, token, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken);
                     List<BankAccountModel> all = client.fetchAccounts();
                     for (BankAccountModel m : all) {
                         String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
@@ -489,7 +502,14 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             BankAccountModel sel = accounts.get(idx);
                             float ledger = parseFloatSafe(sel.getLedgerBalance());
                             float avail  = parseFloatSafe(sel.getAvailableBalance());
-                            float limit  = ledger + avail;
+                            // Use the provider's reported credit limit when available (Plaid
+                            // exposes balances.limit directly). For Teller, fall back to
+                            // ledger + available, which understates the limit by any pending
+                            // amount but is the best approximation without a limit field.
+                            String rawLimit = sel.getCreditLimit();
+                            float limit = (rawLimit != null && !rawLimit.isEmpty())
+                                    ? parseFloatSafe(rawLimit) : ledger + avail;
+                            if (limit <= 0f) limit = ledger + avail;
 
                             String display = sel.getInstitutionName()
                                     + " " + sel.getDisplayType()
@@ -535,13 +555,16 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 if (!credit.isLinkedToBank()) continue;
                 try {
                     String tellerToken = credit.getLinkedAccountToken();
-                    if (tellerToken == null) tellerToken = BankingPrefs.getTokenForAccount(this, credit.getLinkedAccountId());
-                    TellerBackendClient client = new TellerBackendClient(this, tellerToken, idToken);
+                    if (tellerToken == null) tellerToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
+                    BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken);
                     float[] pair  = client.fetchAccountBalancePair(credit.getLinkedAccountId());
                     float ledger  = pair[0];
                     float avail   = pair[1];
+                    // pair[2] > 0: provider returned the actual credit limit (Plaid balances.limit).
+                    // pair[2] == 0: Teller fallback — ledger + available understates by pending amount.
+                    float limitFloat = pair[2] > 0f ? pair[2] : ledger + avail;
                     String debt   = String.format(Locale.US, "%.2f", ledger);
-                    String limit  = String.format(Locale.US, "%.2f", ledger + avail);
+                    String limit  = String.format(Locale.US, "%.2f", limitFloat);
                     credit.setCost(debt);
                     credit.setShownCost(debt);
                     credit.setCreditLimit(limit);
@@ -564,6 +587,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 if (didUpdate) {
                     dataChanged = true;
                     creditAdapter.notifyDataSetChanged();
+                    updateTotalUtilization();
                     syncLabel.setText("Synced just now");
                 }
             });
@@ -602,17 +626,41 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     }
 
     private Set<String> loadBankTokens() {
-        return BankingPrefs.loadTokens(this);
+        return BankingProviderConfig.loadTokens(this);
     }
 
     private float parseFloatSafe(String s) {
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }
 
+    private void updateTotalUtilization() {
+        float totalDebt  = 0f;
+        float totalLimit = 0f;
+        for (ExpenseModel e : creditList) {
+            try { totalDebt  += Float.parseFloat(e.getCost()); }        catch (NumberFormatException ignored) {}
+            try { totalLimit += Float.parseFloat(e.getCreditLimit()); } catch (NumberFormatException ignored) {}
+        }
+        int utilPct = (totalLimit > 0) ? Math.min(100, Math.round(totalDebt / totalLimit * 100)) : 0;
+
+        totalDebtView.setText("$" + String.format(Locale.US, "%.2f", totalDebt));
+        totalLimitView.setText("$" + String.format(Locale.US, "%.2f", totalLimit));
+        totalUtilView.setText(utilPct + "%");
+        totalUtilBar.setProgress(utilPct);
+
+        int color;
+        if (utilPct < 30)      color = R.color.balance_positive;
+        else if (utilPct < 70) color = R.color.util_warning;
+        else                   color = R.color.balance_negative;
+
+        int resolved = androidx.core.content.ContextCompat.getColor(this, color);
+        totalUtilView.setTextColor(resolved);
+        totalUtilBar.setProgressTintList(android.content.res.ColorStateList.valueOf(resolved));
+    }
+
     private void updateSyncLabel() {
         boolean anyLinked = false;
         for (ExpenseModel e : creditList) { if (e.isLinkedToBank()) { anyLinked = true; break; } }
-        syncLabel.setText(anyLinked ? "Pull down to sync Teller balances" : "—");
+        syncLabel.setText(anyLinked ? "Pull down to sync balances" : "—");
     }
 
     // Persist to storage
@@ -674,6 +722,28 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         removeTutorialOverlay();
         super.onPause();
         persistChanges();
+        // Always set the result when there are changes so ExpenseActivity's callback
+        // fires regardless of whether the user used the back arrow, a swipe gesture,
+        // or the system killed the process. setResult only delivers when the Activity
+        // actually finishes, so this is harmless on a plain home-button press.
+        if (dataChanged) {
+            // Signal ExpenseActivity to reload the expense list from disk on its next
+            // resume. This is the primary save mechanism — persists regardless of how
+            // the user exits (backswipe, home gesture, process kill).
+            getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                    .edit().putBoolean("credit_util_changed", true).apply();
+            // Belt-and-suspenders: also set the result for the ActivityResultLauncher
+            // callback (works for all normal navigation paths).
+            Intent intent = new Intent();
+            intent.putIntegerArrayListExtra("changedList",        changedList);
+            intent.putStringArrayListExtra("howChangedList",      howChangedList);
+            intent.putStringArrayListExtra("changedCredUseList",  changedCredUseList);
+            intent.putStringArrayListExtra("changedCredLimList",  changedCredLimList);
+            if (!newCreditModels.isEmpty()) {
+                intent.putExtra("newCreditList", newCreditModels);
+            }
+            setResult(RESULT_OK, intent);
+        }
     }
 
     private void maybeShowTutorial() {

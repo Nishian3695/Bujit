@@ -18,6 +18,10 @@ public class BankAccountModel {
     private String institutionName;
     private String ledgerBalance;
     private String availableBalance;
+    // Credit limit reported by the provider (non-null only for credit-type accounts and only
+    // when the provider exposes it directly, e.g. Plaid's balances.limit). Null means the
+    // caller should fall back to ledger + available as an approximation.
+    private String creditLimit;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -48,6 +52,9 @@ public class BankAccountModel {
 
     public String getAvailableBalance() { return availableBalance; }
     public void setAvailableBalance(String availableBalance) { this.availableBalance = availableBalance; }
+
+    public String getCreditLimit() { return creditLimit; }
+    public void setCreditLimit(String creditLimit) { this.creditLimit = creditLimit; }
 
     // Formats type + subtype for display, e.g. "Depository - Checking"
     public String getDisplayType() {

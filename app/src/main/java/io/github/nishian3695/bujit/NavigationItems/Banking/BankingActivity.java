@@ -18,9 +18,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import io.github.nishian3695.bujit.BuildConfig;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.R;
@@ -30,7 +28,6 @@ import io.github.nishian3695.bujit.ThemeHelper;
 import io.github.nishian3695.bujit.Tutorial.TutorialManager;
 import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import android.view.ViewGroup;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -48,29 +45,33 @@ import io.teller.connect.sdk.Error;
 import io.teller.connect.sdk.Payee;
 import io.teller.connect.sdk.Payment;
 import io.teller.connect.sdk.Registration;
+import androidx.activity.result.ActivityResultLauncher;
+import com.plaid.link.OpenPlaidLink;
+import com.plaid.link.configuration.LinkTokenConfiguration;
+import com.plaid.link.result.LinkExit;
+import com.plaid.link.result.LinkResult;
+import com.plaid.link.result.LinkSuccess;
 
 /*
-Activity for connecting bank accounts via the Teller SDK.
+Activity for connecting bank accounts via Teller or Plaid (compile-time switch in
+BankingProviderConfig). On first open the user taps "Connect Bank" to launch the
+provider's SDK. On success the access token is encrypted with AES-256-GCM via the
+Android Keystore and stored by BankingPrefs. Multiple banks can be connected; tokens
+are kept as a set.
 
-On first open the user taps "Connect Bank" to launch the Teller Connect WebView
-fragment. On successful enrollment, the access token is encrypted with AES-256-GCM
-via Android Keystore and stored by BankingPrefs. Multiple banks can be connected;
-tokens are kept as a set.
+On subsequent opens all stored tokens are fetched in the background and the combined
+account list is displayed. Firebase anonymous sign-in is performed silently so the
+Cloud Function backend can verify the caller.
 
-On subsequent opens (or after enrollment), all stored tokens are fetched in the
-background using TellerBackendClient, and the combined account list is displayed.
-Firebase anonymous sign-in is performed silently so the Cloud Function backend can
-verify the caller without requiring the user to have a Google account.
-
-Disconnecting a bank removes its token(s) and deletes any credit expenses that were
-linked to accounts belonging to that enrollment.
+Disconnecting a bank revokes the token server-side, then removes it locally and
+deletes any credit expenses linked to accounts belonging to that enrollment.
 */
 public class BankingActivity extends AppCompatActivity implements ConnectListener {
 
     private static final String TAG = "BujitBanking";
     private FirebaseAuth mAuth;
     private static final String      TELLER_APP_ID = BuildConfig.TELLER_APP_ID;
-    private static final Environment TELLER_ENV    = Environment.DEVELOPMENT;
+    private static final Environment TELLER_ENV    = BankingProviderConfig.TELLER_ENV;
     private View         connectContainer;
     private RecyclerView accountList;
     private ProgressBar  progressBar;
@@ -83,10 +84,24 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     private final ExecutorService executor    = Executors.newSingleThreadExecutor();
     private final Handler         mainHandler = new Handler(Looper.getMainLooper());
 
+    // Plaid Link SDK launcher, registered in onCreate, only used when ACTIVE_PROVIDER == PLAID
+    private ActivityResultLauncher<LinkTokenConfiguration> plaidLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+
+        // One-time migration: re-encrypts stored tokens under the current v4 key.
+        BankingPrefs.migrateIfNeeded(this);
+
+        // Plaid launcher must be registered before the Activity reaches STARTED state.
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            plaidLauncher = registerForActivityResult(
+                    new OpenPlaidLink(),
+                    this::handlePlaidResult
+            );
+        }
         WebView.setWebContentsDebuggingEnabled(false);
         setContentView(R.layout.activity_banking);
         ThemeHelper.tintActionBar(this);
@@ -115,12 +130,18 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         accountList.setLayoutManager(new LinearLayoutManager(this));
         accountList.setAdapter(adapter);
 
-        connectBtn.setOnClickListener(v -> launchTellerConnect());
+        connectBtn.setOnClickListener(v -> {
+            if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+                launchPlaidLink();
+            } else {
+                launchTellerConnect();
+            }
+        });
         disconnectBtn.setOnClickListener(v -> confirmDisconnect());
 
         mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
-            // Sign in anonymously - silent, no prompt. Gives the Cloud Function
+            // Sign in anonymously. Silent, no prompt. Gives the Cloud Function
             // a verifiable token without requiring the user to have a Google account.
             mAuth.signInAnonymously().addOnCompleteListener(this, task -> {
                 if (task.isSuccessful()) {
@@ -155,6 +176,72 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
             Log.d(TAG, "loadAccountsIfAny: no stored tokens — showing empty state");
             showEmptyState();
         }
+    }
+
+    // Plaid Link SDK
+    private void launchPlaidLink() {
+        showLoading();
+        executor.execute(() -> {
+            try {
+                String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                String linkToken = PlaidBackendClient.fetchLinkToken(this, idToken);
+                String finalLinkToken = linkToken;
+                mainHandler.post(() -> {
+                    LinkTokenConfiguration config = new LinkTokenConfiguration.Builder()
+                            .token(finalLinkToken)
+                            .build();
+                    plaidLauncher.launch(config);
+                    // Restore UI while the Plaid Activity is in the foreground
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "launchPlaidLink: failed to fetch link token: " + e.getMessage(), e);
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Failed to start bank connection", Toast.LENGTH_LONG).show();
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            }
+        });
+    }
+
+    private void handlePlaidResult(LinkResult result) {
+        if (result instanceof LinkSuccess) {
+            String publicToken = ((LinkSuccess) result).getPublicToken();
+            Log.d(TAG, "handlePlaidResult: success, exchanging public token");
+            exchangePlaidPublicToken(publicToken);
+        } else if (result instanceof LinkExit) {
+            LinkExit exit = (LinkExit) result;
+            if (exit.getError() != null) {
+                Log.e(TAG, "handlePlaidResult: exit error=" + exit.getError().getErrorCode()
+                        + " message=" + exit.getError().getErrorMessage());
+            } else {
+                Log.d(TAG, "handlePlaidResult: user exited without linking");
+            }
+            if (accounts.isEmpty()) showEmptyState();
+        }
+    }
+
+    private void exchangePlaidPublicToken(String publicToken) {
+        showLoading();
+        executor.execute(() -> {
+            try {
+                String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                String accessToken = PlaidBackendClient.exchangePublicToken(this, publicToken, idToken);
+                Log.d(TAG, "exchangePlaidPublicToken: access token received");
+                addPlaidToken(accessToken);
+                Set<String> tokens = loadAllTokens();
+                mainHandler.post(() -> fetchAndShowAllAccounts(tokens));
+            } catch (Exception e) {
+                Log.e(TAG, "exchangePlaidPublicToken: failed: " + e.getMessage(), e);
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Failed to complete bank connection", Toast.LENGTH_LONG).show();
+                    if (accounts.isEmpty()) showEmptyState();
+                    else showAccountList();
+                });
+            }
+        });
     }
 
     // Teller Connect SDK
@@ -201,10 +288,6 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         addToken(token);
         dismissConnectFragment();
         Set<String> tokens = loadAllTokens();
-        // Fallback: if EncryptedSharedPreferences failed, at least show the account this session
-        if (tokens.isEmpty() && token != null && !token.isEmpty()) {
-            tokens = new HashSet<>(Collections.singleton(token));
-        }
         fetchAndShowAllAccounts(tokens);
     }
 
@@ -232,35 +315,37 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
 
     @Override
     public void onEvent(String name, Map<String, ? extends Object> data) {
-        Log.d(TAG, "onEvent: " + name + " data=" + data);
+        Log.d(TAG, "onEvent: " + name);
     }
 
     // Fetches accounts from every stored token and merges them into one list.
+    // If a token returns BankingAuthException (HTTP 401), it is removed locally and the
+    // user is offered a chance to re-link. All other tokens are still fetched.
     private void fetchAndShowAllAccounts(Set<String> tokens) {
         showLoading();
         Log.d(TAG, "fetchAndShowAllAccounts: " + tokens.size() + " token(s)");
         executor.execute(() -> {
-            String firebaseIdToken = null;
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user != null) {
-                try {
-                    firebaseIdToken = Tasks.await(user.getIdToken(false)).getToken();
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to get Firebase ID token: " + e.getMessage());
-                }
-            }
-            final String idToken = firebaseIdToken;
+            String idToken = BankingProviderConfig.fetchFirebaseIdToken();
             List<BankAccountModel> allAccounts = new ArrayList<>();
+            boolean hadAuthError = false;
             for (String token : tokens) {
                 try {
-                    TellerBackendClient client = new TellerBackendClient(this, token, idToken);
-                    List<BankAccountModel> fetched = client.fetchAccounts();
+                    List<BankAccountModel> fetched =
+                            BankingProviderConfig.createClient(this, token, idToken).fetchAccounts();
                     Log.d(TAG, "  token → " + fetched.size() + " account(s)");
                     allAccounts.addAll(fetched);
+                } catch (BankingAuthException e) {
+                    Log.w(TAG, "  token revoked/expired — removing locally: " + e.getMessage());
+                    hadAuthError = true;
+                    // Remove the invalid token so it doesn't keep failing on next load.
+                    Set<String> remaining = new HashSet<>(loadAllTokens());
+                    remaining.remove(token);
+                    saveAllTokens(remaining);
                 } catch (Exception e) {
                     Log.e(TAG, "  token fetch failed: " + e.getMessage(), e);
                 }
             }
+            final boolean showRelink = hadAuthError;
             mainHandler.post(() -> {
                 accounts.clear();
                 accounts.addAll(allAccounts);
@@ -268,8 +353,26 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                 Log.d(TAG, "fetchAndShowAllAccounts: displaying " + allAccounts.size() + " total accounts");
                 if (accounts.isEmpty()) showEmptyState();
                 else showAccountList();
+                if (showRelink) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Bank Connection Expired")
+                            .setMessage("One or more bank connections have been revoked or expired. " +
+                                    "Tap \"Reconnect\" to re-link your account.")
+                            .setPositiveButton("Reconnect", (d, w) -> connectBtn.performClick())
+                            .setNegativeButton("Dismiss", null)
+                            .show();
+                }
             });
         });
+    }
+
+    // Saves a full set of tokens back to encrypted storage for the active provider.
+    private void saveAllTokens(Set<String> tokens) {
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            BankingPrefs.savePlaidTokens(this, tokens);
+        } else {
+            BankingPrefs.saveTokens(this, tokens);
+        }
     }
 
     private void confirmDisconnect() {
@@ -308,16 +411,26 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                             .setMessage(msg)
                             .setPositiveButton("Disconnect", (d2, w2) -> {
                                 Log.d(TAG, "User disconnecting " + toRemove.size() + " bank(s)");
-                                removeLinkedExpensesForTokens(toRemove);
-                                removeTokens(toRemove);
-                                Set<String> remaining = loadAllTokens();
-                                if (remaining.isEmpty()) {
-                                    accounts.clear();
-                                    adapter.notifyDataSetChanged();
-                                    showEmptyState();
-                                } else {
-                                    fetchAndShowAllAccounts(remaining);
-                                }
+                                showLoading();
+                                // Revoke tokens server-side first, then clean up locally.
+                                executor.execute(() -> {
+                                    String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                                    for (String tok : toRemove) {
+                                        BankingProviderConfig.revokeToken(this, tok, idToken);
+                                    }
+                                    mainHandler.post(() -> {
+                                        removeLinkedExpensesForTokens(toRemove);
+                                        removeTokens(toRemove);
+                                        Set<String> remaining = loadAllTokens();
+                                        if (remaining.isEmpty()) {
+                                            accounts.clear();
+                                            adapter.notifyDataSetChanged();
+                                            showEmptyState();
+                                        } else {
+                                            fetchAndShowAllAccounts(remaining);
+                                        }
+                                    });
+                                });
                             })
                             .setNegativeButton("Cancel", null)
                             .show();
@@ -328,11 +441,21 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                             .setMessage("Disconnect all banks? This cannot be undone.")
                             .setPositiveButton("Disconnect All", (d2, w2) -> {
                                 Log.d(TAG, "User disconnected all banks");
-                                removeAllLinkedExpenses();
-                                clearAllTokens();
-                                accounts.clear();
-                                adapter.notifyDataSetChanged();
-                                showEmptyState();
+                                showLoading();
+                                Set<String> allTokens = new HashSet<>(loadAllTokens());
+                                executor.execute(() -> {
+                                    String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                                    for (String tok : allTokens) {
+                                        BankingProviderConfig.revokeToken(this, tok, idToken);
+                                    }
+                                    mainHandler.post(() -> {
+                                        removeAllLinkedExpenses();
+                                        clearAllTokens();
+                                        accounts.clear();
+                                        adapter.notifyDataSetChanged();
+                                        showEmptyState();
+                                    });
+                                });
                             })
                             .setNegativeButton("Cancel", null)
                             .show();
@@ -369,29 +492,54 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         disconnectBtn.setVisibility(View.VISIBLE);
     }
 
-    // Token storage -- one per enrolled bank
+    // Token storage -- one per enrolled bank, routed to the active provider's namespace
 
     private Set<String> loadAllTokens() {
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            return BankingPrefs.loadPlaidTokens(this);
+        }
         return BankingPrefs.loadTokens(this);
     }
 
+    // Teller enrollment callback path
     private void addToken(String token) {
         Set<String> tokens = new HashSet<>(BankingPrefs.loadTokens(this));
         tokens.add(token);
         BankingPrefs.saveTokens(this, tokens);
     }
 
+    // Plaid exchange callback path
+    private void addPlaidToken(String token) {
+        Set<String> tokens = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
+        tokens.add(token);
+        BankingPrefs.savePlaidTokens(this, tokens);
+    }
+
     private void clearAllTokens() {
-        BankingPrefs.clear(this);
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            BankingPrefs.clearPlaid(this);
+        } else {
+            BankingPrefs.clear(this);
+        }
     }
 
     private void removeTokens(Set<String> tokensToRemove) {
-        Set<String> current = new HashSet<>(BankingPrefs.loadTokens(this));
-        current.removeAll(tokensToRemove);
-        if (current.isEmpty()) {
-            BankingPrefs.clear(this);
+        if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+            Set<String> current = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
+            current.removeAll(tokensToRemove);
+            if (current.isEmpty()) {
+                BankingPrefs.clearPlaid(this);
+            } else {
+                BankingPrefs.savePlaidTokens(this, current);
+            }
         } else {
-            BankingPrefs.saveTokens(this, current);
+            Set<String> current = new HashSet<>(BankingPrefs.loadTokens(this));
+            current.removeAll(tokensToRemove);
+            if (current.isEmpty()) {
+                BankingPrefs.clear(this);
+            } else {
+                BankingPrefs.saveTokens(this, current);
+            }
         }
     }
 
@@ -411,7 +559,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                     }
                 }
                 // Fallback: check the persisted account→token map when in-memory list is stale
-                String storedToken = BankingPrefs.getTokenForAccount(this, accountId);
+                String storedToken = BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID
+                        ? BankingPrefs.getPlaidTokenForAccount(this, accountId)
+                        : BankingPrefs.getTokenForAccount(this, accountId);
                 return storedToken != null && tokensToRemove.contains(storedToken);
             });
             if (list.size() != before) {

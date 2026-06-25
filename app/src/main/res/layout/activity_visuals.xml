@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/visuals_tab_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/visuals_tab_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="?attr/colorControlHighlight"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/visuals_tab_layout" />
+
+    <!-- ── Cash Flow panel ───────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/cash_flow_panel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/visuals_tab_divider">
+
+        <!-- GROSS / NET toggle -->
+        <RadioGroup
+            android:id="@+id/cash_flow_mode_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingTop="10dp"
+            android:paddingBottom="4dp">
+
+            <RadioButton
+                android:id="@+id/rb_gross"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:paddingEnd="24dp"
+                android:text="Gross" />
+
+            <RadioButton
+                android:id="@+id/rb_net"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Net" />
+
+        </RadioGroup>
+
+        <!-- Period navigation bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <Button
+                android:id="@+id/btn_period_prev"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="0dp"
+                android:text="‹"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/tv_period_range"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_period_next"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="0dp"
+                android:text="›"
+                android:textSize="22sp" />
+
+        </LinearLayout>
+
+        <!-- Bar chart -->
+        <com.github.mikephil.charting.charts.BarChart
+            android:id="@+id/cash_flow_chart"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Legend row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp"
+            android:paddingTop="6dp">
+
+            <View
+                android:id="@+id/legend_income_swatch"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:background="@color/balance_positive" />
+
+            <TextView
+                android:id="@+id/legend_income_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="20dp"
+                android:paddingStart="5dp"
+                android:text="Income"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/legend_expenses_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:background="@color/balance_negative" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="5dp"
+                    android:text="Expenses"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── Categories panel (hidden by default) ──────────────────── -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/categories_panel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/visuals_tab_divider">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.55"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.06"
+                android:paddingBottom="4dp"
+                android:paddingStart="16dp"
+                android:paddingTop="14dp"
+                android:text="ESTIMATED MONTHLY SPENDING"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="10sp" />
+
+            <com.github.mikephil.charting.charts.HorizontalBarChart
+                android:id="@+id/categories_chart"
+                android:layout_width="match_parent"
+                android:layout_height="320dp" />
+
+            <TextView
+                android:id="@+id/categories_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:fontFamily="sans-serif"
+                android:paddingEnd="16dp"
+                android:paddingStart="16dp"
+                android:paddingTop="6dp"
+                android:text="Categories are inferred from expense names. Plaid transaction-level categorization coming soon."
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

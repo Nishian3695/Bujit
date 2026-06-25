@@ -55,10 +55,10 @@
         android:id="@+id/income_streams_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
+        android:layout_gravity="bottom|center_horizontal"
         android:layout_margin="16dp"
         android:src="@drawable/sharp_add"
         android:contentDescription="Add income stream"
-        app:layout_anchorGravity="bottom|end" />
+        app:layout_anchorGravity="bottom|center_horizontal" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

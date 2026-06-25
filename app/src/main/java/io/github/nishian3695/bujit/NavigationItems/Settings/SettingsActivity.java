@@ -17,9 +17,14 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import io.github.nishian3695.bujit.AppLockPrefs;
+import io.github.nishian3695.bujit.BujitApp;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import io.github.nishian3695.bujit.Tutorial.TutorialManager;
 import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
@@ -34,6 +39,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
 
@@ -81,6 +87,9 @@ public class SettingsActivity extends AppCompatActivity {
     private View     rowGoogleConnected;
     private TextView tvGoogleAccount;
 
+    private SwitchMaterial switchAppLock;
+    private boolean updatingLockSwitch = false;
+
     private TutorialOverlayLayout tutorialOverlay;
     private GoogleSignInClient googleSignInClient;
     private boolean calendarSyncChanged = false;
@@ -120,6 +129,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_appearance), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_integrations), this);
+        ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_security), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_data), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_legal), this);
@@ -163,6 +173,51 @@ public class SettingsActivity extends AppCompatActivity {
 
         rowGoogleConnect.setOnClickListener(v -> startGoogleSignIn());
         btnDisconnect.setOnClickListener(v -> confirmDisconnect());
+
+        switchAppLock = findViewById(R.id.switch_app_lock);
+        switchAppLock.setChecked(AppLockPrefs.isLockEnabled(this));
+        switchAppLock.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingLockSwitch) return;
+            if (isChecked) {
+                int canAuth = BiometricManager.from(this).canAuthenticate(
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+                if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+                    Toast.makeText(this,
+                            "No screen lock set up. Enable a PIN, pattern, or biometric in device settings first.",
+                            Toast.LENGTH_LONG).show();
+                    updatingLockSwitch = true;
+                    switchAppLock.setChecked(false);
+                    updatingLockSwitch = false;
+                    return;
+                }
+                BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
+                        .setTitle("Enable App Lock")
+                        .setSubtitle("Confirm your identity to enable lock")
+                        .setAllowedAuthenticators(
+                                BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                                BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                        .build();
+                new BiometricPrompt(this, ContextCompat.getMainExecutor(this),
+                        new BiometricPrompt.AuthenticationCallback() {
+                            @Override
+                            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                                AppLockPrefs.setLockEnabled(SettingsActivity.this, true);
+                                BujitApp.needsAuth = false;
+                            }
+                            @Override
+                            public void onAuthenticationError(int errorCode, CharSequence errString) {
+                                updatingLockSwitch = true;
+                                switchAppLock.setChecked(false);
+                                updatingLockSwitch = false;
+                            }
+                            @Override
+                            public void onAuthenticationFailed() {}
+                        }).authenticate(info);
+            } else {
+                AppLockPrefs.setLockEnabled(this, false);
+            }
+        });
 
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());
         findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
@@ -342,6 +397,7 @@ public class SettingsActivity extends AppCompatActivity {
         getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE).edit().clear().apply();
 
         BankingPrefs.clear(this);
+        AppLockPrefs.setLockEnabled(this, false);
 
         Intent intent = new Intent(this, ExpenseActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
