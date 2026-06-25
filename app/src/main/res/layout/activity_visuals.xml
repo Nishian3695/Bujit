@@ -84,6 +84,11 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="12sp" />
 
@@ -235,18 +240,6 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:paddingBottom="8dp" />
-
-            <TextView
-                android:id="@+id/categories_note"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:alpha="0.5"
-                android:fontFamily="sans-serif"
-                android:paddingEnd="16dp"
-                android:paddingStart="16dp"
-                android:paddingTop="6dp"
-                android:text="Categories are inferred from expense names. Plaid transaction-level categorization coming soon."
-                android:textSize="12sp" />
 
         </LinearLayout>
 

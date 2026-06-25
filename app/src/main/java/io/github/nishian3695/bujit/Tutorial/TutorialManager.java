@@ -7,6 +7,7 @@ import io.github.nishian3695.bujit.NavigationItems.Banking.BankingActivity;
 import io.github.nishian3695.bujit.NavigationItems.CreditUtil.CreditUtilActivity;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamsActivity;
 import io.github.nishian3695.bujit.NavigationItems.Settings.SettingsActivity;
+import io.github.nishian3695.bujit.NavigationItems.Visuals.VisualsActivity;
 import io.github.nishian3695.bujit.R;
 
 public class TutorialManager {
@@ -54,7 +55,7 @@ public class TutorialManager {
             8),
         new StepDef(ExpenseActivity.class, R.id.add_button,
             "Add an expense",
-            "Tap + to add a recurring expense (e.g., rent, subscriptions, utilities). Set the amount, frequency, and start date.",
+            "Tap + to add a recurring expense (e.g., rent, subscriptions, utilities). Set the amount, frequency, start date, and category.",
             20),
         // Step 4: show the navigation drawer
         new StepDef(ExpenseActivity.class, R.id.main_navigation_view,
@@ -79,8 +80,21 @@ public class TutorialManager {
         new StepDef(BankingActivity.class, R.id.btn_connect_bank,
             "Link your bank or credit card",
             "Securely connect your bank via Teller to auto-sync your balance and credit card amounts.\nYour login credentials never leave Teller's secure system.",
-            16, SettingsActivity.class),
-        // SettingsActivity: step 9 (final)
+            16, VisualsActivity.class),
+        // VisualsActivity: steps 9–11
+        new StepDef(VisualsActivity.class, R.id.visuals_tab_layout,
+            "Visuals",
+            "Two chart views give you the bigger picture. Cash Flow tracks income and expenses by pay period across the year. Categories breaks your estimated spending down by type — tap a legend chip to show or hide any category.",
+            8),
+        new StepDef(VisualsActivity.class, R.id.cash_flow_chart,
+            "Cash Flow chart",
+            "Green bars = income, red bars = expenses. Hatched bars are projected future periods.\nGross mode shows both at once. Net collapses them to a single +/- bar. Tap any bar to see the dollar amount, and use ‹ and › to browse other years.",
+            8),
+        new StepDef(VisualsActivity.class, R.id.categories_chart,
+            "Spending categories",
+            "Your expenses estimated per pay check, broken down by category. Tap any slice to see the dollar amount, and tap a legend chip to show or hide that category.\nThe lower chart excludes credit card entries for a cleaner view of regular spending.",
+            8, SettingsActivity.class),
+        // SettingsActivity: step 12 (final)
         new StepDef(SettingsActivity.class, R.id.row_tutorial,
             "You're all set!",
             "Explore settings to change your theme, connect Google Calendar, or manage integrations. You can replay this tutorial here at any time.",

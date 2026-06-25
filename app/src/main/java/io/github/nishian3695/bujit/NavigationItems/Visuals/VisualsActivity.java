@@ -1,6 +1,7 @@
 package io.github.nishian3695.bujit.NavigationItems.Visuals;
 
 import android.content.res.TypedArray;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
@@ -35,14 +36,24 @@ import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.listener.ChartTouchListener;
 import com.github.mikephil.charting.listener.OnChartGestureListener;
+import com.github.mikephil.charting.buffer.BarBuffer;
+import com.github.mikephil.charting.interfaces.datasets.IBarDataSet;
+import com.github.mikephil.charting.renderer.BarChartRenderer;
 import com.github.mikephil.charting.utils.MPPointF;
 import android.view.MotionEvent;
 import java.util.function.BiFunction;
 import com.google.android.material.tabs.TabLayout;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.StorageManagement.CategoryManager;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import io.github.nishian3695.bujit.R;
+import io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot;
+import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
+import io.github.nishian3695.bujit.StorageManagement.StorageManager;
 import io.github.nishian3695.bujit.ThemeHelper;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
@@ -58,7 +69,7 @@ import java.util.Set;
 /*
 Displays two chart views for the user's financial data.
 
-Cash Flow tab — a 12-month BarChart (5 months back, current month, 6 months forward).
+Cash Flow tab — a 12-month BarChart.
   Green bars go upward for income (from income streams); red bars go downward for all
   expenses (both regular and credit-card entries). A GROSS/NET toggle is provided:
   GROSS shows both bars stacked from the zero line for each month; NET collapses them
@@ -71,26 +82,11 @@ Categories tab — two PieCharts showing estimated per-check spending broken dow
 */
 public class VisualsActivity extends AppCompatActivity {
 
-    // Category definitions: {name, comma-separated keywords}
-    private static final String[][] CATEGORY_RULES = {
-        {"Housing",       "rent,mortgage,hoa,lease"},
-        {"Food",          "food,grocery,groceries,restaurant,dining,doordash,ubereats,grubhub,meal,coffee"},
-        {"Transport",     "car,gas,fuel,uber,lyft,transit,bus,train,parking,auto,vehicle"},
-        {"Entertainment", "netflix,hulu,disney+,disney,spotify,apple,youtube,gaming,game,movie,music,streaming"},
-        {"Utilities",     "electric,electricity,water,internet,phone,utility,utilities,cell,cable,broadband"},
-        {"Healthcare",    "doctor,dental,medical,health,pharmacy,prescription,gym,fitness"},
-        {"Shopping",      "amazon,shopping,clothes,clothing,target,walmart"},
-        {"Subscriptions", "subscription,membership,club"},
-    };
-
-    private static final String[] CATEGORY_ORDER = {
-        "Housing", "Food", "Transport", "Entertainment",
-        "Utilities", "Healthcare", "Shopping", "Subscriptions",
-        "Credit Cards", "Other",
-    };
 
     private ArrayList<ExpenseModel>      expenseList;
     private ArrayList<IncomeStreamModel> incomeList;
+    private ArrayList<PeriodSnapshot>    snapshotList;
+    private ArrayList<String>            categoryList;
     private BarChart             cashFlowChart;
     private PieChart             categoriesChart;
     private PieChart             perCheckChart;
@@ -109,6 +105,9 @@ public class VisualsActivity extends AppCompatActivity {
     private int                  yearOffset    = 0;
     private boolean              isGrossMode   = true;
     private TextView             tvPeriodRange;
+    private int                  currentHighlightBarIdx = -1;
+    private int                  currentHighlightDsIdx  = -1;
+    private TutorialOverlayLayout tutorialOverlay;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -132,10 +131,32 @@ public class VisualsActivity extends AppCompatActivity {
 
         //noinspection unchecked
         expenseList = (ArrayList<ExpenseModel>) getIntent().getSerializableExtra("expenseList");
-        if (expenseList == null) expenseList = new ArrayList<>();
         //noinspection unchecked
         incomeList = (ArrayList<IncomeStreamModel>) getIntent().getSerializableExtra("incomeList");
-        if (incomeList == null) incomeList = new ArrayList<>();
+        //noinspection unchecked
+        snapshotList = (ArrayList<PeriodSnapshot>) getIntent().getSerializableExtra("snapshotList");
+        //noinspection unchecked
+        categoryList = (ArrayList<String>) getIntent().getSerializableExtra("categoryList");
+
+        // When launched from the tutorial (no extras), load directly from storage so charts populate.
+        if (expenseList == null && incomeList == null) {
+            try {
+                StorageHolder h = new StorageManager(this).getStorageHolder();
+                expenseList  = h.getExpenseList()     != null ? h.getExpenseList()     : new ArrayList<>();
+                incomeList   = h.getIncomeStreamList() != null ? h.getIncomeStreamList() : new ArrayList<>();
+                snapshotList = h.getPeriodSnapshots()  != null ? h.getPeriodSnapshots()  : new ArrayList<>();
+                categoryList = h.getCategoryList();
+            } catch (Exception ignored) {
+                expenseList  = new ArrayList<>();
+                incomeList   = new ArrayList<>();
+                snapshotList = new ArrayList<>();
+            }
+        } else {
+            if (expenseList  == null) expenseList  = new ArrayList<>();
+            if (incomeList   == null) incomeList   = new ArrayList<>();
+            if (snapshotList == null) snapshotList = new ArrayList<>();
+        }
+        if (categoryList == null) categoryList = CategoryManager.getDefaults();
 
         cashFlowChart    = findViewById(R.id.cash_flow_chart);
         categoriesChart  = findViewById(R.id.categories_chart);
@@ -186,24 +207,32 @@ public class VisualsActivity extends AppCompatActivity {
 
     private void buildCashFlowChart(boolean gross) {
         isGrossMode = gross;
+        currentHighlightBarIdx = -1;
+        currentHighlightDsIdx  = -1;
         int green     = ContextCompat.getColor(this, R.color.balance_positive);
         int red       = ContextCompat.getColor(this, R.color.balance_negative);
         int textColor = getThemeTextColor();
         int gridColor = resolveAttrColor(R.attr.colorControlHighlight);
 
-        // ── Determine pay period from the most frequent income stream ──────
+        // ── Determine pay period from the selected income stream ─────────
         int payFreq        = 1;
         ChronoUnit payUnit = ChronoUnit.MONTHS;
         LocalDate payAnchor = LocalDate.now().withDayOfMonth(1);
         if (!incomeList.isEmpty()) {
+            // Prefer the user-selected stream; fall back to shortest period if none is marked
             IncomeStreamModel primary = null;
-            double bestDays = Double.MAX_VALUE;
             for (IncomeStreamModel inc : incomeList) {
-                int f = inc.getFrequency();
-                if (f <= 0) continue;
-                ChronoUnit u = incomeFreqToChronoUnit(inc.getFrequencyTag());
-                double d = periodToDays(f, u);
-                if (d < bestDays) { bestDays = d; primary = inc; }
+                if (inc.isSelected()) { primary = inc; break; }
+            }
+            if (primary == null) {
+                double bestDays = Double.MAX_VALUE;
+                for (IncomeStreamModel inc : incomeList) {
+                    int f = inc.getFrequency();
+                    if (f <= 0) continue;
+                    ChronoUnit u = incomeFreqToChronoUnit(inc.getFrequencyTag());
+                    double d = periodToDays(f, u);
+                    if (d < bestDays) { bestDays = d; primary = inc; }
+                }
             }
             if (primary != null) {
                 payFreq   = primary.getFrequency();
@@ -246,10 +275,17 @@ public class VisualsActivity extends AppCompatActivity {
             LocalDate periodEnd   = (i + 1 < numBars) ? payDates.get(i + 1) : yearEnd;
             periodLabels[i] = periodStart.format(periodLabelFmt);
 
-            // TODO: replace with stored transaction history for past periods.
-            // Until data persistence is implemented, past periods show $0.
-            if (periodStart.isBefore(today)) continue;
+            // Fully-elapsed periods: use stored snapshot; zeros if no snapshot exists yet.
+            if (!periodEnd.isAfter(today)) {
+                PeriodSnapshot snap = findSnapshot(periodStart);
+                if (snap != null) {
+                    incomeTotals[i]  = snap.getIncomeTotal();
+                    expenseTotals[i] = snap.getExpenseTotal();
+                }
+                continue;
+            }
 
+            // Current and future periods: project from recurring rules.
             for (IncomeStreamModel inc : incomeList) {
                 float amt;
                 try { amt = Float.parseFloat(inc.getAmount()); }
@@ -268,7 +304,19 @@ public class VisualsActivity extends AppCompatActivity {
             }
         }
 
-        if (tvPeriodRange != null) tvPeriodRange.setText(String.valueOf(displayYear));
+        if (tvPeriodRange != null) {
+            tvPeriodRange.setText(String.valueOf(displayYear));
+            if (yearOffset != 0) {
+                tvPeriodRange.setTextColor(resolveAttrColor(android.R.attr.colorPrimary));
+                tvPeriodRange.setOnClickListener(v -> {
+                    yearOffset = 0;
+                    buildCashFlowChart(isGrossMode);
+                });
+            } else {
+                tvPeriodRange.setTextColor(getThemeTextColor());
+                tvPeriodRange.setOnClickListener(null);
+            }
+        }
 
         grossIncomeTotals  = new float[numBars];
         grossExpenseTotals = new float[numBars];
@@ -333,16 +381,17 @@ public class VisualsActivity extends AppCompatActivity {
 
         BarData barData;
         if (gross) {
+            boolean[] futureFlags = new boolean[numBars];
             List<BarEntry> incomeEntries  = new ArrayList<>();
             List<BarEntry> expenseEntries = new ArrayList<>();
             List<Integer>  incomeColors   = new ArrayList<>();
             List<Integer>  expenseColors  = new ArrayList<>();
             for (int i = 0; i < numBars; i++) {
-                boolean future = payDates.get(i).isAfter(today);
+                futureFlags[i] = payDates.get(i).isAfter(today);
                 incomeEntries.add(new BarEntry(i, incomeTotals[i]));
                 expenseEntries.add(new BarEntry(i, -expenseTotals[i]));
-                incomeColors.add(future ? withAlpha(green, 0x80) : green);
-                expenseColors.add(future ? withAlpha(red,   0x80) : red);
+                incomeColors.add(green);
+                expenseColors.add(red);
             }
             BarDataSet incomeSet = new BarDataSet(incomeEntries, "Income");
             incomeSet.setColors(incomeColors);
@@ -352,6 +401,7 @@ public class VisualsActivity extends AppCompatActivity {
             expenseSet.setDrawValues(false);
             barData = new BarData(incomeSet, expenseSet);
             barData.setBarWidth(0.7f);
+            cashFlowChart.setRenderer(new HatchedBarChartRenderer(cashFlowChart, futureFlags));
             cashFlowChart.setData(barData);
             // Disable auto-highlight: with two overlapping datasets at the same x,
             // MPAndroidChart always picks dataset 0. We handle highlighting ourselves
@@ -378,6 +428,8 @@ public class VisualsActivity extends AppCompatActivity {
 
                     if (barIdx < 0 || barIdx >= grossIncomeTotals.length) {
                         cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
                         return;
                     }
 
@@ -395,11 +447,21 @@ public class VisualsActivity extends AppCompatActivity {
 
                     if (!onBar) {
                         cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
                         return;
                     }
 
                     int dsIdx = grossLastTapWasExpense ? 1 : 0;
-                    cashFlowChart.highlightValue(barIdx, dsIdx, false);
+                    if (barIdx == currentHighlightBarIdx && dsIdx == currentHighlightDsIdx) {
+                        cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
+                    } else {
+                        cashFlowChart.highlightValue(barIdx, dsIdx, false);
+                        currentHighlightBarIdx = barIdx;
+                        currentHighlightDsIdx  = dsIdx;
+                    }
                 }
                 @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float vX, float vY) {}
                 @Override public void onChartScale(MotionEvent me, float scX, float scY) {}
@@ -422,17 +484,18 @@ public class VisualsActivity extends AppCompatActivity {
             if (legendExpensesRow  != null) legendExpensesRow.setVisibility(View.VISIBLE);
         } else {
             grossLastTapWasExpense = false;
+            boolean[] futureFlags = new boolean[numBars];
             List<BarEntry> netEntries = new ArrayList<>();
             List<Integer>  colors     = new ArrayList<>();
             float maxNet = 0f, minNet = 0f;
             final float[] netValues = new float[numBars];
             for (int i = 0; i < numBars; i++) {
-                boolean future = payDates.get(i).isAfter(today);
+                futureFlags[i] = payDates.get(i).isAfter(today);
                 float net = incomeTotals[i] - expenseTotals[i];
                 netValues[i] = net;
                 netEntries.add(new BarEntry(i, net));
                 int baseColor = net >= 0 ? green : red;
-                colors.add(future ? withAlpha(baseColor, 0x80) : baseColor);
+                colors.add(baseColor);
                 if (net > maxNet) maxNet = net;
                 if (net < minNet) minNet = net;
             }
@@ -441,6 +504,7 @@ public class VisualsActivity extends AppCompatActivity {
             netSet.setDrawValues(false);
             barData = new BarData(netSet);
             barData.setBarWidth(0.6f);
+            cashFlowChart.setRenderer(new HatchedBarChartRenderer(cashFlowChart, futureFlags));
             cashFlowChart.setData(barData);
             cashFlowChart.setHighlightPerTapEnabled(false);
             float pad = Math.max(Math.abs(maxNet), Math.abs(minNet)) * 0.12f;
@@ -461,6 +525,8 @@ public class VisualsActivity extends AppCompatActivity {
 
                     if (barIdx < 0 || barIdx >= netValues.length) {
                         cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
                         return;
                     }
 
@@ -472,9 +538,19 @@ public class VisualsActivity extends AppCompatActivity {
 
                     if (!onBar) {
                         cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
                         return;
                     }
-                    cashFlowChart.highlightValue(barIdx, 0, false);
+                    if (barIdx == currentHighlightBarIdx) {
+                        cashFlowChart.highlightValue(null, false);
+                        currentHighlightBarIdx = -1;
+                        currentHighlightDsIdx  = -1;
+                    } else {
+                        cashFlowChart.highlightValue(barIdx, 0, false);
+                        currentHighlightBarIdx = barIdx;
+                        currentHighlightDsIdx  = 0;
+                    }
                 }
                 @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float vX, float vY) {}
                 @Override public void onChartScale(MotionEvent me, float scX, float scY) {}
@@ -502,29 +578,35 @@ public class VisualsActivity extends AppCompatActivity {
 
     private void buildCategoriesChart() {
         double payPeriodDays = getPayPeriodDays();
-        Map<String, Float> amounts = new LinkedHashMap<>();
-        for (String cat : CATEGORY_ORDER) amounts.put(cat, 0f);
-        for (ExpenseModel e : expenseList) {
-            float pc = perCheckEquivalent(e, payPeriodDays);
-            if (pc <= 0) continue;
-            amounts.merge(inferCategory(e), pc, Float::sum);
-        }
+        Map<String, Float> amounts = buildCategoryAmounts(false, payPeriodDays);
         buildPieChart(categoriesChart, categoriesLegend, amounts, hiddenTop,
                 this::buildCategoriesChart);
     }
 
     private void buildPerCheckChart() {
         double payPeriodDays = getPayPeriodDays();
-        Map<String, Float> amounts = new LinkedHashMap<>();
-        for (String cat : CATEGORY_ORDER) amounts.put(cat, 0f);
-        for (ExpenseModel e : expenseList) {
-            if (e.getIsCredit()) continue;
-            float pc = perCheckEquivalent(e, payPeriodDays);
-            if (pc <= 0) continue;
-            amounts.merge(inferCategory(e), pc, Float::sum);
-        }
+        Map<String, Float> amounts = buildCategoryAmounts(true, payPeriodDays);
         buildPieChart(perCheckChart, perCheckLegend, amounts, hiddenBottom,
                 this::buildPerCheckChart);
+    }
+
+    private Map<String, Float> buildCategoryAmounts(boolean excludeCredit, double payPeriodDays) {
+        Map<String, Float> amounts = new LinkedHashMap<>();
+        // Seed in user category order first so the chart respects that order
+        for (String cat : categoryList) amounts.put(cat, 0f);
+        amounts.put(CategoryManager.CREDIT_CARDS, 0f);
+        amounts.put(CategoryManager.OTHER, 0f);
+        for (ExpenseModel e : expenseList) {
+            if (excludeCredit && e.getIsCredit()) continue;
+            float pc = perCheckEquivalent(e, payPeriodDays);
+            if (pc <= 0) continue;
+            String cat = e.getIsCredit()
+                    ? CategoryManager.CREDIT_CARDS
+                    : e.getCategory();
+            if (cat == null || cat.isEmpty()) cat = CategoryManager.OTHER;
+            amounts.merge(cat, pc, Float::sum);
+        }
+        return amounts;
     }
 
     private void buildPieChart(PieChart chart, LinearLayout legendContainer,
@@ -665,6 +747,14 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Data helpers ─────────────────────────────────────────────────────────
 
+    private PeriodSnapshot findSnapshot(LocalDate periodStart) {
+        if (snapshotList == null) return null;
+        for (PeriodSnapshot s : snapshotList) {
+            if (s.getPeriodStart().equals(periodStart)) return s;
+        }
+        return null;
+    }
+
     // Returns the number of times this income stream pays within [start, end).
     private int countIncomeOccurrencesInMonth(IncomeStreamModel inc, LocalDate start, LocalDate end) {
         String raw = inc.getCheckDate();
@@ -734,8 +824,14 @@ public class VisualsActivity extends AppCompatActivity {
         return count;
     }
 
-    // Returns the shortest income pay-period length in days (defaults to 30.44 if none set).
+    // Returns the selected income stream's pay-period length in days (defaults to 30.44 if none set).
     private double getPayPeriodDays() {
+        for (IncomeStreamModel inc : incomeList) {
+            if (inc.isSelected()) {
+                int f = inc.getFrequency();
+                if (f > 0) return periodToDays(f, incomeFreqToChronoUnit(inc.getFrequencyTag()));
+            }
+        }
         double best = Double.MAX_VALUE;
         for (IncomeStreamModel inc : incomeList) {
             int f = inc.getFrequency();
@@ -765,17 +861,6 @@ public class VisualsActivity extends AppCompatActivity {
         return cost * ((float) payPeriodDays / daysPerPeriod);
     }
 
-    // Infers a spending category by keyword-matching the expense name.
-    private String inferCategory(ExpenseModel e) {
-        if (e.getIsCredit()) return "Credit Cards";
-        String name = e.getName() != null ? e.getName().toLowerCase(Locale.US) : "";
-        for (String[] rule : CATEGORY_RULES) {
-            for (String kw : rule[1].split(",")) {
-                if (name.contains(kw.trim())) return rule[0];
-            }
-        }
-        return "Other";
-    }
 
     private int categoryColor(String category) {
         switch (category) {
@@ -831,12 +916,133 @@ public class VisualsActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        maybeShowTutorial();
+    }
+
+    @Override
+    protected void onPause() {
+        removeTutorialOverlay();
+        super.onPause();
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, VisualsActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+        removeTutorialOverlay();
+
+        // Switch to the Categories tab before spotlighting views inside it (panel is GONE otherwise).
+        if (def.viewId == R.id.categories_chart) {
+            TabLayout tabs = findViewById(R.id.visuals_tab_layout);
+            if (tabs != null && tabs.getTabAt(1) != null) tabs.selectTab(tabs.getTabAt(1));
+        }
+
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this);
+                removeTutorialOverlay();
+                if (def.nextActivity != null) {
+                    startActivity(new android.content.Intent(this, def.nextActivity));
+                } else if (TutorialManager.hasStepsForActivity(this, VisualsActivity.class)) {
+                    showTutorialStep(TutorialManager.getCurrentStep(this));
+                }
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                removeTutorialOverlay();
+                android.content.Intent home = new android.content.Intent(this, ExpenseActivity.class);
+                home.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            });
+
+        ((ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
+        }
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
             finish();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    // ── Hatched renderer ─────────────────────────────────────────────────────
+    // Draws diagonal stripes over bars that represent projected (future) periods
+    // so they are distinguishable by texture, not just by colour or opacity.
+
+    private static class HatchedBarChartRenderer extends BarChartRenderer {
+        private final boolean[] futureFlags;
+        private final Paint     hatchPaint;
+
+        HatchedBarChartRenderer(BarChart chart, boolean[] futureFlags) {
+            super(chart, chart.getAnimator(), chart.getViewPortHandler());
+            this.futureFlags = futureFlags;
+            hatchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            hatchPaint.setStyle(Paint.Style.STROKE);
+            hatchPaint.setColor(Color.argb(110, 255, 255, 255));
+            hatchPaint.setStrokeWidth(3f);
+        }
+
+        @Override
+        public void drawData(Canvas c) {
+            super.drawData(c);
+            if (mBarBuffers == null) return;
+            BarData bd = mChart.getBarData();
+            if (bd == null) return;
+            for (int dsIdx = 0; dsIdx < bd.getDataSetCount(); dsIdx++) {
+                if (dsIdx >= mBarBuffers.length || mBarBuffers[dsIdx] == null) continue;
+                IBarDataSet dataSet = bd.getDataSetByIndex(dsIdx);
+                float[] b = mBarBuffers[dsIdx].buffer;
+                int n = dataSet.getEntryCount();
+                for (int i = 0; i < n; i++) {
+                    int barIdx = (int) dataSet.getEntryForIndex(i).getX();
+                    if (barIdx < 0 || barIdx >= futureFlags.length || !futureFlags[barIdx]) continue;
+                    int base = i * 4;
+                    if (base + 3 >= b.length) continue;
+                    float left   = b[base];
+                    float top    = b[base + 1];
+                    float right  = b[base + 2];
+                    float bottom = b[base + 3];
+                    float t  = Math.min(top, bottom);
+                    float bm = Math.max(top, bottom);
+                    if (bm - t < 2f || right - left < 2f) continue;
+                    c.save();
+                    c.clipRect(left, t, right, bm);
+                    float h       = bm - t;
+                    float spacing = 14f;
+                    float x       = left - h;
+                    while (x < right) {
+                        c.drawLine(x, bm, x + h, t, hatchPaint);
+                        x += spacing;
+                    }
+                    c.restore();
+                }
+            }
+        }
     }
 
     // ── Marker popup ─────────────────────────────────────────────────────────

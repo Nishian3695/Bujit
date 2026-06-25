@@ -26,6 +26,8 @@ public class StorageHolder implements Serializable {
     private LocalDate nextCheckDate;
     private LocalDate lastOpenedDate;
     private ArrayList<IncomeStreamModel> incomeStreamList;
+    private ArrayList<PeriodSnapshot> periodSnapshots;
+    private ArrayList<String> categoryList;
     // endregion
 
     public StorageHolder() {
@@ -38,6 +40,8 @@ public class StorageHolder implements Serializable {
         curCheckDate = calendar;
         lastOpenedDate = calendar;
         nextCheckDate = calendar.plus(1, ChronoUnit.WEEKS);
+        periodSnapshots = new ArrayList<>();
+        categoryList = CategoryManager.getDefaults();
     }
 
     // region Getters
@@ -68,6 +72,13 @@ public class StorageHolder implements Serializable {
     public ArrayList<IncomeStreamModel> getIncomeStreamList() {
         return incomeStreamList;
     }
+    public ArrayList<PeriodSnapshot> getPeriodSnapshots() {
+        return periodSnapshots;
+    }
+    public ArrayList<String> getCategoryList() {
+        if (categoryList == null) categoryList = CategoryManager.getDefaults();
+        return categoryList;
+    }
     // endregion
 
     // region Setters
@@ -97,6 +108,12 @@ public class StorageHolder implements Serializable {
     }
     public void setIncomeStreamList(ArrayList<IncomeStreamModel> incomeStreamList) {
         this.incomeStreamList = incomeStreamList;
+    }
+    public void setPeriodSnapshots(ArrayList<PeriodSnapshot> periodSnapshots) {
+        this.periodSnapshots = periodSnapshots;
+    }
+    public void setCategoryList(ArrayList<String> categoryList) {
+        this.categoryList = categoryList;
     }
     // endregion
 }

@@ -36,6 +36,9 @@
         <activity android:name=".NavigationItems.Settings.SettingsActivity">
         </activity>
 
+        <activity android:name=".NavigationItems.Settings.CategoryManagerActivity">
+        </activity>
+
         <activity android:name=".NavigationItems.Visuals.VisualsActivity">
         </activity>
 

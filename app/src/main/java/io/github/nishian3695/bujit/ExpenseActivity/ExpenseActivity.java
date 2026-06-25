@@ -43,6 +43,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
+import io.github.nishian3695.bujit.StorageManagement.CategoryManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
@@ -58,6 +59,7 @@ import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import androidx.appcompat.widget.SwitchCompat;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
+import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -141,11 +143,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Data variables
     private ArrayList<ExpenseModel> expenseListStor;
     private ArrayList<IncomeStreamModel> incomeStreamList;
+    private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
     private float curBalance, shownBalance, averageCheck, projAmount;
     private LocalDate curCheckDate, begCheckDate, nextCheckDate, endCheckDate, mToday, lastOpened;
     private int checkFrequency, projFrequency, projStepsForward;
     private ChronoUnit checkFrequencyTag, projFreqTag;
     private String projStreamName;
+    private final ArrayList<Float> projIncomeStack = new ArrayList<>();
     // Background work
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -448,8 +452,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                                     break;
                                 }
                             }
-                            // Reset in-session projection to follow the new active stream
+                            // Sync projection params to the new stream, then snap the UI home
                             resetProjToActiveStream();
+                            goHomePage();
                             // Sync any new income streams that don't have tasks yet
                             if (GoogleTasksHelper.isCalendarSyncEnabled(this)) {
                                 ArrayList<IncomeStreamModel> streamsToSync = incomeStreamList;
@@ -554,6 +559,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 if (nextCheckDate == null) nextCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
                 lastOpened = storageHolder.getLastOpenedDate();
                 if (lastOpened == null) lastOpened = LocalDate.now();
+                periodSnapshots = storageHolder.getPeriodSnapshots();
+                if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
                 // Load income streams; migrate from legacy single-stream fields on first open
                 incomeStreamList = storageHolder.getIncomeStreamList();
                 if (incomeStreamList == null || incomeStreamList.isEmpty()) {
@@ -610,6 +617,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 storageHolder.setNextCheckDate(nextCheckDate);
                 storageHolder.setLastOpenedDate(lastOpened);
                 storageHolder.setIncomeStreamList(incomeStreamList);
+                storageHolder.setPeriodSnapshots(periodSnapshots);
                 storageManager.writeData(storageHolder);
                 break;
             }
@@ -624,12 +632,25 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     public void checkForNextCheck() {
         mToday = LocalDate.now();
         while (mToday.equals(this.nextCheckDate) || mToday.isAfter(this.nextCheckDate)) {
+            // Snapshot the period that is about to roll into history, then advance.
+            recordPeriodSnapshot(curCheckDate, nextCheckDate);
             curCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
             nextCheckDate = nextCheckDate.plus(checkFrequency, checkFrequencyTag);
             curBalance += averageCheck;
         }
         begCheckDate = curCheckDate;
         endCheckDate = nextCheckDate;
+    }
+
+    private void recordPeriodSnapshot(LocalDate start, LocalDate end) {
+        if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
+        for (io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot existing : periodSnapshots) {
+            if (existing.getPeriodStart().equals(start)) return; // already recorded
+        }
+        float[] totals = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                .computePeriodTotals(incomeStreamList, expenseListStor, start, end);
+        periodSnapshots.add(new io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot(
+                start, totals[0], totals[1]));
     }
 
     public void setCheckFreq(int freq, ChronoUnit tag) {
@@ -650,6 +671,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         projFreqTag = checkFrequencyTag;
         projAmount = averageCheck;
         projStepsForward = 0;
+        projIncomeStack.clear();
         projStreamName = activeStreamName();
         if (checkBarSubtitle != null) updateCheckBarSubtitle();
     }
@@ -830,6 +852,24 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return stream.getAmountFloat() * ((float) customDays / streamDays);
     }
 
+    // Returns the total income expected in [start, end) across all streams.
+    // Falls back to projAmount when the user has set a custom projection override.
+    private float computeProjectedIncome(LocalDate start, LocalDate end) {
+        boolean customOverride = !projStreamName.equals(activeStreamName())
+                || projFrequency != checkFrequency || projFreqTag != checkFrequencyTag;
+        if (customOverride) return projAmount;
+        if (incomeStreamList == null || incomeStreamList.isEmpty()) return 0f;
+        float total = 0f;
+        for (IncomeStreamModel inc : incomeStreamList) {
+            float amt;
+            try { amt = Float.parseFloat(inc.getAmount()); }
+            catch (NumberFormatException ex) { continue; }
+            if (amt <= 0) continue;
+            total += FinancialCalc.countIncomeOccurrences(inc, start, end) * amt;
+        }
+        return total;
+    }
+
     private int chronoUnitToInt(ChronoUnit unit) {
         if (unit == ChronoUnit.DAYS)   return 0;
         if (unit == ChronoUnit.WEEKS)  return 1;
@@ -872,24 +912,30 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         // this ensures bringDataUpToDate() subtracts nothing and curBalance stays at 3500.
         ExpenseModel rent = new ExpenseModel(
                 "Rent", "850.00", mToday.plusDays(2), 1, ChronoUnit.MONTHS, false);
+        rent.setCategory("Housing");
         ExpenseModel netflix = new ExpenseModel(
                 "Netflix", "15.99", mToday.plusDays(5), 1, ChronoUnit.MONTHS, false);
+        netflix.setCategory("Entertainment");
         ExpenseModel electric = new ExpenseModel(
                 "Electric Bill", "110.00", mToday.plusDays(9), 1, ChronoUnit.MONTHS, false);
+        electric.setCategory("Utilities");
 
         // Credit cards (appear in expense list and credit utilization screen)
         ExpenseModel everyday = new ExpenseModel(
                 "Everyday Card", "450.00", mToday.plusDays(3), 1, ChronoUnit.MONTHS, false);
         everyday.setIsCredit(true);
         everyday.setCreditLimit("2000.00");
+        everyday.setCategory("Shopping");
         ExpenseModel travel = new ExpenseModel(
                 "Travel Card", "1200.00", mToday.plusDays(13), 1, ChronoUnit.MONTHS, false);
         travel.setIsCredit(true);
         travel.setCreditLimit("3000.00");
+        travel.setCategory("Transport");
         ExpenseModel hobby = new ExpenseModel(
                 "Hobby Card", "6000.00", mToday.plusDays(7), 1, ChronoUnit.MONTHS, false);
         hobby.setIsCredit(true);
         hobby.setCreditLimit("6200.00");
+        hobby.setCategory("Entertainment");
 
         // Prepend: Rent, Netflix, Electric, Everyday Card, Travel Card
         expenseListStor.add(0, hobby);
@@ -955,6 +1001,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             Log.e("Bujit", "Storage load failed, resetting to defaults: " + e.getMessage());
             expenseListStor = new ArrayList<>();
             incomeStreamList = new ArrayList<>();
+            periodSnapshots  = new ArrayList<>();
             curBalance = 0f;
             averageCheck = 0f;
             checkFrequency = 1;
@@ -1107,6 +1154,55 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         expenseFreqMagnitude.setAdapter(spinnerAdapter);
         expenseFreqMagnitude.setText(freqUnits[0], false);
 
+        // Set up category dropdown
+        AutoCompleteTextView categoryInput = dialogLayout.findViewById(R.id.expense_category_input);
+        ArrayList<String> catDropdownItems = CategoryManager.buildDropdownList(storageHolder.getCategoryList());
+        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, R.layout.expense_dropdown_item, catDropdownItems);
+        categoryInput.setAdapter(catAdapter);
+        final String[] selectedCategory = {CategoryManager.OTHER};
+        categoryInput.setText(selectedCategory[0], false);
+        categoryInput.setOnItemClickListener((parent, v, pos, id) -> {
+            String chosen = catDropdownItems.get(pos);
+            if (CategoryManager.NEW_CATEGORY_SENTINEL.equals(chosen)) {
+                // Restore the previous value while the nested dialog is open
+                categoryInput.setText(selectedCategory[0], false);
+                android.widget.EditText nameField = new android.widget.EditText(this);
+                nameField.setHint("Category name");
+                nameField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+                int padPx = (int)(16 * getResources().getDisplayMetrics().density);
+                android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+                android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.setMargins(padPx, 0, padPx, 0);
+                nameField.setLayoutParams(lp);
+                container.addView(nameField);
+                new AlertDialog.Builder(this)
+                        .setTitle("New Category")
+                        .setView(container)
+                        .setPositiveButton("Add", (d2, w2) -> {
+                            String newName = nameField.getText().toString().trim();
+                            if (newName.isEmpty()) return;
+                            boolean alreadyExists = CategoryManager.OTHER.equalsIgnoreCase(newName)
+                                    || storageHolder.getCategoryList().stream()
+                                            .anyMatch(c -> c.equalsIgnoreCase(newName));
+                            if (!alreadyExists) {
+                                storageHolder.getCategoryList().add(newName);
+                                saveNow();
+                            }
+                            catDropdownItems.clear();
+                            catDropdownItems.addAll(CategoryManager.buildDropdownList(storageHolder.getCategoryList()));
+                            catAdapter.notifyDataSetChanged();
+                            selectedCategory[0] = newName;
+                            categoryInput.setText(newName, false);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            } else {
+                selectedCategory[0] = chosen;
+            }
+        });
+
         expenseCost.addTextChangedListener(new CurrencyEditTextWatcher(expenseCost));
         int year;
         int month;
@@ -1148,6 +1244,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             if (calSyncEnabled) {
                 switchCal.setChecked(expenseModel.isCalendarNotificationsEnabled());
             }
+            // Pre-fill category
+            String existingCat = expenseModel.getCategory();
+            selectedCategory[0] = existingCat;
+            categoryInput.setText(existingCat, false);
         } else {
             LocalDate today = LocalDate.now();
             year = today.getYear();
@@ -1256,9 +1356,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 else if (freqTagIndex == 1) eFreqTag = WEEK;
                 else if (freqTagIndex == 2) eFreqTag = MONTH;
                 else if (freqTagIndex == 3) eFreqTag = YEAR;
+                String eCategory = selectedCategory[0];
                 switch (method) {
                     case ADD: {
                         ExpenseModel newExpense = new ExpenseModel(eName, eCost, finalDate, eFreqNum, eFreqTag, false);
+                        newExpense.setCategory(eCategory);
                         if (linkedId[0] != null) {
                             newExpense.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
                             BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
@@ -1289,6 +1391,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         expenseModel.setFrequency(eFreqNum);
                         expenseModel.setFrequencyTag(eFreqTag);
                         expenseModel.setDate(finalDate);
+                        expenseModel.setCategory(eCategory);
                         expenseModel.makeCurrent(begCheckDate, nextCheckDate);
                         expenseModel.setIsVariable(false);
                         if (linkedId[0] != null) {
@@ -1427,7 +1530,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             for (ExpenseModel expenseModel : expenseListStor) {
                 expenseModel.getNextCheckPayments(begCheckDate, endCheckDate);
             }
-            shownBalance += projAmount;
+            float periodIncome = computeProjectedIncome(begCheckDate, endCheckDate);
+            projIncomeStack.add(periodIncome);
+            shownBalance += periodIncome;
             setCurrentBalanceText(shownBalance);
             setFinalBalance();
             checkName.setText("Check of " + calendarToString(begCheckDate, HEADER_FORMAT));
@@ -1449,7 +1554,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 }
                 expenseAdapter.notifyDataSetChanged();
                 checkName.setText("Check of " + calendarToString(begCheckDate, HEADER_FORMAT));
-                shownBalance -= projAmount;
+                float incomeToReverse = projIncomeStack.isEmpty() ? projAmount
+                        : projIncomeStack.remove(projIncomeStack.size() - 1);
+                shownBalance -= incomeToReverse;
                 shownBalance += getCheckExpenses();
                 setFinalBalance();
                 setCurrentBalanceText(shownBalance);
@@ -1468,6 +1575,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         setCurrentBalanceText(shownBalance);
         setFinalBalance();
         projStepsForward = 0;
+        projIncomeStack.clear();
         checkName.setText("This Check");
         updateCheckBarSubtitle();
 
@@ -1613,6 +1721,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         io.github.nishian3695.bujit.NavigationItems.Visuals.VisualsActivity.class);
                 visualsIntent.putExtra("expenseList", expenseListStor);
                 visualsIntent.putExtra("incomeList", incomeStreamList);
+                visualsIntent.putExtra("snapshotList", periodSnapshots);
+                visualsIntent.putExtra("categoryList", storageHolder.getCategoryList());
                 startActivity(visualsIntent);
                 drawerLayout.close();
                 break;
@@ -2030,6 +2140,16 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             reloadExpenseListFromDisk();
         }
 
+        // Reload expenses + category list if CategoryManagerActivity changed categories.
+        if (dataPrefs.getBoolean(
+                io.github.nishian3695.bujit.NavigationItems.Settings.CategoryManagerActivity
+                        .KEY_CATEGORIES_CHANGED, false)) {
+            dataPrefs.edit().remove(
+                    io.github.nishian3695.bujit.NavigationItems.Settings.CategoryManagerActivity
+                            .KEY_CATEGORIES_CHANGED).apply();
+            reloadAfterCategoryChange();
+        }
+
         SharedPreferences calPrefs = getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE);
         boolean needsCheck = calPrefs.getBoolean("needs_sync_check", false);
         boolean pendingDisconnect = calPrefs.getBoolean("pending_disconnect", false);
@@ -2064,6 +2184,20 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    private void reloadAfterCategoryChange() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            StorageHolder fresh = manager.getStorageHolder();
+            expenseListStor.clear();
+            expenseListStor.addAll(fresh.getExpenseList());
+            storageHolder.setCategoryList(fresh.getCategoryList());
+            bringDataUpToDate(true);
+            setFinalBalance();
+        } catch (Exception e) {
+            Log.e("Bujit", "reloadAfterCategoryChange failed: " + e.getMessage());
+        }
+    }
+
     private void reloadIncomeStreamsFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2082,6 +2216,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 }
             }
             resetProjToActiveStream();
+            goHomePage();
         } catch (Exception e) {
             Log.e("Bujit", "reloadIncomeStreamsFromDisk failed: " + e.getMessage());
         }

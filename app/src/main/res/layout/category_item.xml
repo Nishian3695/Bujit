@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <!-- Drag handle -->
+    <TextView
+        android:id="@+id/category_drag_handle"
+        android:layout_width="36dp"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="⠿"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:alpha="0.35" />
+
+    <!-- Category name -->
+    <TextView
+        android:id="@+id/category_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp" />
+
+    <!-- Delete button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/category_delete_btn"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Remove"
+        android:textColor="@color/accent_rose"
+        android:textSize="12sp"
+        android:minWidth="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp" />
+
+</LinearLayout>
