@@ -62,6 +62,8 @@ public class ExpenseModel implements Serializable {
     // Google Tasks sync (null = not synced)
     private String googleTaskId = null;
     private boolean calendarNotificationsEnabled = true;
+    // User-assigned spending category (e.g. "Food", "Housing"). Defaults to "Other".
+    private String category = "Other";
 
     //Constructor
     public ExpenseModel(String expenseName, String expenseCost, LocalDate expenseDate,
@@ -198,6 +200,10 @@ public class ExpenseModel implements Serializable {
     public void setGoogleTaskId(String id) { this.googleTaskId = id; }
     public boolean isCalendarNotificationsEnabled() { return calendarNotificationsEnabled; }
     public void setCalendarNotificationsEnabled(boolean enabled) { this.calendarNotificationsEnabled = enabled; }
+
+    // Category
+    public String getCategory() { return category != null ? category : "Other"; }
+    public void setCategory(String category) { this.category = (category != null && !category.isEmpty()) ? category : "Other"; }
 
     // Credit
     public void setIsCredit(boolean expenseIsCredit) {

@@ -129,6 +129,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_appearance), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_integrations), this);
+        ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_categories), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_security), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_data), this);
@@ -219,6 +220,8 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.row_categories).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, CategoryManagerActivity.class)));
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());
         findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
@@ -390,11 +393,19 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void performClearData() {
-        File dataFile = new File(new File(getFilesDir(), "BujitExpenseData"), "BujitExpenseDataBujitExpenseData");
-        if (dataFile.exists()) dataFile.delete();
+        File dataDir = new File(getFilesDir(), "BujitExpenseData");
+        // Legacy unencrypted serialized file
+        File legacyFile = new File(dataDir, "BujitExpenseDataBujitExpenseData");
+        if (legacyFile.exists()) legacyFile.delete();
+        // Current AES-256-GCM encrypted JSON file
+        File encFile = new File(dataDir, "bujit_data_v2.enc");
+        if (encFile.exists()) encFile.delete();
 
         getSharedPreferences(ThemeHelper.PREFS, MODE_PRIVATE).edit().clear().apply();
         getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE).edit().clear().apply();
+        // Clearing the seed flag ensures sample data (including 2-year snapshot history)
+        // is re-generated on next launch rather than starting with an empty app.
+        getSharedPreferences("bujit_app_prefs", MODE_PRIVATE).edit().clear().apply();
 
         BankingPrefs.clear(this);
         AppLockPrefs.setLockEnabled(this, false);
@@ -473,11 +484,15 @@ public class SettingsActivity extends AppCompatActivity {
 
         tutorialOverlay.showStep(target, def.title, def.message, nextText,
             () -> {
-                TutorialManager.advance(this); // marks KEY_SEEN at the last step
+                TutorialManager.advance(this);
                 removeTutorialOverlay();
-                Intent home = new Intent(this, ExpenseActivity.class);
-                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(home);
+                if (TutorialManager.hasStepsForActivity(this, SettingsActivity.class)) {
+                    showTutorialStep(TutorialManager.getCurrentStep(this));
+                } else {
+                    Intent home = new Intent(this, ExpenseActivity.class);
+                    home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(home);
+                }
             },
             () -> {
                 TutorialManager.markDone(this);
