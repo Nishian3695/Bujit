@@ -44,13 +44,5 @@
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
 
-# Google Tink — used internally by EncryptedSharedPreferences.
-# The alpha version of security-crypto does not bundle complete consumer rules.
--keep class com.google.crypto.tink.** { *; }
--dontwarn com.google.crypto.tink.**
-
-# Jetpack Security Crypto
--keep class androidx.security.crypto.** { *; }
-
 # MPAndroidChart
 -keep class com.github.mikephil.charting.** { *; }
