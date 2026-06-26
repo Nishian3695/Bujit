@@ -51,9 +51,11 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -537,7 +539,10 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         });
     }
 
-    // Pull-to-refresh sync for linked credit entries
+    // Pull-to-refresh sync for linked credit entries.
+    // Uses fetchAccounts() (Plaid's /accounts/get, cached data) rather than
+    // fetchAccountBalancePair() (/accounts/balance/get, real-time and billed per call).
+    // One fetchAccounts() call per unique token covers all accounts for that institution.
 
     private void syncLinkedCredits() {
         boolean hasLinked = false;
@@ -552,37 +557,55 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
             String appCheckToken = getAppCheckToken();
+
+            Set<String> tokens = new HashSet<>();
+            for (ExpenseModel credit : creditList) {
+                if (!credit.isLinkedToBank()) continue;
+                String tok = credit.getLinkedAccountToken();
+                if (tok == null) tok = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
+                if (tok != null) tokens.add(tok);
+            }
+
+            Map<String, BankAccountModel> accountMap = new HashMap<>();
+            for (String tok : tokens) {
+                BankingApiClient client = BankingProviderConfig.createClient(this, tok, idToken, appCheckToken);
+                try {
+                    for (BankAccountModel acct : client.fetchAccounts()) {
+                        accountMap.put(acct.getId(), acct);
+                    }
+                } catch (Exception e) {
+                    Log.e("CreditSync", "fetchAccounts failed: " + e.getMessage());
+                }
+            }
+
             boolean updated = false;
             for (int i = 0; i < creditList.size(); i++) {
                 ExpenseModel credit = creditList.get(i);
                 if (!credit.isLinkedToBank()) continue;
-                try {
-                    String tellerToken = credit.getLinkedAccountToken();
-                    if (tellerToken == null) tellerToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
-                    BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken, appCheckToken);
-                    float[] pair  = client.fetchAccountBalancePair(credit.getLinkedAccountId());
-                    float ledger  = pair[0];
-                    float avail   = pair[1];
-                    // pair[2] > 0: provider returned the actual credit limit (Plaid balances.limit).
-                    // pair[2] == 0: Teller fallback — ledger + available understates by pending amount.
-                    float limitFloat = pair[2] > 0f ? pair[2] : ledger + avail;
-                    String debt   = String.format(Locale.US, "%.2f", ledger);
-                    String limit  = String.format(Locale.US, "%.2f", limitFloat);
-                    credit.setCost(debt);
-                    credit.setShownCost(debt);
-                    credit.setCreditLimit(limit);
+                BankAccountModel acct = accountMap.get(credit.getLinkedAccountId());
+                if (acct == null) continue;
 
-                    int expPos = creditPosList.get(i);
-                    if (expPos >= 0) {
-                        changedList.add(expPos);
-                        howChangedList.add(ADD);
-                        changedCredUseList.add(debt);
-                        changedCredLimList.add(limit);
-                    }
-                    updated = true;
-                } catch (Exception e) {
-                    Log.e("CreditSync", "failed for " + credit.getName() + ": " + e.getMessage());
+                float ledger = parseFloatSafe(acct.getLedgerBalance());
+                float avail  = parseFloatSafe(acct.getAvailableBalance());
+                String rawLimit = acct.getCreditLimit();
+                // Use provider's reported limit when available (Plaid sets balances.limit);
+                // fall back to ledger + available for Teller or when limit is absent.
+                float limitFloat = (rawLimit != null && !rawLimit.isEmpty())
+                        ? parseFloatSafe(rawLimit) : ledger + avail;
+                String debt  = String.format(Locale.US, "%.2f", ledger);
+                String limit = String.format(Locale.US, "%.2f", limitFloat);
+                credit.setCost(debt);
+                credit.setShownCost(debt);
+                credit.setCreditLimit(limit);
+
+                int expPos = creditPosList.get(i);
+                if (expPos >= 0) {
+                    changedList.add(expPos);
+                    howChangedList.add(ADD);
+                    changedCredUseList.add(debt);
+                    changedCredLimList.add(limit);
                 }
+                updated = true;
             }
             final boolean didUpdate = updated;
             mainHandler.post(() -> {
