@@ -1,10 +1,12 @@
 package io.github.nishian3695.bujit.NavigationItems.SingleEvents;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -21,6 +23,8 @@ import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
 import io.github.nishian3695.bujit.ThemeHelper;
+import io.github.nishian3695.bujit.Tutorial.TutorialManager;
+import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -35,6 +39,7 @@ public class SingleEventsActivity extends AppCompatActivity {
     private SingleEventAdapter adapter;
     private int expiryDays;
     private View emptyView;
+    private TutorialOverlayLayout tutorialOverlay;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +76,10 @@ public class SingleEventsActivity extends AppCompatActivity {
 
         // Newest-first order
         eventList.sort((a, b) -> b.getLastModifiedDate().compareTo(a.getLastModifiedDate()));
+
+        if (TutorialManager.hasStepsForActivity(this, SingleEventsActivity.class) && eventList.isEmpty()) {
+            injectTutorialDummyData();
+        }
 
         RecyclerView recyclerView = findViewById(R.id.single_events_recycler);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -221,6 +230,68 @@ public class SingleEventsActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Log.e("SingleEvents", "save failed: " + e.getMessage());
+        }
+    }
+
+    private void injectTutorialDummyData() {
+        eventList.add(new SingleEventModel("Spontaneous concert tickets", 85.00f, true));
+        eventList.add(new SingleEventModel("Won trivia night 🎉", 50.00f, false));
+        eventList.add(new SingleEventModel("Forgot to pack lunch", 12.75f, true));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeShowTutorial();
+    }
+
+    @Override
+    protected void onPause() {
+        removeTutorialOverlay();
+        super.onPause();
+    }
+
+    private void maybeShowTutorial() {
+        if (!TutorialManager.hasStepsForActivity(this, SingleEventsActivity.class)) return;
+        showTutorialStep(TutorialManager.getCurrentStep(this));
+    }
+
+    private void showTutorialStep(int step) {
+        TutorialManager.StepDef def = TutorialManager.STEPS[step];
+        removeTutorialOverlay();
+        tutorialOverlay = new TutorialOverlayLayout(this);
+
+        View target = def.viewId != 0 ? findViewById(def.viewId) : null;
+        boolean isLast = (step == TutorialManager.STEPS.length - 1);
+        String nextText = def.nextActivity != null ? "Next ›" : (isLast ? "Done" : "Next");
+
+        tutorialOverlay.showStep(target, def.title, def.message, nextText,
+            () -> {
+                TutorialManager.advance(this);
+                removeTutorialOverlay();
+                if (def.nextActivity != null) {
+                    startActivity(new Intent(this, def.nextActivity));
+                }
+            },
+            () -> {
+                TutorialManager.markDone(this);
+                removeTutorialOverlay();
+                Intent home = new Intent(this, io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity.class);
+                home.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(home);
+            });
+
+        ((ViewGroup) getWindow().getDecorView())
+                .addView(tutorialOverlay, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void removeTutorialOverlay() {
+        if (tutorialOverlay != null) {
+            ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
+            if (p != null) p.removeView(tutorialOverlay);
+            tutorialOverlay = null;
         }
     }
 

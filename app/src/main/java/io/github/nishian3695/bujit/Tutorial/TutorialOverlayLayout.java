@@ -73,7 +73,11 @@ public class TutorialOverlayLayout extends FrameLayout {
 
         if (target != null) {
             hasSpotlight = true;
-            target.post(() -> measureAndPositionSpotlight(target));
+            target.post(() -> {
+                android.graphics.Rect r = new android.graphics.Rect(0, 0, target.getWidth(), target.getHeight());
+                target.requestRectangleOnScreen(r, true); // immediate scroll to bring target fully into view
+                target.post(() -> measureAndPositionSpotlight(target));
+            });
         } else {
             hasSpotlight = false;
             spotRect.setEmpty();
@@ -107,15 +111,15 @@ public class TutorialOverlayLayout extends FrameLayout {
         lp.setMargins(margin, 0, margin, 0);
         lp.gravity = Gravity.TOP;
 
-        float screenMid  = getHeight() / 2f;
-        int   tooltipH   = tooltipCard.getHeight();
+        float screenMid = getHeight() / 2f;
+        int   tooltipH  = tooltipCard.getHeight();
+        int   maxTop    = getHeight() - tooltipH - margin;
 
         if (spotTop > screenMid) {
             int desired = (int) spotTop - tooltipH - dpToPx(16);
-            lp.topMargin = Math.max(margin, desired);
+            lp.topMargin = Math.max(margin, Math.min(desired, maxTop));
         } else {
             int desired = (int) spotBottom + dpToPx(16);
-            int maxTop  = getHeight() - tooltipH - margin;
             lp.topMargin = Math.min(desired, maxTop);
         }
         tooltipCard.setLayoutParams(lp);

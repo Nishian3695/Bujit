@@ -7,6 +7,7 @@ import io.github.nishian3695.bujit.NavigationItems.Banking.BankingActivity;
 import io.github.nishian3695.bujit.NavigationItems.CreditUtil.CreditUtilActivity;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamsActivity;
 import io.github.nishian3695.bujit.NavigationItems.Settings.SettingsActivity;
+import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventsActivity;
 import io.github.nishian3695.bujit.NavigationItems.Visuals.VisualsActivity;
 import io.github.nishian3695.bujit.R;
 
@@ -54,8 +55,8 @@ public class TutorialManager {
             "Recurring expenses appear here with their due date, frequency, and the amount allocated this check. Tap any row to edit or delete it, and drag to reorder.",
             8),
         new StepDef(ExpenseActivity.class, R.id.add_button,
-            "Add an expense",
-            "Tap + to add a recurring expense (e.g., rent, subscriptions, utilities). Set the amount, frequency, start date, and category.",
+            "Add a recurring expense or single event",
+            "Tap + to add a recurring expense (e.g., rent, subscriptions, utilities). Set the amount, frequency, start date, and category.\nYou can also add a single event (e.g., a one-time purchase or your buddy giving you $20).",
             20),
         // Step 4: show the navigation drawer
         new StepDef(ExpenseActivity.class, R.id.main_navigation_view,
@@ -80,8 +81,13 @@ public class TutorialManager {
         new StepDef(BankingActivity.class, R.id.btn_connect_bank,
             "Link your bank or credit card",
             "Securely connect your bank via Teller to auto-sync your balance and credit card amounts.\nYour login credentials never leave Teller's secure system.",
-            16, VisualsActivity.class),
-        // VisualsActivity: steps 9–11
+            16, SingleEventsActivity.class),
+        // SingleEventsActivity: step 9
+        new StepDef(SingleEventsActivity.class, R.id.single_events_recycler,
+            "Single Events",
+            "One-off expenses or income that don't repeat — a surprise bill, splitting dinner, or a friend paying you back. Single events adjust your balance immediately and expire automatically after a set number of days.",
+            8, VisualsActivity.class),
+        // VisualsActivity: steps 10–12
         new StepDef(VisualsActivity.class, R.id.visuals_tab_layout,
             "Visuals",
             "Two chart views give you the bigger picture. Cash Flow tracks income and expenses by pay period across the year. Categories breaks your estimated spending down by type — tap a legend chip to show or hide any category.",
