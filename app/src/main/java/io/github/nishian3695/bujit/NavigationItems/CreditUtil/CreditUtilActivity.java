@@ -33,6 +33,7 @@ import io.github.nishian3695.bujit.StorageManagement.StorageManager;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingApiClient;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingProviderConfig;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import io.github.nishian3695.bujit.R;
@@ -463,10 +464,11 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
             List<BankAccountModel> accounts = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
                     List<BankAccountModel> all = client.fetchAccounts();
                     for (BankAccountModel m : all) {
                         String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
@@ -549,6 +551,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
             boolean updated = false;
             for (int i = 0; i < creditList.size(); i++) {
                 ExpenseModel credit = creditList.get(i);
@@ -556,7 +559,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 try {
                     String tellerToken = credit.getLinkedAccountToken();
                     if (tellerToken == null) tellerToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
-                    BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, tellerToken, idToken, appCheckToken);
                     float[] pair  = client.fetchAccountBalancePair(credit.getLinkedAccountId());
                     float ledger  = pair[0];
                     float avail   = pair[1];
@@ -623,6 +626,15 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             Log.e("CreditUtil", "Firebase token fetch failed: " + e.getMessage());
         }
         return null;
+    }
+
+    private String getAppCheckToken() {
+        try {
+            return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
+        } catch (Exception e) {
+            Log.e("CreditUtil", "App Check token fetch failed: " + e.getMessage());
+            return null;
+        }
     }
 
     private Set<String> loadBankTokens() {

@@ -34,20 +34,23 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
     private final OkHttpClient http;
     private final String accessToken;
     private final String firebaseIdToken;
+    private final String appCheckToken;
 
-    public PlaidBackendClient(Context context, String accessToken, String firebaseIdToken) {
+    public PlaidBackendClient(Context context, String accessToken, String firebaseIdToken, String appCheckToken) {
         this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
+        this.appCheckToken   = appCheckToken;
         this.http            = BankingProviderConfig.buildSecureHttpClient();
     }
 
     // Requests a Plaid link_token from the backend so the Plaid Link SDK can be initialized.
-    public static String fetchLinkToken(Context context, String firebaseIdToken) throws IOException {
+    public static String fetchLinkToken(Context context, String firebaseIdToken, String appCheckToken) throws IOException {
         OkHttpClient http = BankingProviderConfig.buildSecureHttpClient();
         RequestBody body = RequestBody.create("{}", JSON);
         Request request = new Request.Builder()
                 .url(BASE + "/plaid/link/token")
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .post(body)
                 .build();
         Log.d(TAG, "PlaidBackendClient: POST /plaid/link/token");
@@ -67,7 +70,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
 
     // Exchanges a Plaid public_token (from the SDK callback) for a permanent access_token.
     public static String exchangePublicToken(Context context, String publicToken,
-            String firebaseIdToken) throws IOException {
+            String firebaseIdToken, String appCheckToken) throws IOException {
         OkHttpClient http = BankingProviderConfig.buildSecureHttpClient();
         String bodyStr;
         try {
@@ -79,6 +82,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         Request request = new Request.Builder()
                 .url(BASE + "/plaid/exchange")
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .post(body)
                 .build();
         Log.d(TAG, "PlaidBackendClient: POST /plaid/exchange");
@@ -103,6 +107,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
                 .url(BASE + "/plaid/remove")
                 .header("X-Plaid-Token", accessToken)
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .post(body)
                 .build();
         Log.d(TAG, "PlaidBackendClient: POST /plaid/remove");
@@ -188,6 +193,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
                 .url(BASE + path)
                 .header("X-Plaid-Token", accessToken)
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .build();
     }
 

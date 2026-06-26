@@ -3,6 +3,7 @@ package io.github.nishian3695.bujit.NavigationItems.Banking;
 import android.content.Context;
 import android.util.Log;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import io.teller.connect.sdk.Environment;
@@ -46,18 +47,18 @@ public class BankingProviderConfig {
     }
 
     // Returns the correct backend client for the active provider.
-    public static BankingApiClient createClient(Context ctx, String token, String idToken) {
+    public static BankingApiClient createClient(Context ctx, String token, String idToken, String appCheckToken) {
         if (ACTIVE_PROVIDER == Provider.PLAID) {
-            return new PlaidBackendClient(ctx, token, idToken);
+            return new PlaidBackendClient(ctx, token, idToken, appCheckToken);
         }
-        return new TellerBackendClient(ctx, token, idToken);
+        return new TellerBackendClient(ctx, token, idToken, appCheckToken);
     }
 
     // Revokes the given access token on the provider's server.
     // Best-effort: failures are logged but do not block local cleanup.
-    public static void revokeToken(Context ctx, String token, String idToken) {
+    public static void revokeToken(Context ctx, String token, String idToken, String appCheckToken) {
         try {
-            createClient(ctx, token, idToken).revokeToken();
+            createClient(ctx, token, idToken, appCheckToken).revokeToken();
         } catch (Exception e) {
             Log.w(TAG, "revokeToken: server-side revocation failed (proceeding with local cleanup): "
                     + e.getMessage());
@@ -115,6 +116,17 @@ public class BankingProviderConfig {
             return Tasks.await(user.getIdToken(false)).getToken();
         } catch (Exception e) {
             Log.e(TAG, "fetchFirebaseIdToken failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Fetches a Firebase App Check token on the calling thread (must be a background thread).
+    // Returns null on failure; callers should handle null gracefully.
+    public static String fetchAppCheckToken() {
+        try {
+            return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
+        } catch (Exception e) {
+            Log.e(TAG, "fetchAppCheckToken failed: " + e.getMessage());
             return null;
         }
     }

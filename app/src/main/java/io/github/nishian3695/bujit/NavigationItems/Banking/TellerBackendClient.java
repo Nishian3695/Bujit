@@ -34,10 +34,12 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
     private final OkHttpClient http;
     private final String accessToken;
     private final String firebaseIdToken;
+    private final String appCheckToken;
 
-    public TellerBackendClient(Context context, String accessToken, String firebaseIdToken) {
+    public TellerBackendClient(Context context, String accessToken, String firebaseIdToken, String appCheckToken) {
         this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
+        this.appCheckToken   = appCheckToken;
         this.http            = BankingProviderConfig.buildSecureHttpClient();
     }
 
@@ -48,6 +50,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
                 .url(BASE + "/teller/remove")
                 .header("X-Teller-Token", accessToken)
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .post(body)
                 .build();
         Log.d(TAG, "TellerBackendClient: POST /teller/remove");
@@ -151,6 +154,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
                 .url(BASE + path)
                 .header("X-Teller-Token", accessToken)
                 .header("Authorization", "Bearer " + (firebaseIdToken != null ? firebaseIdToken : ""))
+                .header("X-Firebase-AppCheck", appCheckToken != null ? appCheckToken : "")
                 .build();
     }
 

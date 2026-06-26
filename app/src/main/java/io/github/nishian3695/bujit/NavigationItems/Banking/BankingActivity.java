@@ -184,7 +184,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         executor.execute(() -> {
             try {
                 String idToken = BankingProviderConfig.fetchFirebaseIdToken();
-                String linkToken = PlaidBackendClient.fetchLinkToken(this, idToken);
+                String appCheckToken = BankingProviderConfig.fetchAppCheckToken();
+                String linkToken = PlaidBackendClient.fetchLinkToken(this, idToken, appCheckToken);
                 String finalLinkToken = linkToken;
                 mainHandler.post(() -> {
                     LinkTokenConfiguration config = new LinkTokenConfiguration.Builder()
@@ -228,7 +229,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         executor.execute(() -> {
             try {
                 String idToken = BankingProviderConfig.fetchFirebaseIdToken();
-                String accessToken = PlaidBackendClient.exchangePublicToken(this, publicToken, idToken);
+                String appCheckToken = BankingProviderConfig.fetchAppCheckToken();
+                String accessToken = PlaidBackendClient.exchangePublicToken(this, publicToken, idToken, appCheckToken);
                 Log.d(TAG, "exchangePlaidPublicToken: access token received");
                 addPlaidToken(accessToken);
                 Set<String> tokens = loadAllTokens();
@@ -326,12 +328,13 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         Log.d(TAG, "fetchAndShowAllAccounts: " + tokens.size() + " token(s)");
         executor.execute(() -> {
             String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+            String appCheckToken = BankingProviderConfig.fetchAppCheckToken();
             List<BankAccountModel> allAccounts = new ArrayList<>();
             boolean hadAuthError = false;
             for (String token : tokens) {
                 try {
                     List<BankAccountModel> fetched =
-                            BankingProviderConfig.createClient(this, token, idToken).fetchAccounts();
+                            BankingProviderConfig.createClient(this, token, idToken, appCheckToken).fetchAccounts();
                     Log.d(TAG, "  token → " + fetched.size() + " account(s)");
                     allAccounts.addAll(fetched);
                 } catch (BankingAuthException e) {
@@ -415,8 +418,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                                 // Revoke tokens server-side first, then clean up locally.
                                 executor.execute(() -> {
                                     String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                                    String appCheckToken = BankingProviderConfig.fetchAppCheckToken();
                                     for (String tok : toRemove) {
-                                        BankingProviderConfig.revokeToken(this, tok, idToken);
+                                        BankingProviderConfig.revokeToken(this, tok, idToken, appCheckToken);
                                     }
                                     mainHandler.post(() -> {
                                         removeLinkedExpensesForTokens(toRemove);
@@ -445,8 +449,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                                 Set<String> allTokens = new HashSet<>(loadAllTokens());
                                 executor.execute(() -> {
                                     String idToken = BankingProviderConfig.fetchFirebaseIdToken();
+                                    String appCheckToken = BankingProviderConfig.fetchAppCheckToken();
                                     for (String tok : allTokens) {
-                                        BankingProviderConfig.revokeToken(this, tok, idToken);
+                                        BankingProviderConfig.revokeToken(this, tok, idToken, appCheckToken);
                                     }
                                     mainHandler.post(() -> {
                                         removeAllLinkedExpenses();

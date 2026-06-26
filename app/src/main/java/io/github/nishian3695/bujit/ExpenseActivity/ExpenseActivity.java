@@ -69,6 +69,7 @@ import io.github.nishian3695.bujit.NavigationItems.Banking.BankAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingApiClient;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingProviderConfig;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import java.io.IOException;
@@ -1745,6 +1746,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return null;
     }
 
+    private String getAppCheckToken() {
+        try {
+            return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
+        } catch (Exception e) {
+            Log.e("BankSync", "App Check token fetch failed: " + e.getMessage());
+            return null;
+        }
+    }
+
     private Set<String> loadBankTokens() {
         return BankingProviderConfig.loadTokens(this);
     }
@@ -1830,6 +1840,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         swipeRefreshLayout.setRefreshing(true);
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
 
             // Collect all unique tokens across main-balance accounts and linked expenses.
             Set<String> allTokens = new HashSet<>(tokenToIds.keySet());
@@ -1845,7 +1856,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             // One fetchAccounts() call per token covers all accounts for that institution.
             Map<String, BankAccountModel> accountMap = new HashMap<>();
             for (String tok : allTokens) {
-                BankingApiClient client = BankingProviderConfig.createClient(this, tok, idToken);
+                BankingApiClient client = BankingProviderConfig.createClient(this, tok, idToken, appCheckToken);
                 try {
                     for (BankAccountModel acct : client.fetchAccounts()) {
                         accountMap.put(acct.getId(), acct);
@@ -1946,10 +1957,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
             List<BankAccountModel> all = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
                     List<BankAccountModel> fetched = client.fetchAccounts();
                     for (BankAccountModel m : fetched) {
                         String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
@@ -2030,10 +2042,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
         executor.execute(() -> {
             String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
             List<BankAccountModel> all = new ArrayList<>();
             for (String token : tokens) {
                 try {
-                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken);
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
                     List<BankAccountModel> accounts = client.fetchAccounts();
                     for (BankAccountModel m : accounts) {
                         String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
