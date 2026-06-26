@@ -46,3 +46,13 @@
 
 # MPAndroidChart
 -keep class com.github.mikephil.charting.** { *; }
+
+# Firebase App Check — keep the full token result class so R8 does not strip
+# or misoptimize the JWT string returned by AppCheckTokenResult.getToken().
+-keep class com.google.firebase.appcheck.** { *; }
+-keep interface com.google.firebase.appcheck.** { *; }
+-dontwarn com.google.firebase.appcheck.**
+
+# Play Integrity API — called internally by the App Check Play Integrity provider.
+-keep class com.google.android.play.core.integrity.** { *; }
+-dontwarn com.google.android.play.core.integrity.**

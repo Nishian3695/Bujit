@@ -122,9 +122,22 @@ public class BankingProviderConfig {
 
     // Fetches a Firebase App Check token on the calling thread (must be a background thread).
     // Returns null on failure; callers should handle null gracefully.
+    // The Firebase App Check SDK encodes Play Integrity errors as a base64 JSON string
+    // (e.g. {"error":"UNKNOWN_ERROR"}) rather than throwing, so we validate the token
+    // is a proper JWT (requires at least 2 dots) before returning it.
     public static String fetchAppCheckToken() {
         try {
-            return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
+            String token = Tasks.await(FirebaseAppCheck.getInstance().getToken(true)).getToken();
+            if (token == null) {
+                Log.e(TAG, "fetchAppCheckToken: null token");
+                return null;
+            }
+            int dots = token.length() - token.replace(".", "").length();
+            if (dots < 2) {
+                Log.e(TAG, "fetchAppCheckToken: Play Integrity returned error token");
+                return null;
+            }
+            return token;
         } catch (Exception e) {
             Log.e(TAG, "fetchAppCheckToken failed: " + e.getMessage());
             return null;
