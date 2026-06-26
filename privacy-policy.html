@@ -23,7 +23,7 @@
 <body>
 
 <h1>Privacy Policy</h1>
-<p class="updated">Last updated: June 21, 2026</p>
+<p class="updated">Last updated: June 25, 2026</p>
 
 <p>Bujit ("the app", "we", "us") is a personal budgeting tool developed by  Nishian3695. 
 This policy explains what data the app handles, where it goes, and your rights over it.</p>
@@ -33,15 +33,15 @@ This policy explains what data the app handles, where it goes, and your rights o
 on your device using Android's internal file storage. This data is never transmitted to any 
 Bujit-controlled server and is only accessible from within the app.</p>
 
-<h2>2. Bank Account Data (Teller)</h2>
+<h2>2. Bank Account Data (Plaid)</h2>
 <p>If you choose to link a bank account, Bujit uses 
-<a href="https://teller.io" target="_blank">Teller</a>, a third-party financial data provider, 
-to fetch account balances. Your banking credentials are entered directly into Teller's secure 
-interface and are never seen or stored by Bujit. Teller access tokens are stored locally on 
+<a href="https://plaid.com/" target="_blank">Plaid</a>, a third-party financial data provider, 
+to fetch account balances. Your banking credentials are entered directly into Plaid's secure 
+interface and are never seen or stored by Bujit. Plaid access tokens are stored locally on 
 your device in encrypted SharedPreferences. All balance fetches go through a Bujit-hosted 
-backend that forwards the request to Teller using your token. No account data is logged or 
+backend that forwards the request to Plaid using your token. No account data is logged or 
 retained on that backend.</p>
-<p>Teller's own privacy policy can be found at <a href="https://teller.io/legal" target="_blank">teller.io/legal/privacy</a>.</p>
+<p>Plaid's own privacy policy can be found at <a href="https://plaid.com/legal/privacy" target="_blank">plaid.com/legal/privacy</a>.</p>
 
 <h2>3. Google Account Data (Google Tasks / Calendar Sync)</h2>
 <p>If you enable Google Calendar Sync, the app uses Google Sign-In to obtain an OAuth token and 
@@ -52,7 +52,7 @@ all Bujit-created tasks and signs out.</p>
 
 <h2>4. Firebase Authentication</h2>
 <p>Bujit uses Firebase Anonymous Authentication solely to authenticate requests to the Bujit 
-backend when fetching bank balances via Teller. No personal information is associated with this 
+backend when fetching bank balances via Plaid. No personal information is associated with this 
 anonymous session. Firebase may collect diagnostic data per 
 <a href="https://firebase.google.com/support/privacy" target="_blank">Google's Firebase privacy policy</a>.</p>
 

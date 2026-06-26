@@ -20,9 +20,9 @@
     <!--Legal-->
     <string name="disclaimer_text">"Bujit is a personal budgeting tool for informational purposes only. "
     "It does not constitute financial advice.\n\nDisplayed balances may not reflect real-time account data. "
-    "Bank account data is accessed securely via Teller, a third-party service."
+    "Bank account data is accessed securely via Plaid, a third-party service."
     "\n\nBalance projections are estimates and should not be relied upon for financial decisions. "
     "Users are themselves responsible for verifying all financial information and making informed decisions."
-    "\n\nYou may find Teller's legal and privacy information and this disclaimer in the settings menu."
+    "\n\nYou may find Plaid\'s legal and privacy information and this disclaimer in the settings menu."
     </string>
 </resources>

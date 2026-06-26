@@ -321,6 +321,104 @@
 
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
+        <!-- ── Speed dial scrim ── -->
+        <View
+            android:id="@+id/speed_dial_scrim"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="#80000000"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- ── Speed dial: Recurring Expense mini FAB (centered over main FAB) ── -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/speed_dial_recurring_fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:contentDescription="Add recurring expense"
+            android:src="@drawable/sharp_add"
+            android:visibility="gone"
+            app:fabSize="mini"
+            app:layout_constraintBottom_toTopOf="@id/add_button"
+            app:layout_constraintEnd_toEndOf="@id/add_button"
+            app:layout_constraintStart_toStartOf="@id/add_button" />
+
+        <!-- ── Speed dial: Recurring Expense label ── -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/speed_dial_recurring_label_card"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="?attr/colorSurface"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="4dp"
+            app:layout_constraintBottom_toBottomOf="@id/speed_dial_recurring_fab"
+            app:layout_constraintEnd_toStartOf="@id/speed_dial_recurring_fab"
+            app:layout_constraintTop_toTopOf="@id/speed_dial_recurring_fab">
+
+            <TextView
+                android:id="@+id/speed_dial_recurring_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="Recurring Expense"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="13sp" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ── Speed dial: Single Event mini FAB (centered over main FAB) ── -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/speed_dial_single_event_fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:contentDescription="Add single event"
+            android:src="@drawable/sharp_add"
+            android:visibility="gone"
+            app:fabSize="mini"
+            app:layout_constraintBottom_toTopOf="@id/speed_dial_recurring_fab"
+            app:layout_constraintEnd_toEndOf="@id/add_button"
+            app:layout_constraintStart_toStartOf="@id/add_button" />
+
+        <!-- ── Speed dial: Single Event label ── -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/speed_dial_single_event_label_card"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="?attr/colorSurface"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="4dp"
+            app:layout_constraintBottom_toBottomOf="@id/speed_dial_single_event_fab"
+            app:layout_constraintEnd_toStartOf="@id/speed_dial_single_event_fab"
+            app:layout_constraintTop_toTopOf="@id/speed_dial_single_event_fab">
+
+            <TextView
+                android:id="@+id/speed_dial_single_event_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="Single Event"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="13sp" />
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- ── FAB ── -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/add_button"

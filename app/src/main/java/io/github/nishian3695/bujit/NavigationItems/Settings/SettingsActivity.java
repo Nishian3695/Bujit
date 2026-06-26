@@ -131,6 +131,7 @@ public class SettingsActivity extends AppCompatActivity {
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_integrations), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_categories), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_security), this);
+        ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_single_events), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_data), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_legal), this);
@@ -228,6 +229,41 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
         findViewById(R.id.row_disclaimer).setOnClickListener(v -> showDisclaimer());
+
+        // Single Events expiry row
+        TextView tvExpiryDays = findViewById(R.id.tv_expiry_days);
+        int currentExpiry = getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                .getInt("single_event_expiry_days", 30);
+        tvExpiryDays.setText(currentExpiry + " day" + (currentExpiry == 1 ? "" : "s"));
+        findViewById(R.id.row_single_event_expiry).setOnClickListener(v -> {
+            android.widget.EditText input = new android.widget.EditText(this);
+            input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            int existing = getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                    .getInt("single_event_expiry_days", 30);
+            input.setText(String.valueOf(existing));
+            int padPx = (int) (16 * getResources().getDisplayMetrics().density);
+            android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(padPx, padPx / 2, padPx, 0);
+            input.setLayoutParams(lp);
+            container.addView(input);
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Event Expiry")
+                    .setMessage("Remove single events after how many days?")
+                    .setView(container)
+                    .setPositiveButton("Save", (d, w) -> {
+                        String s = input.getText() != null ? input.getText().toString().trim() : "";
+                        int days = 30;
+                        try { days = Integer.parseInt(s); } catch (NumberFormatException ignored) {}
+                        if (days < 1) days = 1;
+                        getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                                .edit().putInt("single_event_expiry_days", days).apply();
+                        tvExpiryDays.setText(days + " day" + (days == 1 ? "" : "s"));
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
     }
 
     @Override
@@ -436,7 +472,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void openTellerPrivacy() {
-        openUrl("https://teller.io/legal");
+        openUrl("https://plaid.com/legal/#privacy-statement");
     }
 
     private void openUrl(String url) {

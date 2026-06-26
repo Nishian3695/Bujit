@@ -9,8 +9,8 @@ A personal finance budgeting app for Android. Track recurring expenses, project 
 - **Expense tracking** -- Add recurring expenses with any frequency (daily, weekly, monthly, yearly, or custom). Each row shows the next due date, recurrence rate, and amount owed this pay period.
 - **Balance projection** -- Navigate forward through future pay periods to see your projected balance after each paycheck and set of expenses. A custom projection mode lets you model any stream or period length without changing your saved data.
 - **Multiple income streams** -- Add as many income sources as you like. The active stream drives the pay period length and paycheck amount used in projections.
-- **Bank integration** -- Connect bank accounts via the Teller API. Your real balance is fetched automatically on pull-to-refresh. Multiple banks can be connected simultaneously.
-- **Credit utilization** -- Track credit card balances and limits. Each card displays a color-coded utilization bar (green < 30%, yellow < 70%, red >= 70%). Cards can be linked to Teller credit/loan accounts for live balance updates.
+- **Bank integration** -- Connect bank accounts via the Plaid API. Your real balance is fetched automatically on pull-to-refresh. Multiple banks can be connected simultaneously.
+- **Credit utilization** -- Track credit card balances and limits. Each card displays a color-coded utilization bar (green < 30%, yellow < 70%, red >= 70%). Cards can be linked to Plaid credit/loan accounts for live balance updates.
 - **Google Tasks sync** -- Optionally link a Google account to create tasks for all expenses and income streams in a dedicated "Bujit" task list, which appears in Google Calendar.
 - **Theme customization** -- Six preset accent colors or a fully custom color picked from an HSV color wheel. Separate light, dark, and system night mode settings.
 - **Multi-select and reorder** -- Long-press any expense to start drag-to-reorder. Tap the select icon in the action bar to enter multi-select mode for batch deletion.
@@ -30,7 +30,7 @@ A personal finance budgeting app for Android. Track recurring expenses, project 
 |---|---|
 | Language | Java (Android SDK 26+) |
 | UI | Material Design 3, ConstraintLayout, RecyclerView |
-| Banking | Teller Connect SDK + Firebase Cloud Functions proxy |
+| Banking | Plaid Connect SDK + Firebase Cloud Functions proxy |
 | Calendar sync | Google Tasks REST API via Google Sign-In OAuth 2.0 |
 | Auth (backend) | Firebase Authentication (anonymous sign-in for Cloud Function access) |
 | HTTP | OkHttp 4 |
@@ -44,9 +44,9 @@ A personal finance budgeting app for Android. Track recurring expenses, project 
 
 - Android Studio Hedgehog or later
 - Android device or emulator running API 26 (Android 8.0) or higher
-- A [Teller](https://teller.io) developer account and application ID
+- A [Plaid](https://plaid.com/) developer account and application ID
 - A Google Cloud project with the **Google Tasks API** enabled and an **OAuth 2.0 Android client ID** configured
-- A Firebase project with **Anonymous Authentication** enabled and a Cloud Function that proxies Teller API calls
+- A Firebase project with **Anonymous Authentication** enabled and a Cloud Function that proxies Plaid API calls
 
 ---
 
@@ -61,20 +61,20 @@ cd Bujit
 
 ### 2. Configure secrets
 
-Create `local.properties` in the project root (it is gitignored) and add your Teller application ID:
+Create `local.properties` in the project root (it is gitignored) and add your Plaid application ID:
 
 ```
 sdk.dir=/path/to/your/Android/Sdk
-TELLER_APP_ID=app_xxxxxxxxxxxxxxxx
+Plaid_APP_ID=app_xxxxxxxxxxxxxxxx
 ```
 
 ### 3. Add Firebase config
 
 Place your `google-services.json` from the Firebase console into `app/`.
 
-### 4. Add the Teller certificate (Development environment only)
+### 4. Add the Plaid certificate (Development environment only)
 
-The Teller Development environment requires mTLS. The certificate and private key should be stored in Firebase Secret Manager and accessed by the Cloud Function backend. The Android app itself does not bundle any certificate.
+The Plaid Development environment requires mTLS. The certificate and private key should be stored in Firebase Secret Manager and accessed by the Cloud Function backend. The Android app itself does not bundle any certificate.
 
 ### 5. Build and run
 
@@ -114,13 +114,13 @@ app/src/main/java/io/github/nishian3695/bujit/
 |
 +-- NavigationItems/
 |   +-- Banking/
-|   |   +-- BankingActivity.java         Teller Connect enrollment and account list
-|   |   +-- BankAccountModel.java        Data model for a Teller account
+|   |   +-- BankingActivity.java         Plaid Connect enrollment and account list
+|   |   +-- BankAccountModel.java        Data model for a Plaid account
 |   |   +-- BankAccountAdapter.java      RecyclerView adapter for the account list
 |   |   +-- BankAccountViewHolder.java   ViewHolder for account cards
 |   |   +-- BankingPrefs.java            AES-256-GCM encrypted token storage
-|   |   +-- TellerApi.java               Interface for Teller API operations
-|   |   +-- TellerBackendClient.java     OkHttp client proxying calls to the Cloud Function
+|   |   +-- PlaidApi.java               Interface for Plaid API operations
+|   |   +-- PlaidBackendClient.java     OkHttp client proxying calls to the Cloud Function
 |   |
 |   +-- CreditUtil/
 |   |   +-- CreditUtilActivity.java      Credit card list with utilization tracking
@@ -146,7 +146,7 @@ app/src/main/java/io/github/nishian3695/bujit/
 
 **Income streams and projections** -- The selected income stream provides the pay period length and paycheck amount. The "projection" mode in `ExpenseActivity` allows the user to temporarily override these values for what-if analysis without touching stored data.
 
-**Bank linking** -- The Teller mTLS private key never touches the device. A Firebase Cloud Function acts as a proxy; the Android app authenticates to it using a Firebase anonymous ID token.
+**Bank linking** -- The Plaid mTLS private key never touches the device. A Firebase Cloud Function acts as a proxy; the Android app authenticates to it using a Firebase anonymous ID token.
 
 **Credit entries** -- Credit cards are stored as `ExpenseModel` objects with `expenseIsCredit=true`. Their cost field holds the current balance and `creditLimit` holds the limit. This reuses the existing expense persistence layer without a separate data structure.
 

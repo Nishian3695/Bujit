@@ -2,6 +2,7 @@ package io.github.nishian3695.bujit.StorageManagement;
 
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
+import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -28,6 +29,7 @@ public class StorageHolder implements Serializable {
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<PeriodSnapshot> periodSnapshots;
     private ArrayList<String> categoryList;
+    private ArrayList<SingleEventModel> singleEventList;
     // endregion
 
     public StorageHolder() {
@@ -42,6 +44,7 @@ public class StorageHolder implements Serializable {
         nextCheckDate = calendar.plus(1, ChronoUnit.WEEKS);
         periodSnapshots = new ArrayList<>();
         categoryList = CategoryManager.getDefaults();
+        singleEventList = new ArrayList<>();
     }
 
     // region Getters
@@ -79,6 +82,10 @@ public class StorageHolder implements Serializable {
         if (categoryList == null) categoryList = CategoryManager.getDefaults();
         return categoryList;
     }
+    public ArrayList<SingleEventModel> getSingleEventList() {
+        if (singleEventList == null) singleEventList = new ArrayList<>();
+        return singleEventList;
+    }
     // endregion
 
     // region Setters
@@ -114,6 +121,9 @@ public class StorageHolder implements Serializable {
     }
     public void setCategoryList(ArrayList<String> categoryList) {
         this.categoryList = categoryList;
+    }
+    public void setSingleEventList(ArrayList<SingleEventModel> list) {
+        this.singleEventList = list;
     }
     // endregion
 }
