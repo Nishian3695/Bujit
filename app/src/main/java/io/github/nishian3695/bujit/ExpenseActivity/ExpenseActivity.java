@@ -43,6 +43,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
+import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
+import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventsActivity;
 import io.github.nishian3695.bujit.StorageManagement.CategoryManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
@@ -123,6 +125,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     // Keeping track
     private boolean onHomeScreen;
+    private boolean speedDialOpen = false;
     private Runnable pendingTutorialShow;
     // Data Storage
     private StorageManager storageManager;
@@ -141,8 +144,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private TutorialOverlayLayout tutorialOverlay;
     // ActivityResultLaunchers
     ActivityResultLauncher<Intent> getBalanceOptionsContent, creditUtilizationContent, settingsContent;
+    // Speed dial views
+    private View speedDialScrim;
+    private View speedDialRecurringLabelCard, speedDialSingleEventLabelCard;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton speedDialRecurringFab, speedDialSingleEventFab;
     // Data variables
     private ArrayList<ExpenseModel> expenseListStor;
+    private ArrayList<SingleEventModel> singleEventList;
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
     private float curBalance, shownBalance, averageCheck, projAmount;
@@ -236,6 +244,14 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         ThemeHelper.tintPrimaryCard(findViewById(R.id.check_bar_card), this);
         addExpenseButton = findViewById(R.id.add_button);
         ThemeHelper.tintFab(addExpenseButton, this);
+        // Speed dial views
+        speedDialScrim = findViewById(R.id.speed_dial_scrim);
+        speedDialRecurringLabelCard = findViewById(R.id.speed_dial_recurring_label_card);
+        speedDialSingleEventLabelCard = findViewById(R.id.speed_dial_single_event_label_card);
+        speedDialRecurringFab = findViewById(R.id.speed_dial_recurring_fab);
+        speedDialSingleEventFab = findViewById(R.id.speed_dial_single_event_fab);
+        ThemeHelper.tintFab(speedDialRecurringFab, this);
+        ThemeHelper.tintFab(speedDialSingleEventFab, this);
         nextCheckButton = findViewById(R.id.next_check_button);
         prevCheckButton = findViewById(R.id.prev_check_button);
         currentBankBalance = findViewById(R.id.current_balance_TV);
@@ -255,15 +271,25 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         drawerLayout.addDrawerListener(actionBarDrawerToggle);
         actionBarDrawerToggle.syncState();
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        addExpenseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (onHomeScreen) {
-                    addEditExpenseDialog(ADD, -1).show();
-                } else {
-                    performCheckTransition(false, () -> goHomePage());
-                }
+        addExpenseButton.setOnClickListener(view -> {
+            if (!onHomeScreen) {
+                performCheckTransition(false, this::goHomePage);
+                return;
             }
+            if (speedDialOpen) {
+                closeSpeedDial();
+            } else {
+                openSpeedDial();
+            }
+        });
+        speedDialScrim.setOnClickListener(v -> closeSpeedDial());
+        speedDialRecurringFab.setOnClickListener(v -> {
+            closeSpeedDial();
+            addEditExpenseDialog(ADD, -1).show();
+        });
+        speedDialSingleEventFab.setOnClickListener(v -> {
+            closeSpeedDial();
+            showAddSingleEventDialog();
         });
         nextCheckButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -562,6 +588,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 if (lastOpened == null) lastOpened = LocalDate.now();
                 periodSnapshots = storageHolder.getPeriodSnapshots();
                 if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
+                singleEventList = storageHolder.getSingleEventList();
                 // Load income streams; migrate from legacy single-stream fields on first open
                 incomeStreamList = storageHolder.getIncomeStreamList();
                 if (incomeStreamList == null || incomeStreamList.isEmpty()) {
@@ -619,6 +646,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 storageHolder.setLastOpenedDate(lastOpened);
                 storageHolder.setIncomeStreamList(incomeStreamList);
                 storageHolder.setPeriodSnapshots(periodSnapshots);
+                if (singleEventList != null) storageHolder.setSingleEventList(singleEventList);
                 storageManager.writeData(storageHolder);
                 break;
             }
@@ -1019,7 +1047,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             lastOpened = mToday;
         }
 
+        if (singleEventList == null) singleEventList = new ArrayList<>();
         seedSampleDataIfNeeded();
+        cleanupExpiredSingleEvents();
         checkForNextCheck();
         resetProjToActiveStream();
         bringDataUpToDate(false);
@@ -1566,6 +1596,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     public void goHomePage() {
+        closeSpeedDial();
         // Bank balance can be edited only on home page
         currentBankBalance.setClickable(true);
         expenseTable.setClickable(true);
@@ -1725,6 +1756,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 visualsIntent.putExtra("snapshotList", periodSnapshots);
                 visualsIntent.putExtra("categoryList", storageHolder.getCategoryList());
                 startActivity(visualsIntent);
+                drawerLayout.close();
+                break;
+            }
+            case R.id.single_events: {
+                startActivity(new Intent(this, SingleEventsActivity.class));
                 drawerLayout.close();
                 break;
             }
@@ -2122,6 +2158,128 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // region Speed dial
+
+    private void openSpeedDial() {
+        speedDialOpen = true;
+        speedDialScrim.setVisibility(View.VISIBLE);
+        speedDialScrim.setAlpha(0f);
+        speedDialScrim.animate().alpha(1f).setDuration(180).start();
+
+        showSpeedDialRow(speedDialRecurringFab, 0);
+        showSpeedDialRow(speedDialRecurringLabelCard, 0);
+        showSpeedDialRow(speedDialSingleEventFab, 60);
+        showSpeedDialRow(speedDialSingleEventLabelCard, 60);
+
+        addExpenseButton.animate().rotation(45f).setDuration(200).start();
+    }
+
+    private void closeSpeedDial() {
+        if (!speedDialOpen) return;
+        speedDialOpen = false;
+        speedDialScrim.animate().alpha(0f).setDuration(180)
+                .withEndAction(() -> speedDialScrim.setVisibility(View.GONE)).start();
+
+        hideSpeedDialRow(speedDialRecurringFab, 0);
+        hideSpeedDialRow(speedDialRecurringLabelCard, 0);
+        hideSpeedDialRow(speedDialSingleEventFab, 0);
+        hideSpeedDialRow(speedDialSingleEventLabelCard, 0);
+
+        addExpenseButton.animate().rotation(0f).setDuration(200).start();
+    }
+
+    private void showSpeedDialRow(View row, long delayMs) {
+        row.setVisibility(View.VISIBLE);
+        row.setAlpha(0f);
+        row.setTranslationY(24f);
+        row.animate().alpha(1f).translationY(0f).setStartDelay(delayMs).setDuration(200).start();
+    }
+
+    private void hideSpeedDialRow(View row, long delayMs) {
+        row.animate().alpha(0f).translationY(24f).setStartDelay(delayMs).setDuration(160)
+                .withEndAction(() -> row.setVisibility(View.GONE)).start();
+    }
+
+    // endregion
+
+    // region Single Events
+
+    private void showAddSingleEventDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.add_single_event_layout, null);
+        com.google.android.material.textfield.TextInputLayout nameLayout = dialogView.findViewById(R.id.add_single_event_name);
+        com.google.android.material.textfield.TextInputLayout amountLayout = dialogView.findViewById(R.id.add_single_event_amount);
+        android.widget.EditText nameField = dialogView.findViewById(R.id.single_event_name_input);
+        android.widget.EditText amountField = dialogView.findViewById(R.id.single_event_amount_input);
+        com.google.android.material.button.MaterialButtonToggleGroup typeToggle =
+                dialogView.findViewById(R.id.single_event_type_toggle);
+        typeToggle.check(R.id.btn_single_debit);
+        amountField.addTextChangedListener(new CurrencyEditTextWatcher(amountField));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Add Single Event")
+                .setView(dialogView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = nameField.getText() != null ? nameField.getText().toString().trim() : "";
+            String amtStr = amountField.getText() != null ? amountField.getText().toString().trim() : "";
+
+            boolean valid = true;
+            if (name.isEmpty()) {
+                nameLayout.setError("Name is required");
+                valid = false;
+            } else {
+                nameLayout.setErrorEnabled(false);
+            }
+            float amount = 0;
+            try { amount = Float.parseFloat(amtStr); } catch (NumberFormatException ignored) {}
+            if (amount <= 0) {
+                amountLayout.setError("Enter a valid amount");
+                valid = false;
+            } else {
+                amountLayout.setErrorEnabled(false);
+            }
+            if (!valid) return;
+
+            boolean isDebit = (typeToggle.getCheckedButtonId() == R.id.btn_single_debit);
+            SingleEventModel event = new SingleEventModel(name, amount, isDebit);
+            singleEventList.add(event);
+            curBalance += event.getAppliedAmount();
+            shownBalance = curBalance;
+            setCurrentBalanceText(curBalance);
+            setFinalBalance();
+            saveNow();
+            dialog.dismiss();
+        }));
+        dialog.show();
+    }
+
+    private void cleanupExpiredSingleEvents() {
+        if (singleEventList == null) return;
+        int expiryDays = getSharedPreferences("bujit_prefs", MODE_PRIVATE)
+                .getInt("single_event_expiry_days", 30);
+        boolean any = singleEventList.removeIf(e -> e.isExpired(expiryDays));
+        if (any) saveNow();
+    }
+
+    private void reloadSingleEventsFromDisk() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            StorageHolder fresh = manager.getStorageHolder();
+            singleEventList = fresh.getSingleEventList();
+            curBalance = fresh.getCurrentBalance();
+            shownBalance = curBalance;
+            setCurrentBalanceText(curBalance);
+            setFinalBalance();
+        } catch (Exception e) {
+            Log.e("Bujit", "reloadSingleEventsFromDisk failed: " + e.getMessage());
+        }
+    }
+
+    // endregion
+
     private GoogleTasksHelper tasksHelper() {
         if (googleTasksHelper == null) googleTasksHelper = new GoogleTasksHelper(this);
         return googleTasksHelper;
@@ -2132,6 +2290,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         super.onResume();
 
         SharedPreferences dataPrefs = getSharedPreferences("bujit_prefs", MODE_PRIVATE);
+
+        if (dataPrefs.getBoolean(SingleEventsActivity.KEY_CHANGED, false)) {
+            dataPrefs.edit().remove(SingleEventsActivity.KEY_CHANGED).apply();
+            reloadSingleEventsFromDisk();
+        }
 
         // Reload expense list if BankingActivity deleted linked credit entries while we were paused.
         if (dataPrefs.getBoolean(BankingActivity.KEY_BANKING_EXPENSE_CHANGED, false)) {
@@ -2282,6 +2445,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Save data before app closed
     @Override
     protected void onPause() {
+        closeSpeedDial();
         if (pendingTutorialShow != null) {
             mainHandler.removeCallbacks(pendingTutorialShow);
             pendingTutorialShow = null;

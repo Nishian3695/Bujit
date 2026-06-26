@@ -7,6 +7,7 @@ import android.util.Base64;
 import android.util.Log;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
+import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
@@ -188,6 +189,13 @@ public class StorageManager {
             for (String c : h.getCategoryList()) cats.put(c);
         }
         o.put("categoryList", cats);
+
+        JSONArray singleEvents = new JSONArray();
+        if (h.getSingleEventList() != null) {
+            for (SingleEventModel se : h.getSingleEventList()) singleEvents.put(singleEventToJson(se));
+        }
+        o.put("singleEventList", singleEvents);
+
         return o.toString();
     }
 
@@ -240,6 +248,17 @@ public class StorageManager {
             catList = CategoryManager.getDefaults();
         }
         h.setCategoryList(catList);
+
+        JSONArray seArr = o.optJSONArray("singleEventList");
+        ArrayList<SingleEventModel> seList = new ArrayList<>();
+        if (seArr != null) {
+            for (int i = 0; i < seArr.length(); i++) {
+                SingleEventModel se = jsonToSingleEvent(seArr.getJSONObject(i));
+                if (se != null) seList.add(se);
+            }
+        }
+        h.setSingleEventList(seList);
+
         return h;
     }
 
@@ -326,6 +345,33 @@ public class StorageManager {
             return s;
         } catch (Exception e) {
             Log.e(TAG, "jsonToStream failed", e);
+            return null;
+        }
+    }
+
+    private JSONObject singleEventToJson(SingleEventModel se) throws Exception {
+        JSONObject o = new JSONObject();
+        o.put("id",               se.getId());
+        o.put("name",             se.getName());
+        o.put("amount",           se.getAmount());
+        o.put("isDebit",          se.isDebit());
+        o.put("createdDate",      dateOrNull(se.getCreatedDate()));
+        o.put("lastModifiedDate", dateOrNull(se.getLastModifiedDate()));
+        o.put("appliedAmount",    se.getAppliedAmount());
+        return o;
+    }
+
+    private SingleEventModel jsonToSingleEvent(JSONObject o) {
+        try {
+            String name = o.optString("name", "");
+            float amount = (float) o.optDouble("amount", 0.0);
+            boolean isDebit = o.optBoolean("isDebit", true);
+            SingleEventModel se = new SingleEventModel(name, amount, isDebit);
+            LocalDate modified = parseDate(o.optString("lastModifiedDate", null));
+            if (modified != null) se.setLastModifiedDate(modified);
+            return se;
+        } catch (Exception e) {
+            Log.e(TAG, "jsonToSingleEvent failed", e);
             return null;
         }
     }
