@@ -94,7 +94,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
         secret: secret,
         user: {client_user_id: decodedToken.uid},
         client_name: "Bujit",
-        products: ["transactions"],
+        products: ["balance"],
         country_codes: ["US"],
         language: "en",
         android_package_name: "io.github.nishian3695.bujit",

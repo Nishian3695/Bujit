@@ -80,12 +80,12 @@ public class TutorialManager {
         // BankingActivity: step 8
         new StepDef(BankingActivity.class, R.id.btn_connect_bank,
             "Link your bank or credit card",
-            "Securely connect your bank via Teller to auto-sync your balance and credit card amounts.\nYour login credentials never leave Teller's secure system.",
+            "Securely connect your bank via Plaid to auto-sync your balance and credit card amounts.\nBujit does not store your login credentials.",
             16, SingleEventsActivity.class),
         // SingleEventsActivity: step 9
         new StepDef(SingleEventsActivity.class, R.id.single_events_recycler,
             "Single Events",
-            "One-off expenses or income that don't repeat — a surprise bill, splitting dinner, or a friend paying you back. Single events adjust your balance immediately and expire automatically after a set number of days.",
+            "One-off expenses or income. A surprise bill, splitting dinner, or a friend paying you back. Single events adjust your balance immediately are permanent after a set number of days. By default, they expire after 30 days, which you can adjust in the settings. Before then, you can edit or delete them.",
             8, VisualsActivity.class),
         // VisualsActivity: steps 10–12
         new StepDef(VisualsActivity.class, R.id.visuals_tab_layout,
