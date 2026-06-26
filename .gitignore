@@ -21,3 +21,4 @@ app/google-services.json
 local.properties
 .firebaserc
 functions/node_modules
+functions/.env*
