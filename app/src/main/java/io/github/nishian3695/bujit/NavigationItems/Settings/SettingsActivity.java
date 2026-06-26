@@ -472,7 +472,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void openTellerPrivacy() {
-        openUrl("https://teller.io/legal");
+        openUrl("https://plaid.com/legal/#privacy-statement");
     }
 
     private void openUrl(String url) {
