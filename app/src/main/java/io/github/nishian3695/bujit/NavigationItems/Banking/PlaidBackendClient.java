@@ -18,9 +18,9 @@ import okhttp3.Response;
 HTTP client that proxies Plaid API calls through the Firebase Cloud Function backend.
 The Plaid client_id and secret live in Firebase Secret Manager, not in the APK.
 
-All requests are made with a shared OkHttpClient that includes:
-  - Certificate pinning to the backend's intermediate and root CA.
-  - Firebase App Check token interceptor.
+All requests carry a Firebase ID token (Authorization: Bearer) so the backend can
+reject unauthenticated callers. TLS is validated by Android's system trust store
+against the Google-managed Cloud Run certificate; no additional pinning is applied.
 
 HTTP 401 responses are surfaced as BankingAuthException to signal that the stored
 access token has been revoked and the user must re-link their bank account.
