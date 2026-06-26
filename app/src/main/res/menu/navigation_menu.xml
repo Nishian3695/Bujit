@@ -17,6 +17,10 @@
         <item
             android:id="@+id/visuals"
             android:title="Visuals" />
+
+        <item
+            android:id="@+id/single_events"
+            android:title="Single Events" />
     </group>
 
     <group android:id="@+id/group_nav_secondary">

@@ -42,6 +42,9 @@
         <activity android:name=".NavigationItems.Visuals.VisualsActivity">
         </activity>
 
+        <activity android:name=".NavigationItems.SingleEvents.SingleEventsActivity">
+        </activity>
+
     </application>
 
 </manifest>
