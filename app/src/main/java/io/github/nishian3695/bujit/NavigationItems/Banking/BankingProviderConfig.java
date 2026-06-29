@@ -113,7 +113,7 @@ public class BankingProviderConfig {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) return null;
         try {
-            return Tasks.await(user.getIdToken(false)).getToken();
+            return Tasks.await(user.getIdToken(false), 10, TimeUnit.SECONDS).getToken();
         } catch (Exception e) {
             Log.e(TAG, "fetchFirebaseIdToken failed: " + e.getMessage());
             return null;
@@ -127,19 +127,19 @@ public class BankingProviderConfig {
     // is a proper JWT (requires at least 2 dots) before returning it.
     public static String fetchAppCheckToken() {
         try {
-            String token = Tasks.await(FirebaseAppCheck.getInstance().getToken(true)).getToken();
+            String token = Tasks.await(FirebaseAppCheck.getInstance().getToken(true), 15, TimeUnit.SECONDS).getToken();
             if (token == null) {
                 Log.e(TAG, "fetchAppCheckToken: null token");
                 return null;
             }
             int dots = token.length() - token.replace(".", "").length();
             if (dots < 2) {
-                Log.e(TAG, "fetchAppCheckToken: Play Integrity returned error token");
+                Log.e(TAG, "fetchAppCheckToken: invalid token (dots=" + dots + ")");
                 return null;
             }
             return token;
         } catch (Exception e) {
-            Log.e(TAG, "fetchAppCheckToken failed: " + e.getMessage());
+            Log.e(TAG, "fetchAppCheckToken failed: " + e.getClass().getSimpleName() + " " + e.getMessage());
             return null;
         }
     }
