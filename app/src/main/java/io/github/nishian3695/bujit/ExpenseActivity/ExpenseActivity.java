@@ -153,7 +153,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private ArrayList<SingleEventModel> singleEventList;
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
-    private float curBalance, shownBalance, averageCheck, projAmount;
+    private float curBalance, shownBalance, averageCheck, projAmount, manualBalanceAddition;
     private LocalDate curCheckDate, begCheckDate, nextCheckDate, endCheckDate, mToday, lastOpened;
     private int checkFrequency, projFrequency, projStepsForward;
     private ChronoUnit checkFrequencyTag, projFreqTag;
@@ -574,6 +574,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
                 expenseListStor = storageHolder.getExpenseList();
                 curBalance = storageHolder.getCurrentBalance();
+                manualBalanceAddition = storageHolder.getManualBalanceAddition();
                 averageCheck = storageHolder.getAverageCheck();
                 checkFrequency = storageHolder.getCheckFrequency();
                 checkFrequencyTag = storageHolder.getCheckFrequencyTag();
@@ -637,6 +638,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 if (storageManager == null) storageManager = new StorageManager(getBaseContext());
                 storageHolder.setExpenseList(expenseListStor);
                 storageHolder.setCurrentBalance(curBalance);
+                storageHolder.setManualBalanceAddition(manualBalanceAddition);
                 storageHolder.setAverageCheck(averageCheck);
                 storageHolder.setCheckFrequency(checkFrequency);
                 storageHolder.setCheckFrequencyTag(checkFrequencyTag);
@@ -1012,6 +1014,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         endCheckDate = nextCheckDate;
         lastOpened = mToday;
         curBalance = 0f;
+        manualBalanceAddition = 0f;
         averageCheck = 0f;
         checkFrequency = 1;
         checkFrequencyTag = ChronoUnit.WEEKS;
@@ -1031,6 +1034,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             incomeStreamList = new ArrayList<>();
             periodSnapshots  = new ArrayList<>();
             curBalance = 0f;
+            manualBalanceAddition = 0f;
             averageCheck = 0f;
             checkFrequency = 1;
             checkFrequencyTag = ChronoUnit.WEEKS;
@@ -1463,34 +1467,38 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     public AlertDialog changeBankBalance() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Change Bank Balance");
+        builder.setTitle("Update Balance");
         LayoutInflater inflater = getLayoutInflater();
         View dialogLayout = inflater.inflate(R.layout.change_balance_layout, null);
         builder.setView(dialogLayout);
 
         EditText bankBalanceET = dialogLayout.findViewById(R.id.bank_balance_ET);
-        bankBalanceET.setText(String.valueOf(curBalance));
+        EditText manualExtraET = dialogLayout.findViewById(R.id.manual_extra_balance_ET);
+
+        // Main field shows the base balance (total minus any manual addition already applied)
+        float baseBalance = Math.max(0f, curBalance - manualBalanceAddition);
+        bankBalanceET.setText(String.format(Locale.US, "%.2f", baseBalance));
         bankBalanceET.addTextChangedListener(new CurrencyEditTextWatcher(bankBalanceET));
+
+        manualExtraET.setText(String.format(Locale.US, "%.2f", manualBalanceAddition));
+        manualExtraET.addTextChangedListener(new CurrencyEditTextWatcher(manualExtraET));
 
         Button fromBankBtn = dialogLayout.findViewById(R.id.btn_from_bank);
         fromBankBtn.setOnClickListener(v -> showBankAccountPicker(bankBalanceET));
 
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.dismiss();
-            }
-        });
+        builder.setNegativeButton("Cancel", (dialogInterface, i) -> dialogInterface.dismiss());
 
-        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                String balanceInput = bankBalanceET.getText().toString();
-                curBalance = Float.parseFloat(balanceInput);
-                shownBalance = curBalance;
-                setFinalBalance();
-                setCurrentBalanceText(curBalance);
-            }
+        builder.setPositiveButton("Save", (dialogInterface, i) -> {
+            float base = 0f;
+            float extra = 0f;
+            try { base = Float.parseFloat(bankBalanceET.getText().toString()); } catch (NumberFormatException ignored) {}
+            try { extra = Float.parseFloat(manualExtraET.getText().toString()); } catch (NumberFormatException ignored) {}
+            manualBalanceAddition = extra;
+            curBalance = base + extra;
+            shownBalance = curBalance;
+            setFinalBalance();
+            setCurrentBalanceText(curBalance);
+            saveNow();
         });
 
         return builder.create();
@@ -1953,7 +1961,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             mainHandler.post(() -> {
                 swipeRefreshLayout.setRefreshing(false);
                 if (fetched) {
-                    curBalance   = finalTotal;
+                    curBalance   = finalTotal + manualBalanceAddition;
                     shownBalance = curBalance;
                     setCurrentBalanceText(curBalance);
                     saveLastSyncTime(System.currentTimeMillis());
@@ -1964,6 +1972,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 }
                 if (fetched || expUpdated) {
                     setFinalBalance();
+                    saveNow();
                 }
             });
         });
