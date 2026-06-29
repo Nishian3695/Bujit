@@ -2,6 +2,7 @@ package io.github.nishian3695.bujit.NavigationItems.Settings;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Log;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.biometric.BiometricManager;
@@ -23,6 +25,15 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.android.billingclient.api.BillingClient;
+import com.android.billingclient.api.BillingClientStateListener;
+import com.android.billingclient.api.BillingFlowParams;
+import com.android.billingclient.api.BillingResult;
+import com.android.billingclient.api.ConsumeParams;
+import com.android.billingclient.api.PendingPurchasesParams;
+import com.android.billingclient.api.ProductDetails;
+import com.android.billingclient.api.Purchase;
+import com.android.billingclient.api.QueryProductDetailsParams;
 import io.github.nishian3695.bujit.AppLockPrefs;
 import io.github.nishian3695.bujit.BujitApp;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
@@ -37,11 +48,17 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /*
 Activity for app-wide settings.
@@ -94,6 +111,14 @@ public class SettingsActivity extends AppCompatActivity {
     private GoogleSignInClient googleSignInClient;
     private boolean calendarSyncChanged = false;
 
+    private static final String BILLING_TAG = "BujitBilling";
+    private BillingClient billingClient;
+    private final Map<String, ProductDetails> tipProducts = new HashMap<>();
+    private MaterialButton btnTipSmall, btnTipMedium, btnTipLarge;
+    private static final String TIP_SMALL  = "tip_small";
+    private static final String TIP_MEDIUM = "tip_medium";
+    private static final String TIP_LARGE  = "tip_large";
+
     private final ActivityResultLauncher<Intent> googleSignInLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
@@ -133,6 +158,7 @@ public class SettingsActivity extends AppCompatActivity {
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_security), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_single_events), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support), this);
+        ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support_dev), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_data), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_legal), this);
         themeToggle = findViewById(R.id.theme_toggle);
@@ -229,6 +255,15 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
         findViewById(R.id.row_disclaimer).setOnClickListener(v -> showDisclaimer());
+
+        // Tip jar
+        btnTipSmall  = findViewById(R.id.btn_tip_small);
+        btnTipMedium = findViewById(R.id.btn_tip_medium);
+        btnTipLarge  = findViewById(R.id.btn_tip_large);
+        btnTipSmall.setOnClickListener(v  -> launchTip(TIP_SMALL));
+        btnTipMedium.setOnClickListener(v -> launchTip(TIP_MEDIUM));
+        btnTipLarge.setOnClickListener(v  -> launchTip(TIP_LARGE));
+        setupBilling();
 
         // Single Events expiry row
         TextView tvExpiryDays = findViewById(R.id.tv_expiry_days);
@@ -554,5 +589,99 @@ public class SettingsActivity extends AppCompatActivity {
 
     private float dpToPx(int dp) {
         return dp * getResources().getDisplayMetrics().density;
+    }
+
+    // ── Tip jar / billing ────────────────────────────────────────────────────
+
+    private void setupBilling() {
+        billingClient = BillingClient.newBuilder(this)
+                .setListener(this::onPurchasesUpdated)
+                .enablePendingPurchases(
+                        PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+                .build();
+        billingClient.startConnection(new BillingClientStateListener() {
+            @Override
+            public void onBillingSetupFinished(@NonNull BillingResult result) {
+                Log.d(BILLING_TAG, "onBillingSetupFinished: code=" + result.getResponseCode()
+                        + " msg=" + result.getDebugMessage());
+                if (result.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                    queryTipProducts();
+                }
+            }
+            @Override
+            public void onBillingServiceDisconnected() {
+                Log.d(BILLING_TAG, "onBillingServiceDisconnected");
+            }
+        });
+    }
+
+    private void queryTipProducts() {
+        List<QueryProductDetailsParams.Product> products = Arrays.asList(
+                QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(TIP_SMALL).setProductType(BillingClient.ProductType.INAPP).build(),
+                QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(TIP_MEDIUM).setProductType(BillingClient.ProductType.INAPP).build(),
+                QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(TIP_LARGE).setProductType(BillingClient.ProductType.INAPP).build()
+        );
+        billingClient.queryProductDetailsAsync(
+                QueryProductDetailsParams.newBuilder().setProductList(products).build(),
+                (billingResult, detailsList) -> {
+                    Log.d(BILLING_TAG, "queryProductDetails: code=" + billingResult.getResponseCode()
+                            + " count=" + detailsList.size()
+                            + " msg=" + billingResult.getDebugMessage());
+                    for (ProductDetails pd : detailsList) {
+                        Log.d(BILLING_TAG, "  found product: " + pd.getProductId());
+                        tipProducts.put(pd.getProductId(), pd);
+                        updateTipButton(pd);
+                    }
+                });
+    }
+
+    private void updateTipButton(ProductDetails pd) {
+        if (pd.getOneTimePurchaseOfferDetails() == null) return;
+        String price = pd.getOneTimePurchaseOfferDetails().getFormattedPrice();
+        String id = pd.getProductId();
+        runOnUiThread(() -> {
+            if (TIP_SMALL.equals(id))       btnTipSmall.setText("☕  " + price);
+            else if (TIP_MEDIUM.equals(id)) btnTipMedium.setText("🍕  " + price);
+            else if (TIP_LARGE.equals(id))  btnTipLarge.setText("❤️  " + price);
+        });
+    }
+
+    private void launchTip(String productId) {
+        ProductDetails pd = tipProducts.get(productId);
+        if (pd == null) {
+            Toast.makeText(this, "Store unavailable — try again later", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        BillingFlowParams params = BillingFlowParams.newBuilder()
+                .setProductDetailsParamsList(Collections.singletonList(
+                        BillingFlowParams.ProductDetailsParams.newBuilder()
+                                .setProductDetails(pd)
+                                .build()))
+                .build();
+        billingClient.launchBillingFlow(this, params);
+    }
+
+    private void onPurchasesUpdated(BillingResult result, List<Purchase> purchases) {
+        if (result.getResponseCode() != BillingClient.BillingResponseCode.OK || purchases == null) return;
+        for (Purchase purchase : purchases) {
+            ConsumeParams consumeParams = ConsumeParams.newBuilder()
+                    .setPurchaseToken(purchase.getPurchaseToken())
+                    .build();
+            billingClient.consumeAsync(consumeParams, (consumeResult, token) -> {
+                if (consumeResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            "Thank you for your support!", Toast.LENGTH_LONG).show());
+                }
+            });
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (billingClient != null) billingClient.endConnection();
+        super.onDestroy();
     }
 }
