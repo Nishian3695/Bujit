@@ -7,7 +7,6 @@ import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
 import com.google.android.play.core.integrity.IntegrityManagerFactory;
 import com.google.android.play.core.integrity.StandardIntegrityManager;
-import com.google.firebase.FirebaseApp;
 import com.google.firebase.appcheck.AppCheckProvider;
 import com.google.firebase.appcheck.AppCheckProviderFactory;
 import com.google.firebase.appcheck.AppCheckToken;
@@ -24,19 +23,14 @@ import java.util.concurrent.Executors;
 class StandardIntegrityAppCheckProvider implements AppCheckProvider {
     private static final String TAG = "StdIntegrityProvider";
 
+    private static final long CLOUD_PROJECT_NUMBER = 533939418471L;
+
     private final Context context;
-    private final String apiKey;
-    private final long projectNumber;
-    private final String appId;
     private final Executor executor = Executors.newSingleThreadExecutor();
     private volatile StandardIntegrityManager.StandardIntegrityTokenProvider tokenProvider;
 
     private StandardIntegrityAppCheckProvider(Context context) {
         this.context = context.getApplicationContext();
-        FirebaseApp app = FirebaseApp.getInstance();
-        this.apiKey = app.getOptions().getApiKey();
-        this.projectNumber = Long.parseLong(app.getOptions().getGcmSenderId());
-        this.appId = app.getOptions().getApplicationId();
     }
 
     static AppCheckProviderFactory factory() {
@@ -50,7 +44,7 @@ class StandardIntegrityAppCheckProvider implements AppCheckProvider {
         executor.execute(() -> {
             try {
                 String piToken = acquireIntegrityToken();
-                tcs.setResult(exchangeWithFirebase(piToken));
+                tcs.setResult(exchangeWithBackend(piToken));
             } catch (Exception e) {
                 Log.e(TAG, "getToken failed", e);
                 tcs.setException(e);
@@ -64,29 +58,25 @@ class StandardIntegrityAppCheckProvider implements AppCheckProvider {
             StandardIntegrityManager mgr = IntegrityManagerFactory.createStandard(context);
             tokenProvider = Tasks.await(mgr.prepareIntegrityToken(
                     StandardIntegrityManager.PrepareIntegrityTokenRequest.builder()
-                            .setCloudProjectNumber(projectNumber)
+                            .setCloudProjectNumber(CLOUD_PROJECT_NUMBER)
                             .build()));
-            Log.w(TAG, "prepareIntegrityToken succeeded");
         }
-        StandardIntegrityManager.StandardIntegrityToken result = Tasks.await(
+        return Tasks.await(
                 tokenProvider.request(
                         StandardIntegrityManager.StandardIntegrityTokenRequest.builder()
-                                .build()));
-        String token = result.token();
-        Log.w(TAG, "requestIntegrityToken succeeded len=" + token.length());
-        return token;
+                                .build())).token();
     }
 
-    private AppCheckToken exchangeWithFirebase(String piToken) throws Exception {
-        String urlStr = "https://firebaseappcheck.googleapis.com/v1/projects/"
-                + projectNumber + "/apps/" + appId
-                + ":exchangePlayIntegrityToken?key=" + apiKey;
+    private AppCheckToken exchangeWithBackend(String piToken) throws Exception {
+        String urlStr = "https://tellerproxy-kswzrkdipq-uc.a.run.app/exchangeIntegrityToken";
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setConnectTimeout(15_000);
+        conn.setReadTimeout(15_000);
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setDoOutput(true);
         byte[] body = new JSONObject()
-                .put("playIntegrityToken", piToken)
+                .put("integrityToken", piToken)
                 .toString()
                 .getBytes(StandardCharsets.UTF_8);
         try (OutputStream os = conn.getOutputStream()) {
@@ -101,23 +91,15 @@ class StandardIntegrityAppCheckProvider implements AppCheckProvider {
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
         }
-        if (code != 200) throw new Exception("exchangePlayIntegrityToken HTTP " + code + ": " + sb);
+        if (code != 200) throw new Exception("exchangeIntegrityToken HTTP " + code + ": " + sb);
 
         JSONObject resp = new JSONObject(sb.toString());
         String token = resp.getString("token");
-        long expireMillis = System.currentTimeMillis() + 3_600_000L;
-        String ttl = resp.optString("ttl", "");
-        if (ttl.endsWith("s")) {
-            try {
-                expireMillis = System.currentTimeMillis()
-                        + Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 1000L;
-            } catch (NumberFormatException ignored) {}
-        }
-        Log.w(TAG, "exchangePlayIntegrityToken succeeded");
-        return new Token(token, expireMillis);
+        long ttlMillis = resp.optLong("ttlMillis", 3_600_000L);
+        return new Token(token, System.currentTimeMillis() + ttlMillis);
     }
 
-    private static final class Token implements AppCheckToken {
+    private static final class Token extends AppCheckToken {
         private final String token;
         private final long expireTimeMillis;
 
