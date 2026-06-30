@@ -10,8 +10,8 @@ android {
         applicationId "io.github.nishian3695.bujit"
         minSdk 26
         targetSdk 36
-        versionCode 20
-        versionName "0.3.12"
+        versionCode 21
+        versionName "0.3.13"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
