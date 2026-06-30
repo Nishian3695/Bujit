@@ -5,11 +5,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.WebView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,8 +23,10 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import io.github.nishian3695.bujit.BuildConfig;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyEditTextWatcher;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
@@ -33,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -80,9 +88,18 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     private Button       disconnectBtn;
     private BankAccountAdapter adapter;
     private TutorialOverlayLayout tutorialOverlay;
-    private final List<BankAccountModel> accounts = new ArrayList<>();
+    private final List<BankAccountModel>  accounts       = new ArrayList<>();
+    private final List<ManualAccountModel> manualAccounts = new ArrayList<>();
+    private RecyclerView      manualAccountList;
+    private ManualAccountAdapter manualAdapter;
+    private TextView          manualEmptyState;
     private final ExecutorService executor    = Executors.newSingleThreadExecutor();
     private final Handler         mainHandler = new Handler(Looper.getMainLooper());
+
+    public static final String KEY_MANUAL_ACCOUNTS_CHANGED = "manual_accounts_changed";
+
+    private static final String[] ACCOUNT_TYPE_OPTIONS =
+            {"Checking", "Savings", "Cash", "Investment", "Other"};
 
     // Plaid Link SDK launcher, registered in onCreate, only used when ACTIVE_PROVIDER == PLAID
     private ActivityResultLauncher<LinkTokenConfiguration> plaidLauncher;
@@ -125,10 +142,22 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         emptyState       = findViewById(R.id.banking_empty_state);
         connectBtn       = findViewById(R.id.btn_connect_bank);
         disconnectBtn    = findViewById(R.id.btn_disconnect_bank);
+        manualAccountList  = findViewById(R.id.manual_account_list);
+        manualEmptyState   = findViewById(R.id.manual_empty_state);
 
         adapter = new BankAccountAdapter(this, accounts);
         accountList.setLayoutManager(new LinearLayoutManager(this));
         accountList.setAdapter(adapter);
+
+        manualAdapter = new ManualAccountAdapter(this, manualAccounts,
+                (account, position) -> showManualAccountDialog(account, position));
+        manualAccountList.setLayoutManager(new LinearLayoutManager(this));
+        manualAccountList.setAdapter(manualAdapter);
+
+        loadManualAccounts();
+
+        findViewById(R.id.btn_add_manual_account).setOnClickListener(
+                v -> showManualAccountDialog(null, -1));
 
         connectBtn.setOnClickListener(v -> {
             if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
@@ -605,6 +634,146 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit().putBoolean(KEY_BANKING_EXPENSE_CHANGED, true).apply();
     }
+
+    // ── Manual accounts ───────────────────────────────────────────────────────
+
+    private void loadManualAccounts() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            List<ManualAccountModel> loaded = manager.getStorageHolder().getManualAccountList();
+            manualAccounts.clear();
+            manualAccounts.addAll(loaded);
+            manualAdapter.notifyDataSetChanged();
+            updateManualEmptyState();
+        } catch (Exception e) {
+            Log.e(TAG, "loadManualAccounts failed: " + e.getMessage());
+        }
+    }
+
+    private void saveManualAccounts() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            StorageHolder holder = manager.getStorageHolder();
+            holder.setManualAccountList(new ArrayList<>(manualAccounts));
+            manager.writeData(holder);
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit().putBoolean(KEY_MANUAL_ACCOUNTS_CHANGED, true).apply();
+        } catch (Exception e) {
+            Log.e(TAG, "saveManualAccounts failed: " + e.getMessage());
+            Toast.makeText(this, "Failed to save account", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateManualEmptyState() {
+        if (manualAccounts.isEmpty()) {
+            manualEmptyState.setVisibility(View.VISIBLE);
+            manualAccountList.setVisibility(View.GONE);
+        } else {
+            manualEmptyState.setVisibility(View.GONE);
+            manualAccountList.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /*
+    Shows the add/edit dialog for a manual account.
+    Pass null/−1 to add a new one; pass the existing account and its position to edit.
+    */
+    private void showManualAccountDialog(ManualAccountModel existing, int position) {
+        boolean isEdit = (existing != null);
+
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.add_manual_account_layout, null);
+        TextInputLayout nameLayout    = dialogView.findViewById(R.id.manual_account_name_layout);
+        EditText        nameInput     = dialogView.findViewById(R.id.manual_account_name_input);
+        AutoCompleteTextView typeInput = dialogView.findViewById(R.id.manual_account_type_input);
+        TextInputLayout balLayout     = dialogView.findViewById(R.id.manual_account_balance_layout);
+        EditText        balInput      = dialogView.findViewById(R.id.manual_account_balance_input);
+
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(
+                this, R.layout.expense_dropdown_item, ACCOUNT_TYPE_OPTIONS);
+        typeInput.setAdapter(typeAdapter);
+
+        if (isEdit) {
+            nameInput.setText(existing.getName());
+            typeInput.setText(existing.getAccountType(), false);
+            balInput.setText(String.format(Locale.US, "%.2f", existing.getBalance()));
+        } else {
+            typeInput.setText(ACCOUNT_TYPE_OPTIONS[1], false); // default Savings
+        }
+        balInput.addTextChangedListener(new CurrencyEditTextWatcher(balInput));
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(isEdit ? "Edit Account" : "Add Account")
+                .setView(dialogView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton(isEdit ? "Save" : "Add", null);
+
+        if (isEdit) {
+            builder.setNeutralButton("Delete", null);
+        }
+
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String name   = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
+                String type   = typeInput.getText().toString().trim();
+                String balStr = balInput.getText() != null ? balInput.getText().toString().trim() : "";
+
+                boolean valid = true;
+                if (name.isEmpty()) {
+                    nameLayout.setError("Name is required");
+                    valid = false;
+                } else {
+                    nameLayout.setErrorEnabled(false);
+                }
+                float bal = 0f;
+                try { bal = Float.parseFloat(balStr); } catch (NumberFormatException ignored) {}
+                if (balStr.isEmpty() || bal < 0) {
+                    balLayout.setError("Enter a valid balance");
+                    valid = false;
+                } else {
+                    balLayout.setErrorEnabled(false);
+                }
+                if (!valid) return;
+
+                if (type.isEmpty()) type = "Other";
+
+                if (isEdit) {
+                    existing.setName(name);
+                    existing.setAccountType(type);
+                    existing.setBalance(bal);
+                    manualAccounts.set(position, existing);
+                    manualAdapter.notifyItemChanged(position);
+                } else {
+                    ManualAccountModel newAccount = new ManualAccountModel(name, type, bal);
+                    manualAccounts.add(newAccount);
+                    manualAdapter.notifyItemInserted(manualAccounts.size() - 1);
+                }
+                updateManualEmptyState();
+                saveManualAccounts();
+                dialog.dismiss();
+            });
+
+            if (isEdit) {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Delete Account")
+                            .setMessage("Delete \"" + existing.getName() + "\"? This cannot be undone.")
+                            .setPositiveButton("Delete", (d2, w2) -> {
+                                manualAccounts.remove(position);
+                                manualAdapter.notifyItemRemoved(position);
+                                updateManualEmptyState();
+                                saveManualAccounts();
+                                dialog.dismiss();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                });
+            }
+        });
+        dialog.show();
+    }
+
+    // ── End manual accounts ───────────────────────────────────────────────────
 
     @Override
     protected void onResume() {

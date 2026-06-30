@@ -58,10 +58,14 @@ public class BankingPrefs {
     private static final String KEY_PLAID_LINKED_ACCOUNTS   = "plaid_linked_accounts";
     private static final String KEY_PLAID_ACCOUNT_TOKEN_MAP = "plaid_account_token_map";
 
+    // Manual account selection keys (IDs of ManualAccountModels chosen to contribute to balance)
+    private static final String KEY_MANUAL_LINKED_IDS = "manual_linked_ids";
+
     // All keys whose values are encrypted (used for legacy-key migration).
     private static final String[] ALL_ENCRYPTED_KEYS = {
         KEY_TOKENS, KEY_LINKED_ACCOUNTS, KEY_ACCOUNT_TOKEN_MAP,
         KEY_PLAID_TOKENS, KEY_PLAID_LINKED_ACCOUNTS, KEY_PLAID_ACCOUNT_TOKEN_MAP,
+        KEY_MANUAL_LINKED_IDS,
     };
 
     // Migration
@@ -211,6 +215,14 @@ public class BankingPrefs {
         } catch (Exception e) {
             Log.e(TAG, "BankingPrefs.savePlaidAccountToken failed", e);
         }
+    }
+
+    public static Set<String> loadManualLinkedIds(Context ctx) {
+        return loadEncryptedSet(ctx, KEY_MANUAL_LINKED_IDS);
+    }
+
+    public static void saveManualLinkedIds(Context ctx, Set<String> ids) {
+        saveEncryptedSet(ctx, KEY_MANUAL_LINKED_IDS, ids);
     }
 
     public static void clearPlaid(Context ctx) {
