@@ -5,6 +5,14 @@
     android:orientation="vertical"
     android:padding="8dp">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Current Balance"
+        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginBottom="4dp" />
+
     <EditText
         android:id="@+id/bank_balance_ET"
         android:layout_width="match_parent"
@@ -18,5 +26,36 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="From Bank Accounts" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"
+        android:background="?android:attr/listDivider" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Additional Funds"
+        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/manual_extra_balance_ET"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="numberDecimal"
+        android:hint="0.00" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Cash, savings, or any funds not tracked by a connected bank. Added on top of the balance above."
+        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+        android:textColor="?android:attr/textColorSecondary" />
 
 </LinearLayout>

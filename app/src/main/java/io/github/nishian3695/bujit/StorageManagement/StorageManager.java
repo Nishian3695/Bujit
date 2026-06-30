@@ -195,6 +195,7 @@ public class StorageManager {
             for (SingleEventModel se : h.getSingleEventList()) singleEvents.put(singleEventToJson(se));
         }
         o.put("singleEventList", singleEvents);
+        o.put("manualBalanceAddition", h.getManualBalanceAddition());
 
         return o.toString();
     }
@@ -258,6 +259,7 @@ public class StorageManager {
             }
         }
         h.setSingleEventList(seList);
+        h.setManualBalanceAddition((float) o.optDouble("manualBalanceAddition", 0.0));
 
         return h;
     }

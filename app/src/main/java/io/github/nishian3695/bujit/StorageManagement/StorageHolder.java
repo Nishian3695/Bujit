@@ -30,6 +30,7 @@ public class StorageHolder implements Serializable {
     private ArrayList<PeriodSnapshot> periodSnapshots;
     private ArrayList<String> categoryList;
     private ArrayList<SingleEventModel> singleEventList;
+    private float manualBalanceAddition;
     // endregion
 
     public StorageHolder() {
@@ -86,6 +87,7 @@ public class StorageHolder implements Serializable {
         if (singleEventList == null) singleEventList = new ArrayList<>();
         return singleEventList;
     }
+    public float getManualBalanceAddition() { return manualBalanceAddition; }
     // endregion
 
     // region Setters
@@ -125,5 +127,6 @@ public class StorageHolder implements Serializable {
     public void setSingleEventList(ArrayList<SingleEventModel> list) {
         this.singleEventList = list;
     }
+    public void setManualBalanceAddition(float v) { this.manualBalanceAddition = v; }
     // endregion
 }
