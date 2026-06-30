@@ -16,6 +16,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileWriter;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -131,6 +134,11 @@ public class SettingsActivity extends AppCompatActivity {
                         Toast.makeText(this, "Google sign-in failed", Toast.LENGTH_SHORT).show();
                     }
                 }
+            });
+
+    private final ActivityResultLauncher<String[]> csvPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null) performCsvImport(uri);
             });
 
     @Override
@@ -251,6 +259,9 @@ public class SettingsActivity extends AppCompatActivity {
                 startActivity(new android.content.Intent(this, CategoryManagerActivity.class)));
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());
         findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
+        findViewById(R.id.row_import_csv).setOnClickListener(v ->
+                csvPickerLauncher.launch(new String[]{"text/csv", "text/plain", "application/octet-stream", "*/*"}));
+        findViewById(R.id.row_csv_template).setOnClickListener(v -> shareTemplate());
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
@@ -485,6 +496,45 @@ public class SettingsActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void performCsvImport(Uri uri) {
+        CsvImportHelper.ImportResult result = CsvImportHelper.importFromUri(this, uri);
+        if (!result.hasData() && result.errors.isEmpty()) {
+            Toast.makeText(this, "No importable data found in file.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        StringBuilder msg = new StringBuilder();
+        if (result.hasData()) msg.append(result.summary());
+        if (!result.errors.isEmpty()) {
+            if (msg.length() > 0) msg.append("\n\n");
+            msg.append("Warnings:\n");
+            for (String err : result.errors) msg.append("• ").append(err).append("\n");
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(result.hasData() ? "Import complete" : "Import failed")
+                .setMessage(msg.toString().trim())
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    private void shareTemplate() {
+        try {
+            File file = new File(getCacheDir(), "bujit_import_template.csv");
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(CsvImportHelper.TEMPLATE);
+            }
+            Uri fileUri = FileProvider.getUriForFile(
+                    this, getPackageName() + ".fileprovider", file);
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("text/csv");
+            share.putExtra(Intent.EXTRA_STREAM, fileUri);
+            share.putExtra(Intent.EXTRA_SUBJECT, "Bujit Import Template");
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "Save template as…"));
+        } catch (Exception e) {
+            Toast.makeText(this, "Could not create template: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void startTutorial() {

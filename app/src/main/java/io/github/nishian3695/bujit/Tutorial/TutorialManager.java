@@ -48,7 +48,7 @@ public class TutorialManager {
             12),
         new StepDef(ExpenseActivity.class, R.id.balance_card,
             "Balance at a glance",
-            "Left: your current bank balance. Long-press to update it or link it to a connected account.\nRight: what you'll have left after every expense due this check is paid.",
+            "Left: your current bank balance. Long-press to update it, choose which linked bank or manual accounts contribute, or add an Additional Funds amount for cash you track elsewhere.\nRight: what you'll have left after every expense due this check is paid.",
             12),
         new StepDef(ExpenseActivity.class, R.id.expense_table,
             "Expense list",
@@ -77,17 +77,21 @@ public class TutorialManager {
             "Credit Utilization",
             "Track your credit card balances against their limits. Bujit highlights utilization:\n✅ 0-30%: Good utilization\n⚠️ 31-50%: Moderate utilization\n❌ 51%+: High utilization",
             8, BankingActivity.class),
-        // BankingActivity: step 8
+        // BankingActivity: steps 8–9
         new StepDef(BankingActivity.class, R.id.btn_connect_bank,
             "Link your bank or credit card",
             "Securely connect your bank via Plaid to auto-sync your balance and credit card amounts.\nBujit does not store your login credentials.",
+            16),
+        new StepDef(BankingActivity.class, R.id.btn_add_manual_account,
+            "My Accounts",
+            "Don't have a supported bank, or want to track cash savings separately? Add manual accounts here — give each one a name, type, and balance. You choose which ones contribute to your balance via \"From Bank Accounts\" when editing your balance.",
             16, SingleEventsActivity.class),
-        // SingleEventsActivity: step 9
+        // SingleEventsActivity: step 10
         new StepDef(SingleEventsActivity.class, R.id.single_events_recycler,
             "Single Events",
             "One-off expenses or income. A surprise bill, splitting dinner, or a friend paying you back. Single events adjust your balance immediately are permanent after a set number of days. By default, they expire after 30 days, which you can adjust in the settings. Before then, you can edit or delete them.",
             8, VisualsActivity.class),
-        // VisualsActivity: steps 10–12
+        // VisualsActivity: steps 11–13
         new StepDef(VisualsActivity.class, R.id.visuals_tab_layout,
             "Visuals",
             "Two chart views give you the bigger picture. Cash Flow tracks income and expenses by pay period across the year. Categories breaks your estimated spending down by type — tap a legend chip to show or hide any category.",
@@ -100,14 +104,14 @@ public class TutorialManager {
             "Spending categories",
             "Your expenses estimated per pay check, broken down by category. Tap any slice to see the dollar amount, and tap a legend chip to show or hide that category.\nThe lower chart excludes credit card entries for a cleaner view of regular spending.",
             8, SettingsActivity.class),
-        // SettingsActivity: steps 12–13
+        // SettingsActivity: steps 14–15
         new StepDef(SettingsActivity.class, R.id.row_categories,
             "Manage categories",
             "Add, edit, or delete categories to customize how your expenses are grouped. You can also drag to reorder where they appear when adding or editing expenses.",
             8),
         new StepDef(SettingsActivity.class, R.id.row_tutorial,
             "You're all set!",
-            "Explore settings to change your theme, connect Google Calendar, or manage integrations. You can replay this tutorial here at any time.",
+            "Explore settings to customize your theme, connect Google Calendar, import data from a CSV, or manage categories. You can replay this tutorial here at any time.",
             8)
     };
 
