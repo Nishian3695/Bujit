@@ -506,7 +506,6 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                     @Override
                     @SuppressWarnings("unchecked")
                     public void onActivityResult(ActivityResult result) {
-                        Log.d("Result", String.valueOf(result.getResultCode()));
                         Intent data = result.getData();
                         if (data == null) { drawerLayout.close(); return; }
 

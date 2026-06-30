@@ -94,7 +94,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
         secret: secret,
         user: {client_user_id: decodedToken.uid},
         client_name: "Bujit",
-        products: ["balance"],
+        products: ["transactions"],
         country_codes: ["US"],
         language: "en",
         android_package_name: "io.github.nishian3695.bujit",
@@ -345,6 +345,56 @@ async function handleTellerRequest(req, res, agent) {
 exports.tellerProxy = onRequest(
   {secrets: [tellerCert, tellerKey, plaidClientId, plaidSecretSandbox, plaidSecretProduction], invoker: "public"},
   async (req, res) => {
+    // POST /exchangeIntegrityToken — verifies a Play Integrity Standard API token via
+    // decodeIntegrityToken, then issues a Firebase App Check token via the Admin SDK.
+    // Placed before App Check enforcement so clients can bootstrap App Check itself.
+    if (req.method === "POST" && req.path === "/exchangeIntegrityToken") {
+      const {integrityToken} = req.body;
+      if (!integrityToken) {
+        res.status(400).json({error: "Missing integrityToken"});
+        return;
+      }
+      try {
+        const {GoogleAuth} = require("google-auth-library");
+        const client = await new GoogleAuth({scopes: ["https://www.googleapis.com/auth/playintegrity"]}).getClient();
+        const accessToken = (await client.getAccessToken()).token;
+        const verifyResp = await axios.post(
+          "https://playintegrity.googleapis.com/v1/io.github.nishian3695.bujit:decodeIntegrityToken",
+          {integrity_token: integrityToken},
+          {headers: {Authorization: `Bearer ${accessToken}`}},
+        );
+        const payload = verifyResp.data.tokenPayloadExternal;
+        const appVerdict = payload?.appIntegrity?.appRecognitionVerdict;
+        const deviceVerdicts = payload?.deviceIntegrity?.deviceRecognitionVerdict ?? [];
+        const packageName = payload?.requestDetails?.requestPackageName;
+        const tokenAgeMs = Date.now() - Number(payload?.requestDetails?.timestampMillis ?? 0);
+
+        if (packageName !== "io.github.nishian3695.bujit") {
+          console.warn("exchangeIntegrityToken: package mismatch", packageName);
+          res.status(403).json({error: "Package name mismatch"});
+          return;
+        }
+        if (tokenAgeMs > 10 * 60 * 1000) {
+          console.warn("exchangeIntegrityToken: token too old", tokenAgeMs);
+          res.status(403).json({error: "Integrity token too old"});
+          return;
+        }
+        if (appVerdict !== "PLAY_RECOGNIZED" || !deviceVerdicts.includes("MEETS_BASIC_INTEGRITY")) {
+          console.warn("exchangeIntegrityToken: verdict rejected", {appVerdict, deviceVerdicts});
+          res.status(403).json({error: "Integrity check failed"});
+          return;
+        }
+
+        const APP_ID = "1:533939418471:android:e39cb96592f09e1c036bc2";
+        const appCheckToken = await admin.appCheck().createToken(APP_ID, {ttlMillis: 3600000});
+        res.json({token: appCheckToken.token, ttlMillis: appCheckToken.ttlMillis});
+      } catch (e) {
+        console.error("exchangeIntegrityToken error:", JSON.stringify(e.response?.data ?? e.message));
+        res.status(500).json({error: "Integrity verification failed"});
+      }
+      return;
+    }
+
     // Step 1: Verify App Check token (when enforcement is enabled).
     if (!await verifyAppCheck(req, res)) return;
 
