@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import android.util.Log;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
 import org.json.JSONArray;
@@ -197,6 +198,12 @@ public class StorageManager {
         o.put("singleEventList", singleEvents);
         o.put("manualBalanceAddition", h.getManualBalanceAddition());
 
+        JSONArray manualAccts = new JSONArray();
+        if (h.getManualAccountList() != null) {
+            for (ManualAccountModel m : h.getManualAccountList()) manualAccts.put(manualAccountToJson(m));
+        }
+        o.put("manualAccountList", manualAccts);
+
         return o.toString();
     }
 
@@ -260,6 +267,16 @@ public class StorageManager {
         }
         h.setSingleEventList(seList);
         h.setManualBalanceAddition((float) o.optDouble("manualBalanceAddition", 0.0));
+
+        JSONArray manualAccts = o.optJSONArray("manualAccountList");
+        ArrayList<ManualAccountModel> manualList = new ArrayList<>();
+        if (manualAccts != null) {
+            for (int i = 0; i < manualAccts.length(); i++) {
+                ManualAccountModel m = jsonToManualAccount(manualAccts.getJSONObject(i));
+                if (m != null) manualList.add(m);
+            }
+        }
+        h.setManualAccountList(manualList);
 
         return h;
     }
@@ -396,6 +413,30 @@ public class StorageManager {
                     (float) o.optDouble("expenseTotal", 0.0));
         } catch (Exception e) {
             Log.e(TAG, "jsonToSnapshot failed", e);
+            return null;
+        }
+    }
+
+    private JSONObject manualAccountToJson(ManualAccountModel m) throws Exception {
+        JSONObject o = new JSONObject();
+        o.put("id",          m.getId());
+        o.put("name",        m.getName());
+        o.put("accountType", m.getAccountType());
+        o.put("balance",     m.getBalance());
+        return o;
+    }
+
+    private ManualAccountModel jsonToManualAccount(JSONObject o) {
+        try {
+            ManualAccountModel m = new ManualAccountModel(
+                    o.optString("name", ""),
+                    o.optString("accountType", "Other"),
+                    (float) o.optDouble("balance", 0.0));
+            String id = o.optString("id", null);
+            if (id != null && !id.isEmpty()) m.setId(id);
+            return m;
+        } catch (Exception e) {
+            Log.e(TAG, "jsonToManualAccount failed", e);
             return null;
         }
     }

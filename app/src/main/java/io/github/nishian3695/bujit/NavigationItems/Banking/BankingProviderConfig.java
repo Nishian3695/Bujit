@@ -107,6 +107,16 @@ public class BankingProviderConfig {
         }
     }
 
+    // Returns the set of manual account IDs the user has chosen to include in the balance.
+    public static java.util.Set<String> loadManualLinkedIds(Context ctx) {
+        return BankingPrefs.loadManualLinkedIds(ctx);
+    }
+
+    // Persists the set of manual account IDs selected to contribute to the balance.
+    public static void saveManualLinkedIds(Context ctx, java.util.Set<String> ids) {
+        BankingPrefs.saveManualLinkedIds(ctx, ids);
+    }
+
     // Fetches a Firebase ID token on the calling thread (must be a background thread).
     // Returns null on failure; callers should handle null gracefully.
     public static String fetchFirebaseIdToken() {

@@ -1,6 +1,7 @@
 package io.github.nishian3695.bujit.StorageManagement;
 
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
 import java.io.Serializable;
@@ -31,6 +32,7 @@ public class StorageHolder implements Serializable {
     private ArrayList<String> categoryList;
     private ArrayList<SingleEventModel> singleEventList;
     private float manualBalanceAddition;
+    private ArrayList<ManualAccountModel> manualAccountList;
     // endregion
 
     public StorageHolder() {
@@ -88,6 +90,10 @@ public class StorageHolder implements Serializable {
         return singleEventList;
     }
     public float getManualBalanceAddition() { return manualBalanceAddition; }
+    public ArrayList<ManualAccountModel> getManualAccountList() {
+        if (manualAccountList == null) manualAccountList = new ArrayList<>();
+        return manualAccountList;
+    }
     // endregion
 
     // region Setters
@@ -128,5 +134,6 @@ public class StorageHolder implements Serializable {
         this.singleEventList = list;
     }
     public void setManualBalanceAddition(float v) { this.manualBalanceAddition = v; }
+    public void setManualAccountList(ArrayList<ManualAccountModel> list) { this.manualAccountList = list; }
     // endregion
 }

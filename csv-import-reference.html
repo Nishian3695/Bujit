@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bujit — CSV Import Reference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #F0F2EF;
+      --surface:     #FFFFFF;
+      --surface-2:   #E6F0E9;
+      --ink:         #0C1C10;
+      --ink-2:       #4E6254;
+      --border:      #C8D6CB;
+      --accent:      #2A7A45;
+      --accent-dim:  #E0EEE5;
+      --opt-fg:      #7A5A2A;
+      --opt-bg:      #FBF4E8;
+      --code-bg:     #E9EFE9;
+      --term-bg:     #0A160B;
+      --term-tag:    #4DBD6A;
+      --term-green:  #7EC890;
+      --term-opt:    #C9A84C;
+      --term-comment:#3A5C3F;
+      --rule:        4px solid var(--accent);
+    }
+
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 0.925rem;
+      line-height: 1.65;
+      padding: 2.5rem 1.25rem 5rem;
+    }
+
+    .wrap { max-width: 820px; margin: 0 auto; }
+
+    /* ── Site nav ──────────────────────────────── */
+    .site-nav {
+      margin-bottom: 2rem;
+      font-size: 0.8rem;
+    }
+    .site-nav a {
+      color: var(--ink-2);
+      text-decoration: none;
+    }
+    .site-nav a:hover { color: var(--accent); }
+
+    /* ── Header ──────────────────────────────── */
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 1rem;
+      margin-bottom: 2.75rem;
+    }
+
+    .wordmark {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+    }
+    .wordmark em {
+      color: var(--ink);
+      font-style: normal;
+      font-weight: 300;
+      letter-spacing: 0;
+    }
+
+    .doc-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      font-weight: 600;
+      align-self: center;
+    }
+
+    /* ── Section labels ─────────────────────── */
+    .section-label {
+      font-size: 0.66rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      margin-top: 2.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Tag entries (ledger rows) ──────────── */
+    .tag-entry {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: var(--rule);
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 0.875rem;
+    }
+
+    .tag-entry-head {
+      padding: 0.85rem 1.1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .tag-token {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .tag-function {
+      font-size: 0.8rem;
+      color: var(--ink-2);
+      font-weight: 300;
+    }
+
+    .tag-entry-body { padding: 0.85rem 1.1rem 0.9rem; }
+
+    .syntax {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.8rem;
+      background: var(--code-bg);
+      border-radius: 3px;
+      padding: 0.55rem 0.8rem;
+      margin-bottom: 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .s-tag   { color: var(--accent); font-weight: 700; }
+    .s-opt   { color: var(--opt-fg); font-style: italic; }
+    .s-comma { color: var(--ink-2); }
+
+    .field-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 9rem 3.5rem 1fr;
+      gap: 0.5rem 0.75rem;
+      align-items: baseline;
+      font-size: 0.82rem;
+    }
+
+    .field-name {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.58rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 0.15em 0.45em;
+      border-radius: 2px;
+      white-space: nowrap;
+    }
+    .badge-req { background: var(--accent-dim); color: var(--accent); }
+    .badge-opt { background: var(--opt-bg);     color: var(--opt-fg); }
+
+    .field-desc { color: var(--ink-2); font-weight: 300; }
+    .field-desc code {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 0.1em 0.3em;
+      border-radius: 2px;
+    }
+
+    /* ── Example ────────────────────────────── */
+    .example-wrap {
+      background: var(--term-bg);
+      border-radius: 5px;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      margin-top: 0.75rem;
+    }
+
+    .example-wrap pre {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.82rem;
+      line-height: 1.9;
+      color: var(--term-green);
+    }
+
+    .e-comment { color: var(--term-comment); }
+    .e-tag     { color: var(--term-tag); font-weight: 700; }
+    .e-opt     { color: var(--term-opt); }
+    .e-comma   { color: #2E5C35; }
+
+    /* ── Field glossary ─────────────────────── */
+    .ref-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-top: 0.75rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; background: var(--surface); }
+
+    thead th {
+      text-align: left;
+      font-size: 0.64rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--ink-2);
+      padding: 0.6rem 1rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--bg);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #FAFBFA; }
+
+    td.field-mono {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    td.field-desc { color: var(--ink-2); font-weight: 300; }
+    td.field-desc code {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 0.1em 0.3em;
+      border-radius: 2px;
+    }
+
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+    .chip {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 0.7rem;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 0.1em 0.4em;
+      color: var(--ink);
+    }
+
+    /* ── Note & footer ──────────────────────── */
+    .note {
+      margin-top: 2.5rem;
+      padding: 0.8rem 1rem;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-dim);
+      border-radius: 0 3px 3px 0;
+      font-size: 0.8rem;
+      color: var(--ink-2);
+      font-weight: 300;
+    }
+    .note strong { font-weight: 700; color: var(--ink); }
+
+    .page-footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--ink-2);
+    }
+    .page-footer a { color: var(--accent); text-decoration: none; }
+    .page-footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .field-row {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid var(--bg);
+      }
+      .field-row:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="site-nav">
+    <a href="privacy-policy.html">← Privacy Policy</a>
+  </nav>
+
+  <header>
+    <div class="wordmark">Bujit <em>for</em></div>
+    <span class="doc-label">CSV Import Reference</span>
+  </header>
+
+  <!-- ── ROW TYPES ──────────────────────────────────────── -->
+  <div class="section-label">Row Types</div>
+
+  <!-- manual_account -->
+  <div class="tag-entry">
+    <div class="tag-entry-head">
+      <span class="tag-token">manual_account</span>
+      <span class="tag-function">Adds an account to My Accounts in Banking</span>
+    </div>
+    <div class="tag-entry-body">
+      <div class="syntax">
+        <span class="s-tag">manual_account</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;type&gt;<span class="s-comma">,</span>&lt;balance&gt;
+      </div>
+      <div class="field-rows">
+        <div class="field-row">
+          <span class="field-name">&lt;name&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Display name for the account</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;type&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Account type — Savings, Checkings, Cash, Investment, or Other</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;balance&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Current balance. Any real number; stored to two decimal places</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- expense -->
+  <div class="tag-entry">
+    <div class="tag-entry-head">
+      <span class="tag-token">expense</span>
+      <span class="tag-function">Adds a recurring expense</span>
+    </div>
+    <div class="tag-entry-body">
+      <div class="syntax">
+        <span class="s-tag">expense</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;amount&gt;<span class="s-comma">,</span>&lt;due_date&gt;<span class="s-comma">,</span>&lt;frequency&gt;<span class="s-comma">,</span>&lt;unit&gt;<span class="s-comma">,</span><span class="s-opt">&lt;_category&gt;</span>
+      </div>
+      <div class="field-rows">
+        <div class="field-row">
+          <span class="field-name">&lt;name&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Display name for the expense</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;amount&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Amount due each occurrence. Any real number; stored to two decimal places</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;due_date&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Next due date — <code>YYYY-MM-DD</code></span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;frequency&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">How many units between occurrences — e.g. <code>2</code> for every two weeks</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;unit&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Unit of recurrence — day, week, month, or year</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;_category&gt;</span>
+          <span class="badge badge-opt">optional</span>
+          <span class="field-desc">Spending category — e.g. Housing, Food, Entertainment. Defaults to Other if omitted</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- credit -->
+  <div class="tag-entry">
+    <div class="tag-entry-head">
+      <span class="tag-token">credit</span>
+      <span class="tag-function">Adds a credit card entry</span>
+    </div>
+    <div class="tag-entry-body">
+      <div class="syntax">
+        <span class="s-tag">credit</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;balance&gt;<span class="s-comma">,</span>&lt;credit_limit&gt;<span class="s-comma">,</span>&lt;due_date&gt;
+      </div>
+      <div class="field-rows">
+        <div class="field-row">
+          <span class="field-name">&lt;name&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Display name for the card</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;balance&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Current balance owed. Any real number; stored to two decimal places</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;credit_limit&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Total credit limit. Must be greater than zero</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;due_date&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Next payment due date — <code>YYYY-MM-DD</code></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- income_stream -->
+  <div class="tag-entry">
+    <div class="tag-entry-head">
+      <span class="tag-token">income_stream</span>
+      <span class="tag-function">Adds an income stream</span>
+    </div>
+    <div class="tag-entry-body">
+      <div class="syntax">
+        <span class="s-tag">income_stream</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;amount&gt;<span class="s-comma">,</span>&lt;start_date&gt;<span class="s-comma">,</span>&lt;frequency&gt;<span class="s-comma">,</span>&lt;unit&gt;
+      </div>
+      <div class="field-rows">
+        <div class="field-row">
+          <span class="field-name">&lt;name&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Display name for the income source</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;amount&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Pay amount per period. Any real number; stored to two decimal places</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;start_date&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">First or most recent pay date — <code>YYYY-MM-DD</code></span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;frequency&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">How many units between paychecks — e.g. <code>2</code> for biweekly</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;unit&gt;</span>
+          <span class="badge badge-req">required</span>
+          <span class="field-desc">Unit of recurrence — day, week, month, or year</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EXAMPLE ─────────────────────────────────────────── -->
+  <div class="section-label">Example</div>
+
+  <div class="example-wrap">
+    <pre><span class="e-comment"># Bujit CSV Import Template</span>
+<span class="e-comment"># Lines starting with # are ignored during import.</span>
+<span class="e-comment"># Each row is a tag followed by its fields.</span>
+
+<span class="e-tag">manual_account</span><span class="e-comma">,</span>My Savings<span class="e-comma">,</span>Savings<span class="e-comma">,</span>0
+<span class="e-tag">expense</span><span class="e-comma">,</span>Rent<span class="e-comma">,</span>2200<span class="e-comma">,</span>2024-01-01<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span><span class="e-opt">Housing</span>
+<span class="e-tag">credit</span><span class="e-comma">,</span>Card Name<span class="e-comma">,</span>156<span class="e-comma">,</span>1000<span class="e-comma">,</span>2024-01-15
+<span class="e-tag">income_stream</span><span class="e-comma">,</span>Hardware Store<span class="e-comma">,</span>2500.56<span class="e-comma">,</span>2022-03-15<span class="e-comma">,</span>2<span class="e-comma">,</span>week</pre>
+  </div>
+
+  <!-- ── FIELD GLOSSARY ──────────────────────────────────── -->
+  <div class="section-label">Field Glossary</div>
+
+  <div class="ref-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field-mono">&lt;name&gt;</td>
+          <td class="field-desc">Display name for the item. Any text — keep it short and descriptive.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;type&gt;</td>
+          <td class="field-desc">
+            Account type.
+            <div class="chip-row">
+              <span class="chip">Savings</span><span class="chip">Checkings</span>
+              <span class="chip">Cash</span><span class="chip">Investment</span><span class="chip">Other</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;balance&gt;</td>
+          <td class="field-desc">Monetary balance. Any real number; stored to two decimal places.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;amount&gt;</td>
+          <td class="field-desc">Monetary amount per period (expense or income). Any real number; stored to two decimal places.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;due_date&gt;</td>
+          <td class="field-desc">Next due date for an expense. Format: <code>YYYY-MM-DD</code></td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;start_date&gt;</td>
+          <td class="field-desc">First or most recent pay date for an income stream. Format: <code>YYYY-MM-DD</code></td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;frequency&gt;</td>
+          <td class="field-desc">Integer — number of units between occurrences. For example, <code>2</code> with unit <code>week</code> means every two weeks.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;unit&gt;</td>
+          <td class="field-desc">
+            Recurrence unit. Case-insensitive; singular or plural both accepted.
+            <div class="chip-row">
+              <span class="chip">day</span><span class="chip">week</span>
+              <span class="chip">month</span><span class="chip">year</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;credit_limit&gt;</td>
+          <td class="field-desc">Total credit limit on the card. Any real number greater than zero; stored to two decimal places.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;_category&gt;</td>
+          <td class="field-desc">Optional spending category for an expense. Omit the field entirely, or leave it blank. Defaults to Other.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>Rows are appended, not merged</strong> — importing twice will create duplicates.
+    Use Clear All Data in Settings first if you want a clean slate before importing.
+  </div>
+
+  <div class="page-footer">
+    <a href="privacy-policy.html">Privacy Policy</a>
+  </div>
+
+</div>
+</body>
+</html>

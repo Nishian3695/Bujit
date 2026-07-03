@@ -70,6 +70,7 @@ import com.google.android.material.navigation.NavigationView;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingApiClient;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingProviderConfig;
+import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
@@ -153,7 +154,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private ArrayList<SingleEventModel> singleEventList;
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
-    private float curBalance, shownBalance, averageCheck, projAmount, manualBalanceAddition;
+    private float curBalance, shownBalance, averageCheck, projAmount, manualBalanceAddition, manualAccountsTotal;
     private LocalDate curCheckDate, begCheckDate, nextCheckDate, endCheckDate, mToday, lastOpened;
     private int checkFrequency, projFrequency, projStepsForward;
     private ChronoUnit checkFrequencyTag, projFreqTag;
@@ -575,6 +576,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 expenseListStor = storageHolder.getExpenseList();
                 curBalance = storageHolder.getCurrentBalance();
                 manualBalanceAddition = storageHolder.getManualBalanceAddition();
+                manualAccountsTotal = computeManualAccountsTotal(storageHolder);
                 averageCheck = storageHolder.getAverageCheck();
                 checkFrequency = storageHolder.getCheckFrequency();
                 checkFrequencyTag = storageHolder.getCheckFrequencyTag();
@@ -1015,6 +1017,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         lastOpened = mToday;
         curBalance = 0f;
         manualBalanceAddition = 0f;
+        manualAccountsTotal = 0f;
         averageCheck = 0f;
         checkFrequency = 1;
         checkFrequencyTag = ChronoUnit.WEEKS;
@@ -1035,6 +1038,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             periodSnapshots  = new ArrayList<>();
             curBalance = 0f;
             manualBalanceAddition = 0f;
+            manualAccountsTotal = 0f;
             averageCheck = 0f;
             checkFrequency = 1;
             checkFrequencyTag = ChronoUnit.WEEKS;
@@ -1475,7 +1479,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         EditText bankBalanceET = dialogLayout.findViewById(R.id.bank_balance_ET);
         EditText manualExtraET = dialogLayout.findViewById(R.id.manual_extra_balance_ET);
 
-        // Main field shows the base balance (total minus any manual addition already applied)
+        // Main field shows the full bank-sourced balance (Plaid + selected manual accounts).
         float baseBalance = Math.max(0f, curBalance - manualBalanceAddition);
         bankBalanceET.setText(String.format(Locale.US, "%.2f", baseBalance));
         bankBalanceET.addTextChangedListener(new CurrencyEditTextWatcher(bankBalanceET));
@@ -1961,7 +1965,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             mainHandler.post(() -> {
                 swipeRefreshLayout.setRefreshing(false);
                 if (fetched) {
-                    curBalance   = finalTotal + manualBalanceAddition;
+                    curBalance   = finalTotal + manualAccountsTotal + manualBalanceAddition;
                     shownBalance = curBalance;
                     setCurrentBalanceText(curBalance);
                     saveLastSyncTime(System.currentTimeMillis());
@@ -1983,15 +1987,37 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }
 
-    // Fetches all accounts from every stored token, then shows a multi-select dialog so
-    // the user can pick which accounts to sum into the balance field.
-    private void showBankAccountPicker(EditText target) {
-        Set<String> tokens = loadBankTokens();
-        if (tokens.isEmpty()) {
-            Toast.makeText(this, "No banks connected — add one in Banking.", Toast.LENGTH_SHORT).show();
-            return;
+    private float computeManualAccountsTotal(StorageHolder holder) {
+        if (holder == null) return 0f;
+        Set<String> selectedIds = BankingProviderConfig.loadManualLinkedIds(this);
+        if (selectedIds.isEmpty()) return 0f;
+        float total = 0f;
+        for (ManualAccountModel m : holder.getManualAccountList()) {
+            if (selectedIds.contains(m.getId())) total += m.getBalance();
         }
+        return total;
+    }
 
+    private void reloadManualAccountsFromDisk() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            StorageHolder fresh = manager.getStorageHolder();
+            float newTotal = computeManualAccountsTotal(fresh);
+            float delta = newTotal - manualAccountsTotal;
+            manualAccountsTotal = newTotal;
+            curBalance += delta;
+            shownBalance = curBalance;
+            setCurrentBalanceText(curBalance);
+            setFinalBalance();
+            saveNow();
+        } catch (Exception e) {
+            Log.e("Bujit", "reloadManualAccountsFromDisk failed: " + e.getMessage());
+        }
+    }
+
+    // Fetches Plaid accounts and loads manual accounts, then shows a combined multi-select
+    // dialog so the user can pick which sources contribute to the balance field.
+    private void showBankAccountPicker(EditText target) {
         AlertDialog loadingDialog = new AlertDialog.Builder(this)
                 .setTitle("Loading accounts…")
                 .setView(new ProgressBar(this))
@@ -2000,58 +2026,114 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         loadingDialog.show();
 
         executor.execute(() -> {
-            String idToken = getFirebaseIdToken();
-            String appCheckToken = getAppCheckToken();
-            List<BankAccountModel> all = new ArrayList<>();
-            for (String token : tokens) {
-                try {
-                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
-                    List<BankAccountModel> fetched = client.fetchAccounts();
-                    for (BankAccountModel m : fetched) {
-                        String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
-                        if (!type.equals("credit") && !type.equals("loan")) {
-                            m.setToken(token);
-                            all.add(m);
+            // Fetch Plaid/Teller linked accounts (may be empty if no bank connected).
+            Set<String> tokens = loadBankTokens();
+            List<BankAccountModel> plaidAccounts = new ArrayList<>();
+            if (!tokens.isEmpty()) {
+                String idToken = getFirebaseIdToken();
+                String appCheckToken = getAppCheckToken();
+                for (String token : tokens) {
+                    try {
+                        BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
+                        List<BankAccountModel> fetched = client.fetchAccounts();
+                        for (BankAccountModel m : fetched) {
+                            String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
+                            if (!type.equals("credit") && !type.equals("loan")) {
+                                m.setToken(token);
+                                plaidAccounts.add(m);
+                            }
                         }
+                    } catch (Exception e) {
+                        Log.e("BankPicker", "fetch failed: " + e.getMessage());
                     }
-                } catch (Exception e) {
-                    Log.e("BankPicker", "fetch failed: " + e.getMessage());
                 }
             }
+
+            // Load manual accounts fresh from disk.
+            List<ManualAccountModel> manualAccounts = new ArrayList<>();
+            try {
+                StorageManager mgr = new StorageManager(getApplicationContext());
+                manualAccounts.addAll(mgr.getStorageHolder().getManualAccountList());
+            } catch (Exception e) {
+                Log.e("BankPicker", "manual account load failed: " + e.getMessage());
+            }
+
+            final List<BankAccountModel> finalPlaid = plaidAccounts;
+            final List<ManualAccountModel> finalManual = manualAccounts;
+
             mainHandler.post(() -> {
                 loadingDialog.dismiss();
-                if (all.isEmpty()) {
-                    Toast.makeText(this, "No depository accounts found.", Toast.LENGTH_SHORT).show();
+                if (finalPlaid.isEmpty() && finalManual.isEmpty()) {
+                    Toast.makeText(this,
+                            "No accounts found. Connect a bank or add a manual account in Banking.",
+                            Toast.LENGTH_SHORT).show();
                     return;
                 }
-                Set<String> alreadyLinked = new HashSet<>(BankingProviderConfig.loadLinkedAccounts(this));
-                String[] labels  = new String[all.size()];
-                boolean[] checked = new boolean[all.size()];
-                for (int i = 0; i < all.size(); i++) {
-                    BankAccountModel m = all.get(i);
+
+                int plaidCount  = finalPlaid.size();
+                int manualCount = finalManual.size();
+                int total = plaidCount + manualCount;
+
+                Set<String> alreadyLinkedPlaid  = new HashSet<>(BankingProviderConfig.loadLinkedAccounts(this));
+                Set<String> alreadyLinkedManual = new HashSet<>(BankingProviderConfig.loadManualLinkedIds(this));
+
+                String[]  labels  = new String[total];
+                boolean[] checked = new boolean[total];
+
+                for (int i = 0; i < plaidCount; i++) {
+                    BankAccountModel m = finalPlaid.get(i);
                     labels[i] = m.getInstitutionName()
                             + " - " + m.getDisplayType()
                             + " (…" + m.getLastFour() + ")"
                             + "  $" + m.getLedgerBalance();
-                    checked[i] = alreadyLinked.contains(m.getToken() + "|" + m.getId());
+                    checked[i] = alreadyLinkedPlaid.contains(m.getToken() + "|" + m.getId());
                 }
+                for (int i = 0; i < manualCount; i++) {
+                    ManualAccountModel m = finalManual.get(i);
+                    labels[plaidCount + i] = m.getName()
+                            + " (" + m.getAccountType() + " · Manual)"
+                            + String.format(Locale.US, "  $%.2f", m.getBalance());
+                    checked[plaidCount + i] = alreadyLinkedManual.contains(m.getId());
+                }
+
                 new AlertDialog.Builder(this)
                         .setTitle("Link accounts to balance")
                         .setMultiChoiceItems(labels, checked,
                                 (d, idx, isChecked) -> checked[idx] = isChecked)
                         .setPositiveButton("Use Total", (d, w) -> {
-                            double total = 0;
-                            Set<String> linked = new HashSet<>();
-                            for (int i = 0; i < all.size(); i++) {
+                            double runningTotal = 0;
+                            Set<String> linkedPlaid  = new HashSet<>();
+                            Set<String> linkedManual = new HashSet<>();
+
+                            for (int i = 0; i < plaidCount; i++) {
                                 if (checked[i]) {
-                                    BankAccountModel m = all.get(i);
-                                    try { total += Double.parseDouble(m.getLedgerBalance()); }
+                                    BankAccountModel m = finalPlaid.get(i);
+                                    try { runningTotal += Double.parseDouble(m.getLedgerBalance()); }
                                     catch (NumberFormatException ignored) {}
-                                    linked.add(m.getToken() + "|" + m.getId());
+                                    linkedPlaid.add(m.getToken() + "|" + m.getId());
                                 }
                             }
-                            target.setText(String.format(Locale.US, "%.2f", total));
-                            saveLinkedAccounts(linked);
+                            for (int i = 0; i < manualCount; i++) {
+                                if (checked[plaidCount + i]) {
+                                    ManualAccountModel m = finalManual.get(i);
+                                    runningTotal += m.getBalance();
+                                    linkedManual.add(m.getId());
+                                }
+                            }
+
+                            target.setText(String.format(Locale.US, "%.2f", runningTotal));
+                            saveLinkedAccounts(linkedPlaid);
+                            BankingProviderConfig.saveManualLinkedIds(this, linkedManual);
+
+                            // Keep the in-memory manual total consistent with the new selection
+                            // so the delta in reloadManualAccountsFromDisk is computed correctly.
+                            float newManualTotal = 0f;
+                            for (int i = 0; i < manualCount; i++) {
+                                if (linkedManual.contains(finalManual.get(i).getId()))
+                                    newManualTotal += finalManual.get(i).getBalance();
+                            }
+                            manualAccountsTotal = newManualTotal;
+
                             saveLastSyncTime(System.currentTimeMillis());
                             updateSyncLabel();
                         })
@@ -2308,6 +2390,12 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         if (dataPrefs.getBoolean(BankingActivity.KEY_BANKING_EXPENSE_CHANGED, false)) {
             dataPrefs.edit().remove(BankingActivity.KEY_BANKING_EXPENSE_CHANGED).apply();
             reloadExpenseListFromDisk();
+        }
+
+        // Recompute balance delta if BankingActivity changed manual accounts while we were paused.
+        if (dataPrefs.getBoolean(BankingActivity.KEY_MANUAL_ACCOUNTS_CHANGED, false)) {
+            dataPrefs.edit().remove(BankingActivity.KEY_MANUAL_ACCOUNTS_CHANGED).apply();
+            reloadManualAccountsFromDisk();
         }
 
         // Reload income streams if IncomeStreamsActivity modified them while we were paused.
