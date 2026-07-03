@@ -807,6 +807,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                 removeTutorialOverlay();
                 if (def.nextActivity != null) {
                     startActivity(new android.content.Intent(this, def.nextActivity));
+                } else if (TutorialManager.hasStepsForActivity(this, BankingActivity.class)) {
+                    showTutorialStep(TutorialManager.getCurrentStep(this));
                 }
             },
             () -> {

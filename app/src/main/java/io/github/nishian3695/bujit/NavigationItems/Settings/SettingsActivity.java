@@ -19,6 +19,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -141,6 +143,19 @@ public class SettingsActivity extends AppCompatActivity {
                 if (uri != null) performCsvImport(uri);
             });
 
+    private final ActivityResultLauncher<String> createTemplateLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+                if (uri == null) return;
+                try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                    if (os != null) {
+                        os.write(CsvImportHelper.TEMPLATE.getBytes(StandardCharsets.UTF_8));
+                        Toast.makeText(this, "Template saved", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(this, "Could not save template: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -261,7 +276,7 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
         findViewById(R.id.row_import_csv).setOnClickListener(v ->
                 csvPickerLauncher.launch(new String[]{"text/csv", "text/plain", "application/octet-stream", "*/*"}));
-        findViewById(R.id.row_csv_template).setOnClickListener(v -> shareTemplate());
+        findViewById(R.id.row_csv_template).setOnClickListener(v -> promptTemplateAction());
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
@@ -508,7 +523,7 @@ public class SettingsActivity extends AppCompatActivity {
         if (result.hasData()) msg.append(result.summary());
         if (!result.errors.isEmpty()) {
             if (msg.length() > 0) msg.append("\n\n");
-            msg.append("Warnings:\n");
+            msg.append(result.hasData() ? "Warnings:\n" : "Errors:\n");
             for (String err : result.errors) msg.append("• ").append(err).append("\n");
         }
         new AlertDialog.Builder(this)
@@ -518,7 +533,20 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void shareTemplate() {
+    private void promptTemplateAction() {
+        new AlertDialog.Builder(this)
+                .setTitle("CSV Template")
+                .setItems(new String[]{"Save to device", "Share"}, (d, which) -> {
+                    if (which == 0) {
+                        createTemplateLauncher.launch("bujit_import_template.csv");
+                    } else {
+                        shareTemplateViaIntent();
+                    }
+                })
+                .show();
+    }
+
+    private void shareTemplateViaIntent() {
         try {
             File file = new File(getCacheDir(), "bujit_import_template.csv");
             try (FileWriter writer = new FileWriter(file)) {
@@ -531,9 +559,9 @@ public class SettingsActivity extends AppCompatActivity {
             share.putExtra(Intent.EXTRA_STREAM, fileUri);
             share.putExtra(Intent.EXTRA_SUBJECT, "Bujit Import Template");
             share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(share, "Save template as…"));
+            startActivity(Intent.createChooser(share, "Share template…"));
         } catch (Exception e) {
-            Toast.makeText(this, "Could not create template: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Could not share template: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
