@@ -65,6 +65,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    lint {
+        // Snapshot of pre-existing issues; only NEW issues introduced after this
+        // baseline was created will fail the build. Generate/update with:
+        //   ./gradlew updateLintBaseline
+        baseline = file("lint-baseline.xml")
+        // Still treat errors as errors (not downgraded to warnings).
+        abortOnError true
+    }
     buildFeatures {
         buildConfig true
     }

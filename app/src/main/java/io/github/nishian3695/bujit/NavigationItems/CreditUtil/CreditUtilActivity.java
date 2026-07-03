@@ -1,5 +1,6 @@
 package io.github.nishian3695.bujit.NavigationItems.CreditUtil;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.view.MenuItem;
@@ -825,6 +826,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         }
     }
 
+    @SuppressLint("MissingSuperCall") // intentional: super.onBackPressed() would double-finish
     @Override
     public void onBackPressed() {
         goBackHome();

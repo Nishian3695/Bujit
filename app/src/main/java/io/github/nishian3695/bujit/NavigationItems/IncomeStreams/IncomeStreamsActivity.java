@@ -1,5 +1,6 @@
 package io.github.nishian3695.bujit.NavigationItems.IncomeStreams;
 
+import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -152,6 +153,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @SuppressLint("MissingSuperCall") // intentional: super.onBackPressed() would double-finish
     @Override
     public void onBackPressed() {
         returnResult();

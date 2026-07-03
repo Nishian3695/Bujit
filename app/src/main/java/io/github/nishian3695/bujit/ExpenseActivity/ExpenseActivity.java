@@ -208,7 +208,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     };
     // endregion
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint({"ClickableViewAccessibility", "ResourceType"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);

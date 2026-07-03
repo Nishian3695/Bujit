@@ -37,7 +37,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_edit"
                 android:contentDescription="Edit account"
-                android:tint="@android:color/darker_gray" />
+                app:tint="@android:color/darker_gray" />
         </LinearLayout>
 
         <!-- Account name -->

@@ -1,5 +1,6 @@
 package io.github.nishian3695.bujit.NavigationItems.Visuals;
 
+import android.annotation.SuppressLint;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -895,6 +896,7 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Theme helpers ────────────────────────────────────────────────────────
 
+    @SuppressLint("ResourceType")
     private int getThemeTextColor() {
         int[] attrs = { android.R.attr.textColorPrimary };
         TypedArray ta = obtainStyledAttributes(attrs);
