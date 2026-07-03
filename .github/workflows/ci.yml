@@ -1,0 +1,59 @@
+name: CI
+
+# Runs lint and unit tests on every push to main and on every pull request.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Minimum permissions — read-only on the repo; no write access needed for CI.
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+
+      # google-services.json is gitignored; write it from the repo secret.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      # local.properties is gitignored; write the API key so buildConfigField resolves.
+      - name: Write local.properties
+        env:
+          TELLER_APP_ID: ${{ secrets.TELLER_APP_ID }}
+        run: printf 'TELLER_APP_ID=%s\n' "$TELLER_APP_ID" > local.properties
+
+      - name: Run Lint (debug variant)
+        run: ./gradlew lintDebug
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      # Always upload the lint HTML report so failures are easy to inspect.
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

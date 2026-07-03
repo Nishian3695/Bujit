@@ -1,0 +1,130 @@
+name: Release
+
+# Triggers on any tag matching vX.Y.Z (e.g. v0.3.17).
+# Push a tag to kick off a full signed build, GitHub Release, and Play Store upload.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+# contents:write is required to create the GitHub Release and attach the APK.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, Sign & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      # Fetch full history so git rev-list --count gives an accurate versionCode.
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+
+      # ── Secrets → files ────────────────────────────────────────────────────
+
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: Write local.properties
+        env:
+          TELLER_APP_ID: ${{ secrets.TELLER_APP_ID }}
+        run: printf 'TELLER_APP_ID=%s\n' "$TELLER_APP_ID" > local.properties
+
+      # Decode the base64-encoded keystore into runner.temp (outside the Git
+      # workspace to reduce any chance of it being captured in an artifact).
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/release.jks"
+
+      # ── Version ────────────────────────────────────────────────────────────
+
+      # versionName  = tag without leading 'v'  (e.g. 0.3.17)
+      # versionCode  = total commit count (always increases; Play Store requires this)
+      - name: Compute version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "versionName=$VERSION"      >> "$GITHUB_OUTPUT"
+          echo "versionCode=$COMMIT_COUNT" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"                  >> "$GITHUB_OUTPUT"
+          echo "Release: $VERSION  (versionCode $COMMIT_COUNT)"
+
+      # ── Build ──────────────────────────────────────────────────────────────
+
+      # STORE_FILE, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD are read by the
+      # signing config in build.gradle; they are injected as env vars, never
+      # written to any tracked file.
+      - name: Build release AAB (Play Store)
+        env:
+          STORE_FILE: ${{ runner.temp }}/release.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease \
+            -PversionCode=${{ steps.version.outputs.versionCode }} \
+            -PversionName=${{ steps.version.outputs.versionName }}
+
+      - name: Build release APK (GitHub Releases / sideload)
+        env:
+          STORE_FILE: ${{ runner.temp }}/release.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            -PversionCode=${{ steps.version.outputs.versionCode }} \
+            -PversionName=${{ steps.version.outputs.versionName }}
+
+      # Wipe the decoded keystore immediately after signing; the job cleans
+      # runner.temp on completion anyway, but this is defence-in-depth.
+      - name: Shred keystore
+        if: always()
+        run: |
+          if [ -f "${{ runner.temp }}/release.jks" ]; then
+            shred -u "${{ runner.temp }}/release.jks"
+          fi
+
+      # ── Publish ────────────────────────────────────────────────────────────
+
+      # Creates a GitHub Release tagged with the pushed tag and attaches the
+      # signed APK. Release notes are auto-generated from commits since the
+      # last tag.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
+
+      # Uploads the signed AAB to the Play Store internal testing track.
+      # Also ships the ProGuard mapping so stack traces deobfuscate in
+      # Google Play's crash dashboard (Android Vitals).
+      # Requires SERVICE_ACCOUNT_JSON — see docs/ci-setup.md for setup steps.
+      - name: Upload AAB to Play Store (internal track)
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.nishian3695.bujit
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          whatsNewDirectory: play/whatsnew
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
