@@ -127,6 +127,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Keeping track
     private boolean onHomeScreen;
     private boolean speedDialOpen = false;
+    private boolean skipNextOnPauseWrite = false;
     private Runnable pendingTutorialShow;
     // Data Storage
     private StorageManager storageManager;
@@ -455,6 +456,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE)
                                 .edit().putBoolean("needs_sync_check", true).apply();
                     }
+                    // Skip the onPause write so any data written by SettingsActivity
+                    // (e.g. a CSV import) is not overwritten by the stale in-memory state.
+                    skipNextOnPauseWrite = true;
                     recreate();
                 });
 
@@ -2550,7 +2554,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         super.onPause();
         try {
             goHomePage();
-            handleStorage(WRITE);
+            if (!skipNextOnPauseWrite) {
+                handleStorage(WRITE);
+            }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }

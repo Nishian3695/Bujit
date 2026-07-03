@@ -277,7 +277,11 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_import_csv).setOnClickListener(v ->
                 csvPickerLauncher.launch(new String[]{"text/csv", "text/plain", "application/octet-stream", "*/*"}));
         findViewById(R.id.row_csv_template).setOnClickListener(v -> promptTemplateAction());
+        findViewById(R.id.row_csv_reference).setOnClickListener(v ->
+                openUrl("https://nishian3695.github.io/Bujit/csv-import-reference.html"));
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
+        findViewById(R.id.row_website).setOnClickListener(v ->
+                openUrl("https://nishian3695.github.io/Bujit/"));
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
         findViewById(R.id.row_teller_privacy).setOnClickListener(v -> openTellerPrivacy());
         findViewById(R.id.row_disclaimer).setOnClickListener(v -> showDisclaimer());
