@@ -17,10 +17,11 @@ app/release
 app/google-services.json
 *.pepk
 *.keystore
-*.jks
+keystore.properties
 local.properties
 .firebaserc
 functions/node_modules
 functions/.env*
 *.log
-*description.txt
+*.txt
+*.jks
