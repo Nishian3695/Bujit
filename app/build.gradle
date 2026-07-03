@@ -3,6 +3,19 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
+// ── Signing ────────────────────────────────────────────────────────────────────
+// In CI:    STORE_FILE / STORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD env vars
+//           are injected by the release workflow — never written to disk.
+// Locally:  copy keystore.properties.example → keystore.properties (gitignored)
+//           and fill in your keystore path + credentials.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+def storeFilePath = System.getenv('STORE_FILE') ?: keystoreProps.getProperty('storeFile')
+def isSigning = storeFilePath != null && !storeFilePath.isEmpty()
+
 android {
     compileSdk 36
 
@@ -10,8 +23,11 @@ android {
         applicationId "io.github.nishian3695.bujit"
         minSdk 26
         targetSdk 36
-        versionCode 23
-        versionName "0.3.15"
+
+        // versionCode: defaults to the value below; overridden by -PversionCode in CI
+        // (CI uses total commit count so it always increases without manual bumps).
+        versionCode  project.hasProperty('versionCode')  ? project.versionCode.toInteger()  : 24
+        versionName  project.hasProperty('versionName')  ? project.versionName              : "0.3.16"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -21,11 +37,25 @@ android {
         buildConfigField "String", "TELLER_APP_ID", "\"${localProps.getProperty('TELLER_APP_ID', '')}\""
     }
 
+    if (isSigning) {
+        signingConfigs {
+            release {
+                storeFile     file(storeFilePath)
+                storePassword System.getenv('STORE_PASSWORD') ?: keystoreProps.getProperty('storePassword', '')
+                keyAlias      System.getenv('KEY_ALIAS')      ?: keystoreProps.getProperty('keyAlias', '')
+                keyPassword   System.getenv('KEY_PASSWORD')   ?: keystoreProps.getProperty('keyPassword', '')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (isSigning) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             testCoverageEnabled = true
