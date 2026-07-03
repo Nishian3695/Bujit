@@ -73,6 +73,9 @@ jobs:
       # STORE_FILE, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD are read by the
       # signing config in build.gradle; they are injected as env vars, never
       # written to any tracked file.
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build release AAB (Play Store)
         env:
           STORE_FILE: ${{ runner.temp }}/release.jks

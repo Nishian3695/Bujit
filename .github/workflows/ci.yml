@@ -43,6 +43,9 @@ jobs:
           TELLER_APP_ID: ${{ secrets.TELLER_APP_ID }}
         run: printf 'TELLER_APP_ID=%s\n' "$TELLER_APP_ID" > local.properties
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Run Lint (debug variant)
         run: ./gradlew lintDebug
 
