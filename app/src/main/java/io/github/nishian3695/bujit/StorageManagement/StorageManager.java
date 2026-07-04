@@ -377,18 +377,27 @@ public class StorageManager {
         o.put("createdDate",      dateOrNull(se.getCreatedDate()));
         o.put("lastModifiedDate", dateOrNull(se.getLastModifiedDate()));
         o.put("appliedAmount",    se.getAppliedAmount());
+        o.put("targetType", se.getTargetType());
+        if (se.getTargetId() != null) o.put("targetId", se.getTargetId());
+        if (se.getTargetDisplayName() != null) o.put("targetDisplayName", se.getTargetDisplayName());
         return o;
     }
 
     private SingleEventModel jsonToSingleEvent(JSONObject o) {
         try {
+            String id = o.optString("id", null);
             String name = o.optString("name", "");
             float amount = (float) o.optDouble("amount", 0.0);
             boolean isDebit = o.optBoolean("isDebit", true);
-            SingleEventModel se = new SingleEventModel(name, amount, isDebit);
+            float appliedAmount = (float) o.optDouble("appliedAmount", isDebit ? -amount : amount);
+            LocalDate created = parseDate(o.optString("createdDate", null));
             LocalDate modified = parseDate(o.optString("lastModifiedDate", null));
-            if (modified != null) se.setLastModifiedDate(modified);
-            return se;
+            String targetType = o.optString("targetType", "BALANCE");
+            String targetId = o.has("targetId") ? o.optString("targetId", null) : null;
+            String targetDisplayName = o.has("targetDisplayName")
+                    ? o.optString("targetDisplayName", null) : null;
+            return new SingleEventModel(id, name, amount, isDebit, created, modified,
+                    appliedAmount, targetType, targetId, targetDisplayName);
         } catch (Exception e) {
             Log.e(TAG, "jsonToSingleEvent failed", e);
             return null;

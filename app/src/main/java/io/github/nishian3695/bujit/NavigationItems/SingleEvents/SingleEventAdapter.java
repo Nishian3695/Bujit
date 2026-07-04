@@ -57,12 +57,19 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
         LocalDate today = LocalDate.now();
         LocalDate expiresOn = item.getLastModifiedDate().plusDays(expiryDays);
         long daysLeft = ChronoUnit.DAYS.between(today, expiresOn);
+        String expiry;
         if (daysLeft <= 0) {
-            holder.meta.setText("Expiring soon");
+            expiry = "Expiring soon";
         } else if (daysLeft == 1) {
-            holder.meta.setText("Expires tomorrow");
+            expiry = "Expires tomorrow";
         } else {
-            holder.meta.setText("Expires in " + daysLeft + " day" + (daysLeft == 1 ? "" : "s"));
+            expiry = "Expires in " + daysLeft + " days";
+        }
+        String displayName = item.getTargetDisplayName();
+        if (displayName != null && !"BALANCE".equals(item.getTargetType())) {
+            holder.meta.setText(displayName + " · " + expiry);
+        } else {
+            holder.meta.setText(expiry);
         }
 
         holder.itemView.setOnClickListener(v -> {

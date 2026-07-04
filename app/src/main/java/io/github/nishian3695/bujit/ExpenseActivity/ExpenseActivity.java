@@ -2296,6 +2296,35 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         typeToggle.check(R.id.btn_single_debit);
         amountField.addTextChangedListener(new CurrencyEditTextWatcher(amountField));
 
+        // Funding source dropdown — same options as SingleEventsActivity
+        AutoCompleteTextView targetInput = dialogView.findViewById(R.id.single_event_target_input);
+        ArrayList<String> targetNames = new ArrayList<>();
+        ArrayList<String> targetTypes = new ArrayList<>();
+        ArrayList<String> targetIds   = new ArrayList<>();
+        ArrayList<String> targetDisplayNames = new ArrayList<>();
+        targetNames.add("Current Balance"); targetTypes.add("BALANCE"); targetIds.add(null); targetDisplayNames.add("Current Balance");
+        ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> accounts =
+                storageHolder.getManualAccountList();
+        if (accounts != null) {
+            for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : accounts) {
+                targetNames.add(a.getName()); targetTypes.add("MANUAL_ACCOUNT");
+                targetIds.add(a.getId()); targetDisplayNames.add(a.getName());
+            }
+        }
+        for (ExpenseModel e : expenseListStor) {
+            if (e.getIsCredit()) {
+                String label = e.getName() + " (card)";
+                targetNames.add(label); targetTypes.add("CREDIT_CARD");
+                targetIds.add(e.getName()); targetDisplayNames.add(label);
+            }
+        }
+        android.widget.ArrayAdapter<String> targetAdapter = new android.widget.ArrayAdapter<>(
+                this, R.layout.expense_dropdown_item, targetNames);
+        targetInput.setAdapter(targetAdapter);
+        targetInput.setText(targetNames.get(0), false);
+        final int[] selectedIdx = {0};
+        targetInput.setOnItemClickListener((parent, v2, pos, id) -> selectedIdx[0] = pos);
+
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Add Single Event")
                 .setView(dialogView)
@@ -2325,11 +2354,50 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             if (!valid) return;
 
             boolean isDebit = (typeToggle.getCheckedButtonId() == R.id.btn_single_debit);
+            int idx = selectedIdx[0] < targetTypes.size() ? selectedIdx[0] : 0;
+            String tType = targetTypes.get(idx);
+            String tId   = targetIds.get(idx);
+            String tDisp = targetDisplayNames.get(idx);
+
             SingleEventModel event = new SingleEventModel(name, amount, isDebit);
+            event.setTargetType(tType);
+            event.setTargetId(tId);
+            event.setTargetDisplayName(tDisp);
             singleEventList.add(event);
-            curBalance += event.getAppliedAmount();
-            shownBalance = curBalance;
-            setCurrentBalanceText(curBalance);
+
+            float delta = event.getAppliedAmount();
+            if ("BALANCE".equals(tType)) {
+                curBalance += delta;
+                shownBalance = curBalance;
+                setCurrentBalanceText(curBalance);
+            } else if ("MANUAL_ACCOUNT".equals(tType)) {
+                if (accounts != null) {
+                    for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : accounts) {
+                        if (tId != null && tId.equals(a.getId())) {
+                            a.setBalance(a.getBalance() + delta);
+                            break;
+                        }
+                    }
+                }
+                float newTotal = computeManualAccountsTotal(storageHolder);
+                curBalance += newTotal - manualAccountsTotal;
+                manualAccountsTotal = newTotal;
+                shownBalance = curBalance;
+                setCurrentBalanceText(curBalance);
+            } else if ("CREDIT_CARD".equals(tType)) {
+                for (ExpenseModel e : expenseListStor) {
+                    if (e.getIsCredit() && tId != null && tId.equals(e.getName())) {
+                        try {
+                            float cost = Math.max(0f, Float.parseFloat(e.getCost()) - delta);
+                            String costStr = String.format(java.util.Locale.US, "%.2f", cost);
+                            e.setCost(costStr);
+                            e.setShownCost(costStr);
+                        } catch (NumberFormatException ignored) {}
+                        break;
+                    }
+                }
+                expenseAdapter.notifyDataSetChanged();
+            }
             setFinalBalance();
             saveNow();
             dialog.dismiss();
@@ -2350,7 +2418,16 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             StorageManager manager = new StorageManager(getApplicationContext());
             StorageHolder fresh = manager.getStorageHolder();
             singleEventList = fresh.getSingleEventList();
-            curBalance = fresh.getCurrentBalance();
+            // Apply the BALANCE delta that SingleEventsActivity accumulated (additions to/removals
+            // from BALANCE-targeted events). We do NOT read currentBalance from disk here because
+            // SingleEventsActivity no longer writes it — the manual/credit-card reload handles those
+            // deltas separately, and BALANCE switches are communicated via KEY_BALANCE_DELTA.
+            SharedPreferences prefs = getSharedPreferences("bujit_prefs", MODE_PRIVATE);
+            float balanceDelta = prefs.getFloat(SingleEventsActivity.KEY_BALANCE_DELTA, 0f);
+            if (balanceDelta != 0f) {
+                prefs.edit().remove(SingleEventsActivity.KEY_BALANCE_DELTA).apply();
+                curBalance += balanceDelta;
+            }
             shownBalance = curBalance;
             setCurrentBalanceText(curBalance);
             setFinalBalance();
