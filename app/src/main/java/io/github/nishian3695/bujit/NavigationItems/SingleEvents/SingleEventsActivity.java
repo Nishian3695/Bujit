@@ -136,7 +136,7 @@ public class SingleEventsActivity extends AppCompatActivity {
         ArrayList<ExpenseModel> expenses = storageHolder.getExpenseList();
         if (expenses != null) {
             for (ExpenseModel e : expenses) {
-                if (e.getIsCredit()) {
+                if (e.getIsCredit() && !e.isLinkedToBank()) {
                     options.add(new TargetOption(e.getName() + " (card)", "CREDIT_CARD", e.getName()));
                 }
             }

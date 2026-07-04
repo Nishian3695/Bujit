@@ -1469,11 +1469,22 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         bankBalanceET.setText(String.format(Locale.US, "%.2f", baseBalance));
         bankBalanceET.addTextChangedListener(new CurrencyEditTextWatcher(bankBalanceET));
 
+        // Track whether the balance was set by the bank picker or typed manually.
+        // Any text change clears the flag; the picker callback re-sets it via post() after the
+        // TextWatcher chain settles, so typing after the picker correctly clears it again.
+        final boolean[] pickerConfirmed = {false};
+        bankBalanceET.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) { pickerConfirmed[0] = false; }
+        });
+
         manualExtraET.setText(String.format(Locale.US, "%.2f", manualBalanceAddition));
         manualExtraET.addTextChangedListener(new CurrencyEditTextWatcher(manualExtraET));
 
         Button fromBankBtn = dialogLayout.findViewById(R.id.btn_from_bank);
-        fromBankBtn.setOnClickListener(v -> showBankAccountPicker(bankBalanceET));
+        fromBankBtn.setOnClickListener(v ->
+                showBankAccountPicker(bankBalanceET, () -> pickerConfirmed[0] = true));
 
         builder.setNegativeButton("Cancel", (dialogInterface, i) -> dialogInterface.dismiss());
 
@@ -1482,6 +1493,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             float extra = 0f;
             try { base = Float.parseFloat(bankBalanceET.getText().toString()); } catch (NumberFormatException ignored) {}
             try { extra = Float.parseFloat(manualExtraET.getText().toString()); } catch (NumberFormatException ignored) {}
+            if (!pickerConfirmed[0]) {
+                // Balance was typed manually — unlink all bank accounts so the picker
+                // reflects the current state next time it's opened.
+                BankingProviderConfig.saveManualLinkedIds(this, new java.util.HashSet<>());
+                saveLinkedAccounts(new java.util.HashSet<>());
+                manualAccountsTotal = 0f;
+            }
             manualBalanceAddition = extra;
             curBalance = base + extra;
             shownBalance = curBalance;
@@ -2009,6 +2027,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Fetches Plaid accounts and loads manual accounts, then shows a combined multi-select
     // dialog so the user can pick which sources contribute to the balance field.
     private void showBankAccountPicker(EditText target) {
+        showBankAccountPicker(target, null);
+    }
+
+    private void showBankAccountPicker(EditText target, Runnable onLinked) {
         AlertDialog loadingDialog = new AlertDialog.Builder(this)
                 .setTitle("Loading accounts…")
                 .setView(new ProgressBar(this))
@@ -2124,6 +2146,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                                     newManualTotal += finalManual.get(i).getBalance();
                             }
                             manualAccountsTotal = newManualTotal;
+
+                            // Fire after all synchronous TextWatcher callbacks settle,
+                            // so the pickerConfirmed flag is set last.
+                            if (onLinked != null) target.post(onLinked);
 
                             saveLastSyncTime(System.currentTimeMillis());
                             updateSyncLabel();
@@ -2312,7 +2338,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             }
         }
         for (ExpenseModel e : expenseListStor) {
-            if (e.getIsCredit()) {
+            if (e.getIsCredit() && !e.isLinkedToBank()) {
                 String label = e.getName() + " (card)";
                 targetNames.add(label); targetTypes.add("CREDIT_CARD");
                 targetIds.add(e.getName()); targetDisplayNames.add(label);
