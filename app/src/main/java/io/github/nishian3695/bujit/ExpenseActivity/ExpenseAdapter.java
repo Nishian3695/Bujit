@@ -1,6 +1,7 @@
 package io.github.nishian3695.bujit.ExpenseActivity;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,6 +9,7 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.Interfaces.ClickListener;
@@ -108,6 +110,25 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         holder.expenseStatus.setText(anExpense.getShownStatusAsString());
         holder.linkedIndicator.setVisibility(
                 anExpense.isLinkedToBank() ? View.VISIBLE : View.GONE);
+
+        // Show the utilization bar for credit card entries; hide it for regular expenses.
+        if (anExpense.getIsCredit()) {
+            int utilPct = 0;
+            try {
+                float debt  = Float.parseFloat(anExpense.getCost());
+                float limit = Float.parseFloat(anExpense.getCreditLimit());
+                if (limit > 0) utilPct = Math.min(100, Math.round(debt / limit * 100));
+            } catch (NumberFormatException ignored) {}
+            int color = utilPct < 30 ? R.color.balance_positive
+                      : utilPct < 70 ? R.color.util_warning
+                      :                R.color.balance_negative;
+            holder.creditUtilBar.setProgress(utilPct);
+            holder.creditUtilBar.setProgressTintList(
+                    ColorStateList.valueOf(ContextCompat.getColor(context, color)));
+            holder.creditUtilBar.setVisibility(View.VISIBLE);
+        } else {
+            holder.creditUtilBar.setVisibility(View.GONE);
+        }
 
         // Refine offset once checkbox is actually laid out.
         holder.checkBox.post(() -> {

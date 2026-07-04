@@ -3,6 +3,7 @@ package io.github.nishian3695.bujit.ExpenseActivity;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,6 +20,7 @@ public class ExpenseViewHolder extends RecyclerView.ViewHolder {
     LinearLayout expenseContent;
     TextView expenseName, expenseStartDate, expenseRate, expenseCost, expenseStatus;
     View linkedIndicator;
+    ProgressBar creditUtilBar;
 
     public ExpenseViewHolder(@NonNull View itemView) {
         super(itemView);
@@ -31,5 +33,6 @@ public class ExpenseViewHolder extends RecyclerView.ViewHolder {
         expenseRate      = itemView.findViewById(R.id.expense_rate);
         expenseCost      = itemView.findViewById(R.id.expense_cost);
         expenseStatus    = itemView.findViewById(R.id.expense_status);
+        creditUtilBar    = itemView.findViewById(R.id.expense_credit_util_bar);
     }
 }
