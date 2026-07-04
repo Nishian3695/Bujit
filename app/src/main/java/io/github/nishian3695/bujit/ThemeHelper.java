@@ -1,7 +1,9 @@
 package io.github.nishian3695.bujit;
 
 import android.app.Activity;
+import android.content.res.TypedArray;
 import android.view.View;
+import android.view.WindowInsets;
 import androidx.activity.ComponentActivity;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -38,23 +40,32 @@ public class ThemeHelper {
     public static final String KEY_CUSTOM_HEX  = "custom_hex";
 
     public static void enableEdgeToEdge(ComponentActivity activity) {
-        int primaryColor = getAccentColor(activity);
+        // Read colorPrimary from the current theme rather than getAccentColor() so that
+        // custom accent colors (which intentionally do not recolor the action bar per
+        // tintActionBar's no-op contract) are excluded. This gives the same "system
+        // dependent" color the action bar had before the edge-to-edge migration.
+        TypedArray ta = activity.getTheme()
+                .obtainStyledAttributes(new int[]{ android.R.attr.colorPrimary });
+        int themeColor = ta.getColor(0, getAccentColor(activity));
+        ta.recycle();
+
         EdgeToEdge.enable(activity,
-                SystemBarStyle.dark(primaryColor),
+                SystemBarStyle.dark(themeColor),
                 SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT));
 
-        // The ActionBarContainer (AppCompat's internal wrapper around the Toolbar) has a
-        // transparent background; only the Toolbar inside it carries the primary color.
-        // On API 35+ the status bar is forced transparent, so the window background (white)
-        // bleeds through the status bar area above the Toolbar. Setting the container's
-        // background to the primary color fills that gap without moving the Toolbar.
+        // Extend ActionBarContainer behind the status bar so nothing bleeds through the
+        // transparent status bar. The background fills the status bar area; paddingTop
+        // pushes the Toolbar content (title, buttons) below the status bar so they
+        // remain in their normal position.
         View decorView = activity.getWindow().getDecorView();
         decorView.post(() -> {
             View abContainer = decorView.findViewById(
                     androidx.appcompat.R.id.action_bar_container);
-            if (abContainer != null) {
-                abContainer.setBackgroundColor(primaryColor);
-            }
+            if (abContainer == null) return;
+            WindowInsets wi = decorView.getRootWindowInsets();
+            int statusBarTop = (wi != null) ? wi.getSystemWindowInsetTop() : 0;
+            abContainer.setBackgroundColor(themeColor);
+            abContainer.setPaddingRelative(0, statusBarTop, 0, 0);
         });
     }
 
