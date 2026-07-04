@@ -114,6 +114,7 @@ public class VisualsActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_visuals);
         ThemeHelper.tintActionBar(this);
 

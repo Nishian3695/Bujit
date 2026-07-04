@@ -1,6 +1,5 @@
 package io.github.nishian3695.bujit.NavigationItems.IncomeStreams;
 
-import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,6 +11,7 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -75,8 +75,15 @@ public class IncomeStreamsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_income_streams);
         ThemeHelper.tintActionBar(this);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                returnResult();
+            }
+        });
         ViewCompat.setOnApplyWindowInsetsListener(
                 ((android.view.ViewGroup) findViewById(android.R.id.content)).getChildAt(0),
                 (v, windowInsets) -> {
@@ -151,12 +158,6 @@ public class IncomeStreamsActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @SuppressLint("MissingSuperCall") // intentional: super.onBackPressed() would double-finish
-    @Override
-    public void onBackPressed() {
-        returnResult();
     }
 
     private void returnResult() {

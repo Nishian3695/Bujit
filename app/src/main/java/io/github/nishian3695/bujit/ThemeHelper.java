@@ -1,11 +1,15 @@
 package io.github.nishian3695.bujit;
 
 import android.app.Activity;
+import android.view.View;
+import androidx.activity.ComponentActivity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.widget.TextView;
+import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -32,6 +36,27 @@ public class ThemeHelper {
     public static final String KEY_COLOR       = "accent_color";
     public static final String KEY_MODE        = "night_mode";
     public static final String KEY_CUSTOM_HEX  = "custom_hex";
+
+    public static void enableEdgeToEdge(ComponentActivity activity) {
+        int primaryColor = getAccentColor(activity);
+        EdgeToEdge.enable(activity,
+                SystemBarStyle.dark(primaryColor),
+                SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT));
+
+        // The ActionBarContainer (AppCompat's internal wrapper around the Toolbar) has a
+        // transparent background; only the Toolbar inside it carries the primary color.
+        // On API 35+ the status bar is forced transparent, so the window background (white)
+        // bleeds through the status bar area above the Toolbar. Setting the container's
+        // background to the primary color fills that gap without moving the Toolbar.
+        View decorView = activity.getWindow().getDecorView();
+        decorView.post(() -> {
+            View abContainer = decorView.findViewById(
+                    androidx.appcompat.R.id.action_bar_container);
+            if (abContainer != null) {
+                abContainer.setBackgroundColor(primaryColor);
+            }
+        });
+    }
 
     public static void applyAccentTheme(Activity activity) {
         String color = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

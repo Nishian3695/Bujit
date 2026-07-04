@@ -94,7 +94,7 @@ public class TutorialManager {
         // VisualsActivity: steps 11–13
         new StepDef(VisualsActivity.class, R.id.visuals_tab_layout,
             "Visuals",
-            "Two chart views give you the bigger picture. Cash Flow tracks income and expenses by pay period across the year. Categories breaks your estimated spending down by type — tap a legend chip to show or hide any category.",
+            "Two chart views give you the bigger picture. Cash Flow tracks income and expenses by pay period across the year. Categories breaks your estimated spending down by type. Tap a legend chip to show or hide any category.",
             8),
         new StepDef(VisualsActivity.class, R.id.cash_flow_chart,
             "Cash Flow chart",

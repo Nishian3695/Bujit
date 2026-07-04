@@ -46,6 +46,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_category_manager);
         ThemeHelper.tintActionBar(this);
 

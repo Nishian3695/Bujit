@@ -1,6 +1,5 @@
 package io.github.nishian3695.bujit.NavigationItems.CreditUtil;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.view.MenuItem;
@@ -16,6 +15,7 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -117,8 +117,15 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.credit_util_layout);
         ThemeHelper.tintActionBar(this);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                goBackHome();
+            }
+        });
         ViewCompat.setOnApplyWindowInsetsListener(
                 ((android.view.ViewGroup) findViewById(android.R.id.content)).getChildAt(0),
                 (v, windowInsets) -> {
@@ -824,12 +831,6 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             if (p != null) p.removeView(tutorialOverlay);
             tutorialOverlay = null;
         }
-    }
-
-    @SuppressLint("MissingSuperCall") // intentional: super.onBackPressed() would double-finish
-    @Override
-    public void onBackPressed() {
-        goBackHome();
     }
 
     @Override

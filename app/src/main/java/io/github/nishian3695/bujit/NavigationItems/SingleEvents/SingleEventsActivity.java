@@ -45,6 +45,7 @@ public class SingleEventsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_single_events);
         ThemeHelper.tintActionBar(this);
 
