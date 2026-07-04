@@ -131,3 +131,13 @@ jobs:
           track: internal
           whatsNewDirectory: play/whatsnew
           mappingFile: app/build/outputs/mapping/release/mapping.txt
+
+      - name: Upload AAB to Play Store (alpha track)
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.nishian3695.bujit
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: alpha
+          whatsNewDirectory: play/whatsnew
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
