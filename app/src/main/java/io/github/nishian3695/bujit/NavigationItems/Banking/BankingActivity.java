@@ -108,6 +108,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
 
         // One-time migration: re-encrypts stored tokens under the current v4 key.
         BankingPrefs.migrateIfNeeded(this);

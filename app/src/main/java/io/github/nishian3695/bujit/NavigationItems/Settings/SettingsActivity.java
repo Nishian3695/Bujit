@@ -160,6 +160,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
         super.onCreate(savedInstanceState);
+        ThemeHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_settings);
         ThemeHelper.tintActionBar(this);
         ViewCompat.setOnApplyWindowInsetsListener(
