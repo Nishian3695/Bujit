@@ -1989,6 +1989,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
             StorageHolder fresh = manager.getStorageHolder();
+            // Sync the fresh list into our in-memory storageHolder so that the
+            // saveNow() below (and any subsequent onPause write) doesn't overwrite
+            // the disk with a stale pre-deletion list.
+            storageHolder.setManualAccountList(fresh.getManualAccountList());
             float newTotal = computeManualAccountsTotal(fresh);
             float delta = newTotal - manualAccountsTotal;
             manualAccountsTotal = newTotal;
