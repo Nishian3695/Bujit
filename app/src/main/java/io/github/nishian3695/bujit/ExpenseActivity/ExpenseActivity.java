@@ -64,6 +64,7 @@ import io.github.nishian3695.bujit.ThemeHelper;
 import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.navigation.NavigationView;
@@ -1048,7 +1049,12 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         expenseAdapter = new ExpenseAdapter(this, expenseListStor, new ClickListener() {
             @Override
             public void onPositionClicked(int position) {
-                addEditExpenseDialog(EDIT, position).show();
+                ExpenseModel tapped = expenseListStor.get(position);
+                if (tapped.getIsCredit()) {
+                    editCreditDialog(position);
+                } else {
+                    addEditExpenseDialog(EDIT, position).show();
+                }
             }
 
             @Override
@@ -1946,12 +1952,17 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                             float ledger    = parseBalanceSafe(acct.getLedgerBalance());
                             float available = parseBalanceSafe(acct.getAvailableBalance());
                             String limitRaw = acct.getCreditLimit();
-                            // Use the provider's reported limit when available (Plaid sets this);
-                            // fall back to ledger + available as an approximation (Teller path).
-                            float limitFloat = (limitRaw != null) ? parseBalanceSafe(limitRaw) : ledger + available;
                             expense.setCost(String.format(Locale.US, "%.2f", ledger));
                             expense.setShownCost(String.format(Locale.US, "%.2f", ledger));
-                            expense.setCreditLimit(String.format(Locale.US, "%.2f", limitFloat));
+                            // Only update the stored credit limit when we have reliable data.
+                            // If Plaid omits both `limit` and `available` (e.g. charge cards),
+                            // keep the existing stored value rather than corrupting it.
+                            if (limitRaw != null) {
+                                float lf = parseBalanceSafe(limitRaw);
+                                if (lf > 0f) expense.setCreditLimit(String.format(Locale.US, "%.2f", lf));
+                            } else if (available > 0f) {
+                                expense.setCreditLimit(String.format(Locale.US, "%.2f", ledger + available));
+                            }
                         } else {
                             String formatted = String.format(Locale.US, "%.2f", parseBalanceSafe(acct.getLedgerBalance()));
                             expense.setCost(formatted);
@@ -2022,6 +2033,156 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         } catch (Exception e) {
             Log.e("Bujit", "reloadManualAccountsFromDisk failed: " + e.getMessage());
         }
+    }
+
+    private void editCreditDialog(int position) {
+        goHomePage();
+        ExpenseModel credit = expenseListStor.get(position);
+
+        View dialogLayout = getLayoutInflater().inflate(R.layout.edit_credit_dialog_layout, null);
+        EditText credUseET        = dialogLayout.findViewById(R.id.cred_use_ET);
+        EditText credLimET        = dialogLayout.findViewById(R.id.cred_lim_ET);
+        View fromConnectedBtn     = dialogLayout.findViewById(R.id.btn_edit_credit_connected);
+        MaterialCardView linkedBanner = dialogLayout.findViewById(R.id.edit_credit_linked_banner);
+        TextView linkedLabel      = dialogLayout.findViewById(R.id.edit_credit_linked_label);
+        View unlinkBtn            = dialogLayout.findViewById(R.id.btn_edit_credit_unlink);
+
+        credUseET.setText(credit.getCost());
+        credLimET.setText(credit.getCreditLimit());
+
+        String[] linkedId      = {credit.getLinkedAccountId()};
+        String storedToken     = credit.getLinkedAccountToken();
+        if (storedToken == null && credit.getLinkedAccountId() != null) {
+            storedToken = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
+        }
+        String[] linkedToken   = {storedToken};
+        String[] linkedDisplay = {credit.getLinkedAccountDisplay()};
+
+        if (credit.isLinkedToBank()) {
+            linkedLabel.setText(linkedDisplay[0]);
+            linkedBanner.setVisibility(View.VISIBLE);
+        }
+
+        fromConnectedBtn.setOnClickListener(v ->
+                showConnectedCreditPickerForEdit(credUseET, credLimET, linkedBanner, linkedLabel,
+                        linkedId, linkedToken, linkedDisplay, credit.getLinkedAccountId()));
+
+        unlinkBtn.setOnClickListener(v -> {
+            linkedId[0] = linkedToken[0] = linkedDisplay[0] = null;
+            linkedBanner.setVisibility(View.GONE);
+        });
+
+        new AlertDialog.Builder(this)
+                .setTitle(credit.getName())
+                .setView(dialogLayout)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (d, w) -> {
+                    String newCost  = credUseET.getText() != null ? credUseET.getText().toString().trim() : "";
+                    String newLimit = credLimET.getText() != null ? credLimET.getText().toString().trim() : "";
+                    credit.setCost(newCost.isEmpty() ? "0" : newCost);
+                    credit.setShownCost(credit.getCost());
+                    credit.setCreditLimit(newLimit.isEmpty() ? "0" : newLimit);
+                    if (linkedId[0] != null) {
+                        credit.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
+                        BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
+                    } else {
+                        credit.clearLinkedAccount();
+                    }
+                    setFinalBalance();
+                    expenseAdapter.notifyItemChanged(position);
+                    saveNow();
+                })
+                .show();
+    }
+
+    private void showConnectedCreditPickerForEdit(
+            EditText debtField,
+            EditText limitField,
+            View bannerView,
+            TextView bannerLabel,
+            String[] linkedId,
+            String[] linkedToken,
+            String[] linkedDisplay,
+            String currentLinkedId) {
+
+        Set<String> tokens = loadBankTokens();
+        if (tokens.isEmpty()) {
+            Toast.makeText(this, "No banks connected — add one in Banking.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Set<String> alreadyLinked = new HashSet<>();
+        for (ExpenseModel e : expenseListStor) {
+            if (e.getIsCredit() && e.isLinkedToBank()) {
+                String id = e.getLinkedAccountId();
+                if (id != null && !id.equals(currentLinkedId)) alreadyLinked.add(id);
+            }
+        }
+
+        AlertDialog loadingDialog = new AlertDialog.Builder(this)
+                .setTitle("Loading accounts…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loadingDialog.show();
+
+        executor.execute(() -> {
+            String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
+            List<BankAccountModel> accounts = new ArrayList<>();
+            for (String token : tokens) {
+                try {
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
+                    for (BankAccountModel m : client.fetchAccounts()) {
+                        String type = m.getType() != null ? m.getType().toLowerCase(Locale.US) : "";
+                        if (type.equals("credit") || type.equals("loan")) {
+                            m.setToken(token);
+                            accounts.add(m);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("CreditPicker", "fetch failed: " + e.getMessage());
+                }
+            }
+            mainHandler.post(() -> {
+                loadingDialog.dismiss();
+                accounts.removeIf(m -> alreadyLinked.contains(m.getId()));
+                if (accounts.isEmpty()) {
+                    Toast.makeText(this, "No credit or loan accounts found.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] labels = new String[accounts.size()];
+                for (int i = 0; i < accounts.size(); i++) {
+                    BankAccountModel m = accounts.get(i);
+                    labels[i] = m.getInstitutionName()
+                            + " – " + m.getDisplayType()
+                            + " (…" + m.getLastFour() + ")"
+                            + "  $" + formatBalance(m.getLedgerBalance());
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Link connected account")
+                        .setItems(labels, (d, idx) -> {
+                            BankAccountModel sel = accounts.get(idx);
+                            float ledger = parseBalanceSafe(sel.getLedgerBalance());
+                            float avail  = parseBalanceSafe(sel.getAvailableBalance());
+                            String rawLimit = sel.getCreditLimit();
+                            float limit = (rawLimit != null) ? parseBalanceSafe(rawLimit) : ledger + avail;
+                            if (limit <= 0f) limit = ledger + avail;
+                            String display = sel.getInstitutionName()
+                                    + " " + sel.getDisplayType()
+                                    + " …" + sel.getLastFour();
+                            linkedId[0]      = sel.getId();
+                            linkedToken[0]   = sel.getToken();
+                            linkedDisplay[0] = display;
+                            debtField.setText(String.format(Locale.US, "%.2f", ledger));
+                            limitField.setText(String.format(Locale.US, "%.2f", limit));
+                            bannerLabel.setText(display);
+                            bannerView.setVisibility(View.VISIBLE);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        });
     }
 
     // Fetches Plaid accounts and loads manual accounts, then shows a combined multi-select
