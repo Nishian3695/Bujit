@@ -134,9 +134,9 @@ jobs:
           mappingFile: app/build/outputs/mapping/release/mapping.txt
 
       # The AAB is already uploaded to Play Store by the internal-track step above.
-      # Re-uploading the same file to alpha would fail with "version already in use".
-      # Instead, open a new edit and add the existing versionCode to the alpha track.
-      - name: Promote to closed testing (alpha)
+      # Re-uploading the same file would fail with "version already in use".
+      # Both tracks are updated inside a single edit so only one review is triggered.
+      - name: Promote to closed testing (alpha + closed_0.1.0)
         env:
           SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           VERSION_CODE: ${{ steps.version.outputs.versionCode }}
@@ -147,19 +147,21 @@ jobs:
           from google.oauth2.service_account import Credentials
           from googleapiclient.discovery import build
 
-          sa   = json.loads(os.environ['SERVICE_ACCOUNT_JSON'])
+          sa    = json.loads(os.environ['SERVICE_ACCOUNT_JSON'])
           creds = Credentials.from_service_account_info(
               sa, scopes=['https://www.googleapis.com/auth/androidpublisher'])
-          api  = build('androidpublisher', 'v3', credentials=creds, cache_discovery=False)
-          pkg  = 'io.github.nishian3695.bujit'
-          vc   = int(os.environ['VERSION_CODE'])
+          api   = build('androidpublisher', 'v3', credentials=creds, cache_discovery=False)
+          pkg   = 'io.github.nishian3695.bujit'
+          vc    = int(os.environ['VERSION_CODE'])
+          release_body = {'releases': [{'versionCodes': [str(vc)], 'status': 'completed'}]}
 
           edit = api.edits().insert(packageName=pkg, body={}).execute()
           eid  = edit['id']
-          api.edits().tracks().update(
-              packageName=pkg, editId=eid, track='alpha',
-              body={'releases': [{'versionCodes': [str(vc)], 'status': 'completed'}]}
-          ).execute()
+          for track in ('alpha', 'closed_0.1.0'):
+              api.edits().tracks().update(
+                  packageName=pkg, editId=eid, track=track, body=release_body
+              ).execute()
+              print(f'Staged versionCode {vc} → {track}')
           api.edits().commit(packageName=pkg, editId=eid).execute()
-          print(f'Promoted versionCode {vc} to alpha track')
+          print(f'Committed — single review covers both tracks')
           EOF
