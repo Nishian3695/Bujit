@@ -144,8 +144,8 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
                 account.setLastFour(obj.optString("mask"));
                 account.setStatus(obj.optString("status", "active"));
                 account.setInstitutionName(obj.optString("institution_name"));
-                account.setLedgerBalance(obj.optString("ledger", "—"));
-                account.setAvailableBalance(obj.optString("available", "—"));
+                account.setLedgerBalance(!obj.isNull("ledger") ? obj.optString("ledger") : "—");
+                account.setAvailableBalance(!obj.isNull("available") ? obj.optString("available") : "—");
                 if (!obj.isNull("limit")) account.setCreditLimit(obj.optString("limit"));
                 accounts.add(account);
             }

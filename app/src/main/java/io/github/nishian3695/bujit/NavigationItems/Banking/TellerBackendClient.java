@@ -101,8 +101,8 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
             try (Response r = http.newCall(buildRequest(path)).execute()) {
                 if (r.isSuccessful()) {
                     JSONObject bal = new JSONObject(r.body().string());
-                    account.setLedgerBalance(bal.optString("ledger", "—"));
-                    account.setAvailableBalance(bal.optString("available", "—"));
+                    account.setLedgerBalance(!bal.isNull("ledger") ? bal.optString("ledger") : "—");
+                    account.setAvailableBalance(!bal.isNull("available") ? bal.optString("available") : "—");
                 }
             } catch (Exception e) {
                 Log.w(TAG, "TellerBackendClient: balance fetch failed for "

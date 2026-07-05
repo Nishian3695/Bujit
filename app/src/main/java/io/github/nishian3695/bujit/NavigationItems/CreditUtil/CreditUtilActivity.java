@@ -596,22 +596,25 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 float ledger = parseFloatSafe(acct.getLedgerBalance());
                 float avail  = parseFloatSafe(acct.getAvailableBalance());
                 String rawLimit = acct.getCreditLimit();
-                // Use provider's reported limit when available (Plaid sets balances.limit);
-                // fall back to ledger + available for Teller or when limit is absent.
-                float limitFloat = (rawLimit != null && !rawLimit.isEmpty())
-                        ? parseFloatSafe(rawLimit) : ledger + avail;
-                String debt  = String.format(Locale.US, "%.2f", ledger);
-                String limit = String.format(Locale.US, "%.2f", limitFloat);
+                String debt = String.format(Locale.US, "%.2f", ledger);
                 credit.setCost(debt);
                 credit.setShownCost(debt);
-                credit.setCreditLimit(limit);
+                // Only overwrite the stored credit limit when the provider gives reliable data.
+                // If both limit and available are absent/null (e.g. charge cards), leave the
+                // stored limit intact rather than corrupting it to ledger + 0.
+                if (rawLimit != null && !rawLimit.isEmpty()) {
+                    float lf = parseFloatSafe(rawLimit);
+                    if (lf > 0f) credit.setCreditLimit(String.format(Locale.US, "%.2f", lf));
+                } else if (avail > 0f) {
+                    credit.setCreditLimit(String.format(Locale.US, "%.2f", ledger + avail));
+                }
 
                 int expPos = creditPosList.get(i);
                 if (expPos >= 0) {
                     changedList.add(expPos);
                     howChangedList.add(ADD);
                     changedCredUseList.add(debt);
-                    changedCredLimList.add(limit);
+                    changedCredLimList.add(credit.getCreditLimit());
                 }
                 updated = true;
             }
