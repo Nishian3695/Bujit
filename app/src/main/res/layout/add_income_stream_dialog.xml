@@ -177,6 +177,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="sans-serif"
                         android:gravity="center"
+                        android:importantForAutofill="no"
                         android:inputType="number" />
 
                 </com.google.android.material.textfield.TextInputLayout>
