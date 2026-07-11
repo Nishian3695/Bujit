@@ -15,6 +15,7 @@ public class ManualAccountModel implements Serializable {
     private String accountType;
     private float balance;
 
+    // Creates a manual account with a freshly generated unique ID.
     public ManualAccountModel(String name, String accountType, float balance) {
         this.id          = UUID.randomUUID().toString();
         this.name        = name;

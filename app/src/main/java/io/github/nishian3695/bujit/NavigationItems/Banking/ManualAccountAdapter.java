@@ -19,6 +19,7 @@ icon opens an edit/delete dialog via the Listener callback.
 */
 public class ManualAccountAdapter extends RecyclerView.Adapter<ManualAccountAdapter.ViewHolder> {
 
+    // Notifies the host activity when the user taps the edit/delete pencil icon on a manual account.
     public interface Listener {
         void onEditClicked(ManualAccountModel account, int position);
     }
@@ -27,12 +28,14 @@ public class ManualAccountAdapter extends RecyclerView.Adapter<ManualAccountAdap
     private final List<ManualAccountModel> accounts;
     private final Listener listener;
 
+    // Wires the adapter to the list of manual accounts and the edit-click callback.
     public ManualAccountAdapter(Context context, List<ManualAccountModel> accounts, Listener listener) {
         this.context  = context;
         this.accounts = accounts;
         this.listener = listener;
     }
 
+    // Inflates a fresh manual-account card layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -40,6 +43,7 @@ public class ManualAccountAdapter extends RecyclerView.Adapter<ManualAccountAdap
         return new ViewHolder(view);
     }
 
+    // Populates one card's views from its ManualAccountModel and wires the edit button.
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ManualAccountModel account = accounts.get(position);
@@ -52,15 +56,18 @@ public class ManualAccountAdapter extends RecyclerView.Adapter<ManualAccountAdap
         });
     }
 
+    // Tells the RecyclerView how many manual account cards to display.
     @Override
     public int getItemCount() { return accounts.size(); }
 
+    // Holds references to a manual-account card's child views.
     static class ViewHolder extends RecyclerView.ViewHolder {
         final TextView  accountType;
         final TextView  accountName;
         final TextView  balance;
         final ImageButton editBtn;
 
+        // Looks up and caches every child view of the card once.
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             accountType = itemView.findViewById(R.id.manual_account_type);

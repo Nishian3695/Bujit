@@ -104,6 +104,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     // Plaid Link SDK launcher, registered in onCreate, only used when ACTIVE_PROVIDER == PLAID
     private ActivityResultLauncher<LinkTokenConfiguration> plaidLauncher;
 
+    // Inflates the banking screen, wires up the connect/disconnect buttons and both account
+    // lists (linked + manual), signs the user in anonymously with Firebase if needed, then
+    // loads any previously connected accounts.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -188,6 +191,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Makes the toolbar's back arrow close this screen.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -197,6 +201,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         return super.onOptionsItemSelected(item);
     }
 
+    // Fetches and displays accounts for any previously stored tokens, or shows the empty state
+    // (with a "Connect Bank" button) if none are stored yet.
     private void loadAccountsIfAny() {
         Set<String> tokens = loadAllTokens();
         if (!tokens.isEmpty()) {
@@ -209,6 +215,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     }
 
     // Plaid Link SDK
+    // Fetches a fresh Plaid link_token from the backend, then launches the Plaid Link SDK UI
+    // with it so the user can pick and authenticate with their bank.
     private void launchPlaidLink() {
         showLoading();
         executor.execute(() -> {
@@ -237,6 +245,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         });
     }
 
+    // Callback for the Plaid Link SDK: on success exchanges the public token for a permanent
+    // access token; on exit (with or without an error) just restores the previous screen state.
     private void handlePlaidResult(LinkResult result) {
         if (result instanceof LinkSuccess) {
             String publicToken = ((LinkSuccess) result).getPublicToken();
@@ -254,6 +264,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Exchanges Plaid's short-lived public token for a permanent access token via the backend,
+    // stores it, then reloads the combined account list to include the newly linked bank.
     private void exchangePlaidPublicToken(String publicToken) {
         showLoading();
         executor.execute(() -> {
@@ -277,6 +289,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     }
 
     // Teller Connect SDK
+    // Builds a Teller Connect fragment with the app's Teller config and displays it in-place so
+    // the user can log in and select accounts through Teller's hosted flow.
     private void launchTellerConnect() {
         Log.d(TAG, "launchTellerConnect: appId=" + TELLER_APP_ID + " env=" + TELLER_ENV);
         Config config = new Config(
@@ -297,6 +311,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         Log.d(TAG, "ConnectFragment launched");
     }
 
+    // Hides and removes the Teller Connect fragment once the flow finishes or is cancelled.
     private void dismissConnectFragment() {
         connectContainer.setVisibility(View.GONE);
         ConnectFragment fragment = (ConnectFragment) getSupportFragmentManager()
@@ -306,11 +321,14 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // ConnectListener callback: fired once the Teller Connect WebView has finished loading.
     @Override
     public void onInit() {
         Log.d(TAG, "onInit: Connect WebView ready");
     }
 
+    // ConnectListener callback: fired when the user completes Teller enrollment. Stores the new
+    // access token and refreshes the account list to include the newly linked bank.
     @Override
     public void onSuccess(Registration registration) {
         String token = registration.getAccessToken();
@@ -323,9 +341,12 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         fetchAndShowAllAccounts(tokens);
     }
 
+    // ConnectListener callbacks for Teller's Payment/Payee flows — unused by this app (Bujit only
+    // uses Connect for account enrollment), so these just log for diagnostics.
     @Override public void onSuccess(Payment payment) { Log.d(TAG, "onSuccess(Payment)"); }
     @Override public void onSuccess(Payee payee)     { Log.d(TAG, "onSuccess(Payee)"); }
 
+    // ConnectListener callback: fired when the user closes Connect without completing enrollment.
     @Override
     public void onExit() {
         Log.d(TAG, "onExit: user dismissed Connect without enrolling");
@@ -333,6 +354,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         if (accounts.isEmpty()) showEmptyState();
     }
 
+    // ConnectListener callback: fired when Teller Connect itself errors out.
     @Override
     public void onFailure(Error error) {
         Log.e(TAG, "onFailure: type=" + error.getType()
@@ -345,6 +367,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         if (accounts.isEmpty()) showEmptyState();
     }
 
+    // ConnectListener callback: fired for various Teller Connect analytics events; just logged.
     @Override
     public void onEvent(String name, Map<String, ? extends Object> data) {
         Log.d(TAG, "onEvent: " + name);
@@ -408,6 +431,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Shows a multi-select dialog of connected institutions letting the user disconnect specific
+    // banks or all of them; revokes each chosen token server-side, deletes linked credit expenses,
+    // then refreshes the account list.
     private void confirmDisconnect() {
         // Build ordered map of token → institution name, deduplicating by token.
         Map<String, String> tokenToInstitution = new LinkedHashMap<>();
@@ -500,6 +526,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     }
 
     // UI state helpers
+    // Shows the progress spinner and hides the account list/empty state while a fetch is in flight.
     private void showLoading() {
         progressBar.setVisibility(View.VISIBLE);
         emptyState.setVisibility(View.GONE);
@@ -508,6 +535,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         disconnectBtn.setVisibility(View.GONE);
     }
 
+    // Shows the "no banks connected" placeholder with a "Connect Bank" call to action.
     private void showEmptyState() {
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.VISIBLE);
@@ -518,6 +546,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         disconnectBtn.setVisibility(View.GONE);
     }
 
+    // Shows the linked-account RecyclerView plus the "Add Account"/"Disconnect" buttons.
     private void showAccountList() {
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.GONE);
@@ -529,6 +558,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
 
     // Token storage -- one per enrolled bank, routed to the active provider's namespace
 
+    // Loads every stored access token for whichever provider is currently active.
     private Set<String> loadAllTokens() {
         if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
             return BankingPrefs.loadPlaidTokens(this);
@@ -537,6 +567,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     }
 
     // Teller enrollment callback path
+    // Adds a newly enrolled Teller token to the stored set.
     private void addToken(String token) {
         Set<String> tokens = new HashSet<>(BankingPrefs.loadTokens(this));
         tokens.add(token);
@@ -544,12 +575,14 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     }
 
     // Plaid exchange callback path
+    // Adds a newly exchanged Plaid token to the stored set.
     private void addPlaidToken(String token) {
         Set<String> tokens = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
         tokens.add(token);
         BankingPrefs.savePlaidTokens(this, tokens);
     }
 
+    // Wipes all stored tokens for whichever provider is currently active.
     private void clearAllTokens() {
         if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
             BankingPrefs.clearPlaid(this);
@@ -558,6 +591,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Removes the given tokens from stored state for whichever provider is currently active,
+    // clearing everything if none remain.
     private void removeTokens(Set<String> tokensToRemove) {
         if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
             Set<String> current = new HashSet<>(BankingPrefs.loadPlaidTokens(this));
@@ -631,6 +666,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
     public static final String PREFS_NAME = "bujit_prefs";
     public static final String KEY_BANKING_EXPENSE_CHANGED = "banking_expense_changed";
 
+    // Sets the flag ExpenseActivity checks in onResume to know it must reload expenses from disk.
     private void flagExpenseDataChanged() {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit().putBoolean(KEY_BANKING_EXPENSE_CHANGED, true).apply();
@@ -638,6 +674,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
 
     // ── Manual accounts ───────────────────────────────────────────────────────
 
+    // Loads the saved manual accounts from disk into the on-screen list.
     private void loadManualAccounts() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -651,6 +688,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Persists the current manual account list to disk and flags ExpenseActivity to pick up the
+    // resulting balance change on its next resume.
     private void saveManualAccounts() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -665,6 +704,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Toggles between the "no manual accounts" placeholder and the manual account list.
     private void updateManualEmptyState() {
         if (manualAccounts.isEmpty()) {
             manualEmptyState.setVisibility(View.VISIBLE);
@@ -776,23 +816,28 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
 
     // ── End manual accounts ───────────────────────────────────────────────────
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay so it doesn't leak past this screen's lifecycle.
     @Override
     protected void onPause() {
         removeTutorialOverlay();
         super.onPause();
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, BankingActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), wiring "Next"/"Skip" to
+    // advance to the next step, hand off to another activity's tutorial, or return home.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -826,6 +871,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -834,6 +880,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         }
     }
 
+    // Shuts down the background executor so no pending sync work leaks past this activity's life.
     @Override
     protected void onDestroy() {
         super.onDestroy();

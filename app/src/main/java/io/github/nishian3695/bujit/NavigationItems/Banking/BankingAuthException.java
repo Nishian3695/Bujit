@@ -8,6 +8,7 @@ that the stored access token has been revoked or has expired and the user
 must re-link their bank account.
 */
 public class BankingAuthException extends IOException {
+    // Wraps the backend's error code as the exception message for logging/display.
     public BankingAuthException(String errorCode) {
         super(errorCode);
     }

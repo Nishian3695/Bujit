@@ -14,8 +14,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Locale;
 
+// RecyclerView adapter for the single events list in SingleEventsActivity.
+// Each row shows the event name, signed dollar amount (colored green/red), the funding
+// source it's attributed to, and an expiry countdown based on when it was last modified.
 public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.ViewHolder> {
 
+    // Notifies the host activity when the user taps or long-presses an event row.
     public interface ItemClickListener {
         void onItemClick(int position);
         void onItemLongClick(int position);
@@ -26,6 +30,8 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
     private final int expiryDays;
     private final ItemClickListener listener;
 
+    // Wires the adapter to the list of single events, the configured expiry window, and the
+    // tap/long-press callback.
     public SingleEventAdapter(Context context, ArrayList<SingleEventModel> items,
                               int expiryDays, ItemClickListener listener) {
         this.context = context;
@@ -34,6 +40,7 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
         this.listener = listener;
     }
 
+    // Inflates a fresh single event row layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -41,6 +48,8 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
         return new ViewHolder(v);
     }
 
+    // Populates one row's views from its SingleEventModel: name, signed/colored amount, funding
+    // source label, expiry countdown text, and the click/long-click handlers.
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         SingleEventModel item = items.get(position);
@@ -83,15 +92,19 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
         });
     }
 
+    // Tells the RecyclerView how many event rows to display.
     @Override
     public int getItemCount() { return items.size(); }
 
+    // Returns the event model backing the row at the given adapter position.
     public SingleEventModel getItem(int position) { return items.get(position); }
 
+    // Holds references to a single event row's child views.
     static class ViewHolder extends RecyclerView.ViewHolder {
         View colorBar;
         TextView name, amount, meta;
 
+        // Looks up and caches every child view of the row once.
         ViewHolder(View v) {
             super(v);
             colorBar = v.findViewById(R.id.single_event_color_bar);

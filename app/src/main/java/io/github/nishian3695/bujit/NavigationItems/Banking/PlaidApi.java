@@ -9,7 +9,10 @@ Mirrors TellerApi so BankingActivity can swap implementations without changing
 any UI or storage logic.
 */
 interface PlaidApi {
+    // Fetches every account visible under this client's access token.
     List<BankAccountModel> fetchAccounts() throws IOException;
+    // Fetches a single account's [ledgerBalance, availableBalance] pair.
     float[] fetchAccountBalancePair(String accountId) throws IOException;
+    // Fetches a single account's ledger balance.
     float fetchAccountBalance(String accountId) throws IOException;
 }

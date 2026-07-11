@@ -4,6 +4,10 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.UUID;
 
+// Data model for a one-off debit/credit event (e.g. a single unplanned expense or windfall)
+// applied immediately to a chosen funding source (the main balance, a manual account, or a
+// credit card) rather than recurring like ExpenseModel. Expires and is auto-removed after a
+// configurable number of days since it was last modified.
 public class SingleEventModel implements Serializable {
     private static final long serialVersionUID = 2L;
 
@@ -18,6 +22,7 @@ public class SingleEventModel implements Serializable {
     private String targetId;          // null for BALANCE; account id or card name otherwise
     private String targetDisplayName; // human-readable name for display in the list
 
+    // Creates a new single event targeting the main balance by default.
     public SingleEventModel(String name, float amount, boolean isDebit) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
@@ -31,6 +36,8 @@ public class SingleEventModel implements Serializable {
         this.targetDisplayName = null;
     }
 
+    // Full-field constructor used when reconstructing an event with all its state already known
+    // (e.g. after an edit), rather than deriving defaults.
     public SingleEventModel(String id, String name, float amount, boolean isDebit,
                             LocalDate createdDate, LocalDate lastModifiedDate,
                             float appliedAmount, String targetType, String targetId,

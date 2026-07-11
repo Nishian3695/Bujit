@@ -66,6 +66,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     private RecyclerView recyclerView;
     private ItemTouchHelper itemTouchHelper;
 
+    // Wires the adapter to the expense data list plus the two callback interfaces the host
+    // activity uses to react to taps and selection-mode changes.
     public ExpenseAdapter(Context context, ArrayList<ExpenseModel> expenseList,
                           ClickListener clickListener, SelectionCallback selectionCallback) {
         this.context = context;
@@ -78,18 +80,22 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
                 context.getResources().getDisplayMetrics());
     }
 
+    // Keeps a reference to the attached RecyclerView so selection animations can be applied to
+    // its currently visible children directly.
     @Override
     public void onAttachedToRecyclerView(@NonNull RecyclerView rv) {
         super.onAttachedToRecyclerView(rv);
         recyclerView = rv;
     }
 
+    // Clears the RecyclerView reference to avoid leaking it once this adapter is detached.
     @Override
     public void onDetachedFromRecyclerView(@NonNull RecyclerView rv) {
         super.onDetachedFromRecyclerView(rv);
         recyclerView = null;
     }
 
+    // Inflates a fresh expense row layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public ExpenseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -99,6 +105,9 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         return holder;
     }
 
+    // Populates one row's views from its ExpenseModel: name, date, rate, cost, status, linked-bank
+    // indicator, credit-utilization bar (credit cards only), selection checkbox state, and the
+    // tap/long-press handlers for click, selection-toggle, and drag-start.
     @Override
     public void onBindViewHolder(@NonNull ExpenseViewHolder holder, int position) {
         ExpenseModel anExpense = expenseList.get(position);
@@ -168,21 +177,26 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         });
     }
 
+    // Tells the RecyclerView how many rows to display.
     @Override
     public int getItemCount() {
         return expenseList.size();
     }
 
+    // Returns the expense model backing the row at the given adapter position.
     public ExpenseModel getItem(int position) {
         return expenseList.get(position);
     }
 
+    // Gives the adapter a reference to the drag-to-reorder helper so long-press can start a drag.
     public void setItemTouchHelper(ItemTouchHelper helper) {
         this.itemTouchHelper = helper;
     }
 
     // Selection mode
 
+    // Turns on multi-select mode, notifies the host activity, and animates the checkbox column
+    // into view on all currently visible rows.
     public void enterSelectionMode() {
         selectionMode = true;
         if (selectionCallback != null) selectionCallback.onEnterSelectionMode();
@@ -190,6 +204,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         // Off-screen items will bind correctly via onBindViewHolder when scrolled to.
     }
 
+    // Turns off multi-select mode, clears the selection, notifies the host activity, and animates
+    // the checkbox column back out before eventually rebinding all rows.
     public void exitSelectionMode() {
         if (!selectionMode) return;
         selectionMode = false;
@@ -204,18 +220,22 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         }
     }
 
+    // Returns whether the adapter is currently in multi-select mode.
     public boolean isInSelectionMode() {
         return selectionMode;
     }
 
+    // Returns a copy of the currently selected row positions.
     public Set<Integer> getSelectedPositions() {
         return new HashSet<>(selectedPositions);
     }
 
+    // Returns true if every row is currently selected.
     public boolean isAllSelected() {
         return !expenseList.isEmpty() && selectedPositions.size() == expenseList.size();
     }
 
+    // Toggles between "select everything" and "select nothing", used by the toolbar's select-all action.
     public void selectAll() {
         if (isAllSelected()) {
             selectedPositions.clear();
@@ -230,6 +250,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         }
     }
 
+    // Flips one row's selected state, notifies the host activity of the new count, and
+    // automatically exits selection mode if the last selected item was just deselected.
     private void toggleSelection(int position) {
         if (selectedPositions.contains(position)) {
             selectedPositions.remove(position);
@@ -247,6 +269,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
 
     // Animation helpers
 
+    // Applies the checkbox slide-in/out animation to every row currently visible on screen
+    // (off-screen rows pick up the correct state naturally when they're bound).
     private void animateVisibleItems(boolean entering) {
         if (recyclerView == null) { notifyDataSetChanged(); return; }
         for (int i = 0; i < recyclerView.getChildCount(); i++) {
@@ -299,6 +323,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
 
     // Utility
 
+    // Builds the compact "$cost/unit" label shown under an expense's name (e.g. "$15.99/mo").
     private static String rateString(ExpenseModel expense) {
         int freq = expense.getFrequency();
         java.time.temporal.ChronoUnit tag = expense.getFrequencyTag();
@@ -317,6 +342,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         return "$" + expense.getCost() + "/" + unit;
     }
 
+    // Formats a date for display in the row (MM/dd/yyyy).
     private String expenseDateToString(LocalDate date) {
         return date.format(DateTimeFormatter.ofPattern("MM/dd/yyyy", Locale.US));
     }

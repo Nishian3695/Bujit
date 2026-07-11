@@ -18,6 +18,7 @@ and exposes select/edit/delete callbacks through the Listener interface.
 */
 public class IncomeStreamAdapter extends RecyclerView.Adapter<IncomeStreamViewHolder> {
 
+    // Notifies the host activity when the user taps a stream card, or its edit/delete icons.
     public interface Listener {
         void onSelect(int position);
         void onEdit(int position);
@@ -28,12 +29,14 @@ public class IncomeStreamAdapter extends RecyclerView.Adapter<IncomeStreamViewHo
     private final List<IncomeStreamModel> streams;
     private final Listener listener;
 
+    // Wires the adapter to the list of income streams and the select/edit/delete callback.
     public IncomeStreamAdapter(Context context, List<IncomeStreamModel> streams, Listener listener) {
         this.context = context;
         this.streams = streams;
         this.listener = listener;
     }
 
+    // Inflates a fresh income stream card layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public IncomeStreamViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -42,6 +45,8 @@ public class IncomeStreamAdapter extends RecyclerView.Adapter<IncomeStreamViewHo
         return new IncomeStreamViewHolder(v);
     }
 
+    // Populates one card's views from its IncomeStreamModel: name, pay details, "Active" styling
+    // for the selected stream, and the select/edit/delete click handlers.
     @Override
     public void onBindViewHolder(@NonNull IncomeStreamViewHolder holder, int position) {
         IncomeStreamModel stream = streams.get(position);
@@ -77,6 +82,7 @@ public class IncomeStreamAdapter extends RecyclerView.Adapter<IncomeStreamViewHo
         });
     }
 
+    // Tells the RecyclerView how many stream cards to display.
     @Override
     public int getItemCount() {
         return streams.size();

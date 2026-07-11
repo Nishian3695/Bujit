@@ -20,6 +20,7 @@ public class IncomeStreamModel implements Serializable {
     private boolean selected;
     private String googleTaskId = null;
 
+    // Creates a new income stream; not selected by default.
     public IncomeStreamModel(String name, String amount, String checkDate,
                              int frequency, int frequencyTag) {
         this.name = name;
@@ -38,6 +39,7 @@ public class IncomeStreamModel implements Serializable {
     public int    getFrequencyTag() { return frequencyTag; }
     public boolean isSelected()  { return selected; }
 
+    // Parses the pay amount as a float, defaulting to 0 on malformed data.
     public float getAmountFloat() {
         try { return Float.parseFloat(amount); } catch (NumberFormatException e) { return 0f; }
     }
@@ -52,6 +54,7 @@ public class IncomeStreamModel implements Serializable {
     public String getGoogleTaskId()            { return googleTaskId; }
     public void setGoogleTaskId(String id)     { this.googleTaskId = id; }
 
+    // Builds a human-readable pay cadence label, e.g. "Biweekly", "Every week", "Every 3 months".
     public String getFrequencyDisplayString() {
         String unit;
         switch (frequencyTag) {

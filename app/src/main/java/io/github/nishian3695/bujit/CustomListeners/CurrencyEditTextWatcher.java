@@ -13,6 +13,7 @@ public class CurrencyEditTextWatcher implements TextWatcher {
 
     // EditText being monitored
     private EditText editText;
+    // Attaches this watcher to the given field so it can trim/reposition its text as the user types.
     public CurrencyEditTextWatcher(EditText editText) {
         this.editText = editText;
     }
@@ -34,6 +35,7 @@ public class CurrencyEditTextWatcher implements TextWatcher {
         }
     }
 
+    // No action needed after text changes
     @Override
     public void afterTextChanged(Editable editable) {
 

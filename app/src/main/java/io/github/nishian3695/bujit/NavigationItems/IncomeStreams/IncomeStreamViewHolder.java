@@ -20,6 +20,8 @@ public class IncomeStreamViewHolder extends RecyclerView.ViewHolder {
     public final ImageView editIcon;
     public final ImageView deleteIcon;
 
+    // Looks up and caches every child view of a card once, so the adapter doesn't call
+    // findViewById on every bind.
     public IncomeStreamViewHolder(View itemView) {
         super(itemView);
         card         = itemView.findViewById(R.id.income_stream_card);

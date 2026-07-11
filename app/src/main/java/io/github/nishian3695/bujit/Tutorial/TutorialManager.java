@@ -11,12 +11,18 @@ import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventsActi
 import io.github.nishian3695.bujit.NavigationItems.Visuals.VisualsActivity;
 import io.github.nishian3695.bujit.R;
 
+// Drives the app-wide guided tutorial: a single ordered list of steps (STEPS) that can each
+// target a view in a different activity, with progress tracked via SharedPreferences so the
+// tutorial can resume correctly as the user navigates between activities/screens/app restarts.
 public class TutorialManager {
 
     public static final String PREFS_NAME  = "bujit_tutorial_prefs";
     public static final String KEY_SEEN    = "tutorial_seen";
     private static final String KEY_STEP   = "tutorial_step";
 
+    // Describes one tutorial step: which activity it belongs to, which view to spotlight, the
+    // title/message text, spotlight padding, and (optionally) which activity to auto-navigate to
+    // once the step is dismissed via "Next".
     public static class StepDef {
         public final Class<?> activityClass;
         public final int viewId;
@@ -25,6 +31,7 @@ public class TutorialManager {
         public final int spotPaddingDp;
         public final Class<?> nextActivity; // non-null = auto-navigate here after this step
 
+        // Full constructor: use when this step should auto-navigate to another activity next.
         public StepDef(Class<?> act, int viewId, String title, String message,
                        int spotPaddingDp, Class<?> nextActivity) {
             this.activityClass = act;
@@ -35,6 +42,7 @@ public class TutorialManager {
             this.nextActivity  = nextActivity;
         }
 
+        // Convenience constructor for steps that stay within the same activity (nextActivity = null).
         public StepDef(Class<?> act, int viewId, String title, String message, int spotPaddingDp) {
             this(act, viewId, title, message, spotPaddingDp, null);
         }
@@ -121,22 +129,27 @@ public class TutorialManager {
 
     // SharedPreferences helpers
 
+    // Returns true if the user has not yet finished (or skipped) the tutorial.
     public static boolean isActive(Context context) {
         return !context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                        .getBoolean(KEY_SEEN, false);
     }
 
+    // Returns the index of the next tutorial step to show.
     public static int getCurrentStep(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                       .getInt(KEY_STEP, 0);
     }
 
+    // Returns true if the tutorial is active AND its current step targets the given activity —
+    // the check each activity's onResume() uses to decide whether to show a tutorial overlay.
     public static boolean hasStepsForActivity(Context context, Class<?> activityClass) {
         if (!isActive(context)) return false;
         int step = getCurrentStep(context);
         return step < STEPS.length && STEPS[step].activityClass == activityClass;
     }
 
+    // Moves to the next tutorial step, marking the tutorial fully seen once the last step passes.
     public static void advance(Context context) {
         int next = getCurrentStep(context) + 1;
         SharedPreferences.Editor ed =
@@ -146,11 +159,14 @@ public class TutorialManager {
         ed.apply();
     }
 
+    // Immediately marks the tutorial as fully seen, e.g. when the user taps "Skip".
     public static void markDone(Context context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                .edit().putBoolean(KEY_SEEN, true).apply();
     }
 
+    // Resets tutorial progress back to step 0 and marks it unseen, so it replays from the start
+    // (used by the "Replay Tutorial" row in Settings).
     public static void reset(Context context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                .edit()

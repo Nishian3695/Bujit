@@ -19,6 +19,8 @@ Bottom strip: value/brightness selector (black → full-brightness color).
 */
 public class ColorWheelView extends View {
 
+    // Callback fired whenever the user drags a new color into the wheel or strip, so hosts
+    // (e.g. category color pickers) can live-preview the selection.
     public interface OnColorChangedListener {
         void onColorChanged(int color);
     }
@@ -43,22 +45,29 @@ public class ColorWheelView extends View {
 
     private OnColorChangedListener listener;
 
+    // Standard View constructors (code-created, XML-inflated, XML-inflated with style) — all just
+    // delegate to init() so the selector ring size is set up regardless of how the view is created.
     public ColorWheelView(Context context) { super(context); init(context); }
     public ColorWheelView(Context context, AttributeSet attrs) { super(context, attrs); init(context); }
     public ColorWheelView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle); init(context);
     }
 
+    // Converts the selector ring size from dp to actual pixels for this device's screen density.
     private void init(Context context) {
         selectorRadius = SELECTOR_RING_DP * context.getResources().getDisplayMetrics().density;
     }
 
+    // Registers the callback that will be notified whenever the picked color changes.
     public void setOnColorChangedListener(OnColorChangedListener l) { this.listener = l; }
 
+    // Combines the current hue/saturation/value into a single ARGB color int.
     public int getColor() {
         return Color.HSVToColor(new float[]{hue, saturation, value});
     }
 
+    // Programmatically sets the displayed color (e.g. when opening the picker for an existing
+    // category), splitting it into hue/saturation/value and redrawing the brightness strip to match.
     public void setColor(int color) {
         float[] hsv = new float[3];
         Color.colorToHSV(color, hsv);
@@ -69,6 +78,8 @@ public class ColorWheelView extends View {
         invalidate();
     }
 
+    // Recomputes the wheel and strip geometry whenever the view is laid out or resized, then
+    // regenerates the bitmaps that back them at the new size.
     @Override
     protected void onSizeChanged(int w, int h, int oldW, int oldH) {
         if (w <= 0 || h <= 0) return;
@@ -90,6 +101,8 @@ public class ColorWheelView extends View {
         rebuildStripBitmap();
     }
 
+    // Renders the circular hue/saturation wheel pixel-by-pixel into a bitmap: angle from center
+    // maps to hue, distance from center maps to saturation. Expensive, so only done on resize.
     private void buildWheelBitmap(int size) {
         if (size <= 0) return;
         Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
@@ -131,6 +144,8 @@ public class ColorWheelView extends View {
         stripBitmap = bm;
     }
 
+    // Paints the wheel bitmap, the brightness-darkening overlay, the strip bitmap and border,
+    // and the two draggable selector rings (one on the wheel, one on the strip) each frame.
     @Override
     protected void onDraw(Canvas canvas) {
         if (wheelBitmap == null || stripBitmap == null) return;
@@ -170,6 +185,8 @@ public class ColorWheelView extends View {
         drawSelector(canvas, bx, by);
     }
 
+    // Draws a small ring (fill + white outline + subtle dark outline) at the given point to mark
+    // the currently selected position on either the wheel or the strip.
     private void drawSelector(Canvas canvas, float x, float y) {
         selectorPaint.setStyle(Paint.Style.FILL);
         selectorPaint.setColor(getColor());
@@ -186,6 +203,9 @@ public class ColorWheelView extends View {
         canvas.drawCircle(x, y, selectorRadius + 2f, selectorPaint);
     }
 
+    // Handles taps/drags: touches above the strip update hue+saturation from the touch's angle
+    // and distance from the wheel center; touches on the strip update brightness from x position.
+    // Notifies the listener with the new color after every update.
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();

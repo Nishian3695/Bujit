@@ -19,6 +19,8 @@ public class BankAccountViewHolder extends RecyclerView.ViewHolder {
     final TextView ledgerBalance;
     final TextView availableBalance;
 
+    // Looks up and caches every child view of a card once, so the adapter doesn't call
+    // findViewById on every bind.
     public BankAccountViewHolder(@NonNull View itemView) {
         super(itemView);
         institutionName  = itemView.findViewById(R.id.bank_institution_name);

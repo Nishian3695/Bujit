@@ -14,6 +14,7 @@ Shared helpers for counting income/expense occurrences within a half-open date r
 */
 public final class FinancialCalc {
 
+    // Prevents instantiation — this class is a static-only utility holder.
     private FinancialCalc() {}
 
     private static final DateTimeFormatter CHECK_DATE_FMT =

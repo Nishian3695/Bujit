@@ -124,6 +124,7 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String TIP_MEDIUM = "tip_medium";
     private static final String TIP_LARGE  = "tip_large";
 
+    // Handles the result of the Google Sign-In flow, completing calendar sync setup on success.
     private final ActivityResultLauncher<Intent> googleSignInLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
@@ -138,11 +139,13 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             });
 
+    // Handles the result of the system file picker used for "Import CSV".
     private final ActivityResultLauncher<String[]> csvPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri != null) performCsvImport(uri);
             });
 
+    // Handles the result of the system "Save As" dialog used for "Save CSV template to device".
     private final ActivityResultLauncher<String> createTemplateLauncher =
             registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
                 if (uri == null) return;
@@ -156,6 +159,9 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             });
 
+    // Inflates the settings screen and wires up every section: appearance (accent color/theme),
+    // Google Calendar sync, app lock, category manager link, CSV import/export, single-event
+    // expiry, help/legal links, and the in-app tip jar.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -332,6 +338,8 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    // Always reports whether calendar sync was toggled this session, so ExpenseActivity knows to
+    // trigger the initial sync/cleanup on resume regardless of how this screen was exited.
     @Override
     public void finish() {
         Intent data = new Intent();
@@ -340,6 +348,7 @@ public class SettingsActivity extends AppCompatActivity {
         super.finish();
     }
 
+    // Makes the toolbar's back arrow close this screen.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -349,6 +358,7 @@ public class SettingsActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // Shows the "Connect"/"Connected as ..." row based on current Google sign-in and sync state.
     private void refreshGoogleSyncUI() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
         boolean synced = GoogleTasksHelper.isCalendarSyncEnabled(this);
@@ -363,10 +373,12 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Launches the Google Sign-In UI.
     private void startGoogleSignIn() {
         googleSignInLauncher.launch(googleSignInClient.getSignInIntent());
     }
 
+    // Marks calendar sync as enabled and refreshes the UI after a successful Google sign-in.
     private void onGoogleSignInSuccess(GoogleSignInAccount account) {
         // Clear pending_disconnect in case the user disconnected then reconnected this session.
         getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE)
@@ -379,6 +391,7 @@ public class SettingsActivity extends AppCompatActivity {
         Toast.makeText(this, "Google Calendar sync enabled", Toast.LENGTH_SHORT).show();
     }
 
+    // Confirms before disconnecting Google Calendar sync (since it deletes tasks server-side).
     private void confirmDisconnect() {
         new AlertDialog.Builder(this)
                 .setTitle("Disconnect Google Calendar")
@@ -388,6 +401,8 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Flags calendar sync as disabled and pending-disconnect, so ExpenseActivity deletes the
+    // remaining Google Tasks (while the token is still valid) and signs the user out on resume.
     private void performDisconnect() {
         // Mark pending so ExpenseActivity deletes tasks (while token is still valid) then signs out.
         getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE)
@@ -400,6 +415,7 @@ public class SettingsActivity extends AppCompatActivity {
         Toast.makeText(this, "Google Calendar sync disabled", Toast.LENGTH_SHORT).show();
     }
 
+    // Highlights the currently saved accent color swatch and theme-mode toggle button on screen load.
     private void loadCurrentSelections() {
         String savedColor = ThemeHelper.getSavedColor(this);
         for (int i = 0; i < COLOR_KEYS.length; i++) {
@@ -421,11 +437,14 @@ public class SettingsActivity extends AppCompatActivity {
         themeToggle.check(btnId);
     }
 
+    // Saves the tapped preset accent color and recreates the activity so it takes effect.
     private void onColorSelected(String colorKey, int index) {
         ThemeHelper.saveColor(this, colorKey);
         recreate();
     }
 
+    // Shows the custom accent color dialog: a ColorWheelView kept in sync with a hex text field
+    // and a live preview swatch, saving the chosen color as the custom accent on "Apply".
     private void showColorPickerDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_color_picker, null);
         ColorWheelView colorWheel = dialogView.findViewById(R.id.color_wheel);
@@ -485,6 +504,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Confirms before wiping all app data (an irreversible action).
     private void confirmClearData() {
         new AlertDialog.Builder(this)
                 .setTitle("Clear All Data")
@@ -494,6 +514,8 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Deletes the serialized expense data file, all app SharedPreferences, and encrypted banking
+    // tokens, then relaunches ExpenseActivity as a fresh install.
     private void performClearData() {
         File dataDir = new File(getFilesDir(), "BujitExpenseData");
         // Legacy unencrypted serialized file
@@ -518,6 +540,7 @@ public class SettingsActivity extends AppCompatActivity {
         finish();
     }
 
+    // Runs the CSV import and shows a summary/warning/error dialog with the outcome.
     private void performCsvImport(Uri uri) {
         CsvImportHelper.ImportResult result = CsvImportHelper.importFromUri(this, uri);
         if (!result.hasData() && result.errors.isEmpty()) {
@@ -538,6 +561,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Lets the user choose whether to save the CSV import template to device or share it directly.
     private void promptTemplateAction() {
         new AlertDialog.Builder(this)
                 .setTitle("CSV Template")
@@ -551,6 +575,8 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Writes the CSV template to a cache file and hands it off to the system share sheet via a
+    // FileProvider content URI.
     private void shareTemplateViaIntent() {
         try {
             File file = new File(getCacheDir(), "bujit_import_template.csv");
@@ -570,11 +596,13 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Resets the guided tutorial's progress and closes Settings so it replays from the start.
     private void startTutorial() {
         TutorialManager.reset(this);
         finish();
     }
 
+    // Opens the GitHub "new issue" page in the device browser for bug reports/suggestions.
     private void openHelpEmail() {
         Intent intent = new Intent(Intent.ACTION_VIEW,
                 Uri.parse("https://github.com/Nishian3695/Bujit/issues/new"));
@@ -585,14 +613,17 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Opens Bujit's own privacy policy in the device browser.
     private void openPrivacyPolicy() {
         openUrl("https://nishian3695.github.io/Bujit/privacy-policy.html");
     }
 
+    // Opens the banking provider's (Plaid's) privacy statement in the device browser.
     private void openTellerPrivacy() {
         openUrl("https://plaid.com/legal/#privacy-statement");
     }
 
+    // Opens a URL in the device's default browser, showing a toast if none is available.
     private void openUrl(String url) {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         try {
@@ -602,6 +633,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Shows the "not a financial advisor" legal disclaimer text in a dialog.
     private void showDisclaimer() {
         new AlertDialog.Builder(this)
                 .setTitle("Disclaimer")
@@ -610,23 +642,28 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay so it doesn't leak past this screen's lifecycle.
     @Override
     protected void onPause() {
         removeTutorialOverlay();
         super.onPause();
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, SettingsActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), wiring "Next"/"Skip" to
+    // advance to the next step or return home once the tutorial finishes.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -662,6 +699,7 @@ public class SettingsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -670,12 +708,14 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Converts a dp value to actual pixels for this device's screen density.
     private float dpToPx(int dp) {
         return dp * getResources().getDisplayMetrics().density;
     }
 
     // ── Tip jar / billing ────────────────────────────────────────────────────
 
+    // Connects to the Play Billing service and queries the tip jar products once ready.
     private void setupBilling() {
         billingClient = BillingClient.newBuilder(this)
                 .setListener(this::onPurchasesUpdated)
@@ -698,6 +738,8 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    // Fetches Play Store pricing for the three one-time tip products and updates each button's
+    // label with its localized price once the data comes back.
     private void queryTipProducts() {
         List<QueryProductDetailsParams.Product> products = Arrays.asList(
                 QueryProductDetailsParams.Product.newBuilder()
@@ -721,6 +763,7 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
+    // Sets one tip button's label to an emoji + its formatted Play Store price.
     private void updateTipButton(ProductDetails pd) {
         if (pd.getOneTimePurchaseOfferDetails() == null) return;
         String price = pd.getOneTimePurchaseOfferDetails().getFormattedPrice();
@@ -732,6 +775,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    // Launches the Play Billing purchase flow for the given tip product.
     private void launchTip(String productId) {
         ProductDetails pd = tipProducts.get(productId);
         if (pd == null) {
@@ -747,6 +791,8 @@ public class SettingsActivity extends AppCompatActivity {
         billingClient.launchBillingFlow(this, params);
     }
 
+    // BillingClient listener: consumes each completed tip purchase immediately (tips are one-time,
+    // non-refundable "consumable" products) and thanks the user once the consume succeeds.
     private void onPurchasesUpdated(BillingResult result, List<Purchase> purchases) {
         if (result.getResponseCode() != BillingClient.BillingResponseCode.OK || purchases == null) return;
         for (Purchase purchase : purchases) {
@@ -762,6 +808,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // Closes the Play Billing connection so it doesn't leak past this activity's lifecycle.
     @Override
     protected void onDestroy() {
         if (billingClient != null) billingClient.endConnection();

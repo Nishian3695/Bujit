@@ -45,6 +45,7 @@ public class GoogleTasksHelper {
         public final int created;
         public final int failed;
         public final String lastError;
+        // Bundles the outcome counts of a syncAll() call.
         SyncResult(int created, int failed, String lastError) {
             this.created   = created;
             this.failed    = failed;
@@ -56,12 +57,14 @@ public class GoogleTasksHelper {
     private final OkHttpClient client;
     private final SharedPreferences prefs;
 
+    // Builds a helper bound to the app context, with its own HTTP client and preferences file.
     public GoogleTasksHelper(Context context) {
         this.context = context.getApplicationContext();
         this.client  = new OkHttpClient();
         this.prefs   = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
+    // Builds a Google Sign-In client configured to request the Tasks API scope.
     public static GoogleSignInClient buildSignInClient(Context context) {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
@@ -70,6 +73,7 @@ public class GoogleTasksHelper {
         return GoogleSignIn.getClient(context, gso);
     }
 
+    // Returns true only if the user is signed in to Google AND has explicitly turned sync on.
     public static boolean isCalendarSyncEnabled(Context context) {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
         if (account == null) return false;
@@ -77,6 +81,7 @@ public class GoogleTasksHelper {
                 .getBoolean(KEY_SYNC_ENABLED, false);
     }
 
+    // Fetches a fresh OAuth token scoped to the Tasks API for the signed-in Google account.
     // Must run on background thread.
     private String getAccessToken() throws Exception {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
@@ -152,6 +157,8 @@ public class GoogleTasksHelper {
         }
     }
 
+    // Computes the next unpaid due date for an expense (rolling forward past occurrences),
+    // formatted as an RFC3339 date for the Tasks API's "due" field.
     private String expenseDueDate(ExpenseModel e) {
         LocalDate date = e.getDate();
         LocalDate today = LocalDate.now();
@@ -161,6 +168,8 @@ public class GoogleTasksHelper {
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
     }
 
+    // Computes the next unpaid paycheck date for an income stream (rolling forward past
+    // occurrences), formatted as an RFC3339 date for the Tasks API's "due" field.
     private String incomeDueDate(IncomeStreamModel s) {
         LocalDate date = LocalDate.parse(s.getCheckDate(),
                 DateTimeFormatter.ofPattern("yyyy.MM.dd"));
@@ -178,6 +187,7 @@ public class GoogleTasksHelper {
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
     }
 
+    // Builds the JSON body for creating/updating a Google Task representing an expense.
     private JSONObject buildExpenseTask(ExpenseModel expense) throws Exception {
         JSONObject task = new JSONObject();
         task.put("title", expense.getName() + " — $" + expense.getCost());
@@ -190,6 +200,7 @@ public class GoogleTasksHelper {
         return task;
     }
 
+    // Builds the JSON body for creating a Google Task representing an income stream paycheck.
     private JSONObject buildIncomeTask(IncomeStreamModel stream) throws Exception {
         JSONObject task = new JSONObject();
         task.put("title", "Paycheck: " + stream.getName() + " — $" + stream.getAmount());
@@ -324,6 +335,7 @@ public class GoogleTasksHelper {
         prefs.edit().remove(KEY_SYNC_ENABLED).remove(KEY_LIST_ID).apply();
     }
 
+    // Reads an HTTP response body as a string, returning "" instead of throwing on failure.
     private static String bodyString(Response resp) {
         try {
             ResponseBody b = resp.body();

@@ -66,6 +66,8 @@ public class ExpenseModel implements Serializable {
     private String category = "Other";
 
     //Constructor
+    // Creates a new expense/credit entry with its base recurrence data; shownDate/shownCost start
+    // out equal to the base values until a check-period navigation updates them.
     public ExpenseModel(String expenseName, String expenseCost, LocalDate expenseDate,
                         int expenseFrequency, ChronoUnit expenseFrequencyTag,
                         boolean expenseIsVariable) {
@@ -218,6 +220,7 @@ public class ExpenseModel implements Serializable {
     public String getCreditLimit() {
         return this.creditLimit;
     }
+    // Computes this credit card's utilization percentage (balance / limit) as a formatted string.
     public String getCreditUtil() {
         float utilization = Float.parseFloat(this.expenseCost) / Float.parseFloat(this.creditLimit);
         float percentUtil = utilization  * 100;

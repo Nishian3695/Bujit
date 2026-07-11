@@ -107,6 +107,8 @@ public class BankingPrefs {
         }
     }
 
+    // Decrypts every encrypted preference with the old key and re-encrypts it under the current
+    // (v4) key; any entry that fails to decrypt is dropped rather than left corrupted.
     private static void reEncryptAll(Context ctx, SecretKey oldKey) throws Exception {
         SharedPreferences.Editor editor = prefs(ctx).edit();
         for (String key : ALL_ENCRYPTED_KEYS) {
@@ -125,30 +127,37 @@ public class BankingPrefs {
 
     // ── Public API ───────────────────────────────────────────────────────────
 
+    // Teller: loads the set of stored access tokens, decrypting them.
     public static Set<String> loadTokens(Context ctx) {
         return loadEncryptedSet(ctx, KEY_TOKENS);
     }
 
+    // Teller: encrypts and persists the set of access tokens.
     public static void saveTokens(Context ctx, Set<String> tokens) {
         saveEncryptedSet(ctx, KEY_TOKENS, tokens);
     }
 
+    // Teller: loads the set of linked account composite keys ("token|accountId").
     public static Set<String> loadLinkedAccounts(Context ctx) {
         return loadEncryptedSet(ctx, KEY_LINKED_ACCOUNTS);
     }
 
+    // Teller: encrypts and persists the set of linked account composite keys.
     public static void saveLinkedAccounts(Context ctx, Set<String> accounts) {
         saveEncryptedSet(ctx, KEY_LINKED_ACCOUNTS, accounts);
     }
 
+    // Returns the timestamp of the last successful balance sync (unencrypted, not sensitive).
     public static long loadLastSync(Context ctx) {
         return prefs(ctx).getLong(KEY_LAST_SYNC, 0L);
     }
 
+    // Records the timestamp of the most recent successful balance sync.
     public static void saveLastSync(Context ctx, long millis) {
         prefs(ctx).edit().putLong(KEY_LAST_SYNC, millis).apply();
     }
 
+    // Teller: looks up the access token that owns a given account ID.
     public static String getTokenForAccount(Context ctx, String accountId) {
         if (accountId == null) return null;
         try {
@@ -161,6 +170,7 @@ public class BankingPrefs {
         }
     }
 
+    // Teller: records (encrypted) which access token owns a given account ID.
     public static void saveAccountToken(Context ctx, String accountId, String token) {
         if (accountId == null || token == null) return;
         try {
@@ -176,22 +186,27 @@ public class BankingPrefs {
 
     // Plaid public API
 
+    // Plaid: loads the set of stored access tokens, decrypting them.
     public static Set<String> loadPlaidTokens(Context ctx) {
         return loadEncryptedSet(ctx, KEY_PLAID_TOKENS);
     }
 
+    // Plaid: encrypts and persists the set of access tokens.
     public static void savePlaidTokens(Context ctx, Set<String> tokens) {
         saveEncryptedSet(ctx, KEY_PLAID_TOKENS, tokens);
     }
 
+    // Plaid: loads the set of linked account composite keys ("token|accountId").
     public static Set<String> loadPlaidLinkedAccounts(Context ctx) {
         return loadEncryptedSet(ctx, KEY_PLAID_LINKED_ACCOUNTS);
     }
 
+    // Plaid: encrypts and persists the set of linked account composite keys.
     public static void savePlaidLinkedAccounts(Context ctx, Set<String> accounts) {
         saveEncryptedSet(ctx, KEY_PLAID_LINKED_ACCOUNTS, accounts);
     }
 
+    // Plaid: looks up the access token that owns a given account ID.
     public static String getPlaidTokenForAccount(Context ctx, String accountId) {
         if (accountId == null) return null;
         try {
@@ -204,6 +219,7 @@ public class BankingPrefs {
         }
     }
 
+    // Plaid: records (encrypted) which access token owns a given account ID.
     public static void savePlaidAccountToken(Context ctx, String accountId, String token) {
         if (accountId == null || token == null) return;
         try {
@@ -217,14 +233,17 @@ public class BankingPrefs {
         }
     }
 
+    // Loads the set of manual-account IDs the user selected to contribute to the balance.
     public static Set<String> loadManualLinkedIds(Context ctx) {
         return loadEncryptedSet(ctx, KEY_MANUAL_LINKED_IDS);
     }
 
+    // Encrypts and persists the set of selected manual-account IDs.
     public static void saveManualLinkedIds(Context ctx, Set<String> ids) {
         saveEncryptedSet(ctx, KEY_MANUAL_LINKED_IDS, ids);
     }
 
+    // Wipes all stored Plaid tokens/links, e.g. when the user disconnects or switches providers.
     public static void clearPlaid(Context ctx) {
         prefs(ctx).edit()
                 .remove(KEY_PLAID_TOKENS)
@@ -233,6 +252,7 @@ public class BankingPrefs {
                 .apply();
     }
 
+    // Wipes all stored banking data (both providers) and deletes every Keystore key.
     public static void clear(Context ctx) {
         prefs(ctx).edit().clear().apply();
         try {
@@ -248,10 +268,12 @@ public class BankingPrefs {
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
+    // Returns the raw (unencrypted-storage-layer) SharedPreferences file used by this class.
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE);
     }
 
+    // Reads and decrypts a String-set preference, returning an empty set on any failure.
     private static Set<String> loadEncryptedSet(Context ctx, String key) {
         try {
             String encoded = prefs(ctx).getString(key, null);
@@ -263,6 +285,7 @@ public class BankingPrefs {
         }
     }
 
+    // Encrypts and writes a String-set preference.
     private static void saveEncryptedSet(Context ctx, String key, Set<String> values) {
         try {
             prefs(ctx).edit().putString(key, encryptSet(values)).apply();
@@ -271,6 +294,8 @@ public class BankingPrefs {
         }
     }
 
+    // Returns the current (v4) AndroidKeyStore AES key, generating a new hardware-backed one if
+    // it doesn't exist yet.
     private static SecretKey getOrCreateKey() throws Exception {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
         ks.load(null);
@@ -289,6 +314,7 @@ public class BankingPrefs {
         return kg.generateKey();
     }
 
+    // AES-256-GCM encrypts a set of strings (as a JSON array) and base64-encodes IV+ciphertext together.
     private static String encryptSet(Set<String> values) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey());
@@ -302,6 +328,7 @@ public class BankingPrefs {
         return Base64.encodeToString(out, Base64.NO_WRAP);
     }
 
+    // Reverses encryptSet(): splits IV from ciphertext, decrypts, and parses back into a String set.
     private static Set<String> decryptSet(String encoded) throws Exception {
         byte[] combined = Base64.decode(encoded, Base64.NO_WRAP);
         byte[] iv  = Arrays.copyOfRange(combined,  0, 12);
@@ -314,6 +341,7 @@ public class BankingPrefs {
         return result;
     }
 
+    // AES-256-GCM encrypts a plain string and base64-encodes IV+ciphertext together.
     private static String encryptString(String plaintext) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey());
@@ -325,6 +353,7 @@ public class BankingPrefs {
         return Base64.encodeToString(out, Base64.NO_WRAP);
     }
 
+    // Reverses encryptString(): splits IV from ciphertext and decrypts with the current (v4) key.
     private static String decryptString(String encoded) throws Exception {
         byte[] combined = Base64.decode(encoded, Base64.NO_WRAP);
         byte[] iv  = Arrays.copyOfRange(combined,  0, 12);

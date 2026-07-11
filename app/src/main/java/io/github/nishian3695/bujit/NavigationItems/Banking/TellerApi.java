@@ -11,7 +11,10 @@ creditLimit is 0 for Teller (not exposed by the API; caller falls back to ledger
 fetchAccountBalance returns just the ledger balance for one account.
 */
 interface TellerApi {
+    // Fetches every account enrolled under this client's access token.
     List<BankAccountModel> fetchAccounts() throws IOException;
+    // Fetches a single account's [ledger, available, creditLimit] balance triple.
     float[] fetchAccountBalancePair(String accountId) throws IOException;
+    // Fetches a single account's ledger balance.
     float fetchAccountBalance(String accountId) throws IOException;
 }

@@ -71,6 +71,8 @@ public class IncomeStreamsActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private View emptyState;
 
+    // Inflates the income streams screen, loads the stream list passed in via Intent extra, and
+    // wires up select/edit/delete handling plus the "add" FAB.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -151,6 +153,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         updateUiState();
     }
 
+    // Makes the toolbar's back arrow return the updated stream list to ExpenseActivity.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -160,6 +163,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // Sends the current stream list back to the caller and closes this screen.
     private void returnResult() {
         Intent result = new Intent();
         result.putExtra("incomeStreamList", streamList);
@@ -169,6 +173,8 @@ public class IncomeStreamsActivity extends AppCompatActivity {
 
     // Add / Edit dialog
 
+    // Builds the add/edit income stream dialog: name, amount, start date (auto-walked back to
+    // the most recent past occurrence), and a frequency picker with a "Custom" magnitude+unit path.
     private void showAddEditDialog(int position) {
         boolean isEdit = position >= 0;
         IncomeStreamModel existing = isEdit ? streamList.get(position) : null;
@@ -346,6 +352,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
 
     // UI state
 
+    // Toggles between the "no income streams" placeholder and the stream list.
     private void updateUiState() {
         if (streamList.isEmpty()) {
             emptyState.setVisibility(View.VISIBLE);
@@ -358,6 +365,8 @@ public class IncomeStreamsActivity extends AppCompatActivity {
 
     // Persist to storage
 
+    // Writes the current stream list directly to disk as a safety net in case the activity is
+    // killed before the setResult/onActivityResult path delivers the change to ExpenseActivity.
     private void persistToStorage() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -369,12 +378,15 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         }
     }
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay, persists changes to disk, and signals ExpenseActivity
+    // to reload — covering every exit path (back arrow, swipe gesture, home button, process kill).
     @Override
     protected void onPause() {
         removeTutorialOverlay();
@@ -395,11 +407,14 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         setResult(RESULT_OK, result);
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, IncomeStreamsActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), wiring "Next"/"Skip" to
+    // advance to the next step, hand off to another activity's tutorial, or return home.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -441,6 +456,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -460,6 +476,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         return CUSTOM_INDEX;
     }
 
+    // Maps a frequencyTag code (0=Days..3=Years) to the matching java.util.Calendar field.
     private int tagToCalendarField(int tag) {
         switch (tag) {
             case 0: return Calendar.DAY_OF_MONTH;
@@ -469,6 +486,7 @@ public class IncomeStreamsActivity extends AppCompatActivity {
         }
     }
 
+    // Formats a Calendar using the given pattern (e.g. VIEW_FORMAT, STORE_FORMAT, COMPARE_FORMAT).
     private String calendarToString(Calendar calendar, String format) {
         return new SimpleDateFormat(format, Locale.US).format(calendar.getTime());
     }

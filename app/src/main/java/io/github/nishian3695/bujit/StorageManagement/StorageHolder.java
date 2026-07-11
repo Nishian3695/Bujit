@@ -35,6 +35,8 @@ public class StorageHolder implements Serializable {
     private ArrayList<ManualAccountModel> manualAccountList;
     // endregion
 
+    // Initializes sane default values (zero balance, weekly check period starting today, default
+    // categories) so a brand-new install has a working state before any data is saved.
     public StorageHolder() {
         expenseList = new ArrayList<>();
         currentBalance = "0.00";

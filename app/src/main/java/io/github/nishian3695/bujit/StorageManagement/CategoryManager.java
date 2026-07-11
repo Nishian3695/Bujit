@@ -3,6 +3,8 @@ package io.github.nishian3695.bujit.StorageManagement;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+// Holds the app's spending-category constants/defaults and the shared logic for building the
+// category dropdown shown in the add/edit expense dialog.
 public class CategoryManager {
 
     public static final String OTHER = "Other";
@@ -14,6 +16,7 @@ public class CategoryManager {
         "Utilities", "Healthcare", "Shopping", "Subscriptions"
     };
 
+    // Returns the built-in starter category list for new installs.
     public static ArrayList<String> getDefaults() {
         return new ArrayList<>(Arrays.asList(DEFAULTS));
     }

@@ -23,6 +23,8 @@ public class CreditViewHolder extends RecyclerView.ViewHolder implements View.On
     ProgressBar creditUtilBar;
     WeakReference<ClickListener> listenerReference;
 
+    // Looks up and caches every child view of a row once, and wires the row's click/long-click
+    // handlers to forward to the supplied listener.
     public CreditViewHolder(@NonNull View itemView, ClickListener clickListener) {
         super(itemView);
 
@@ -40,11 +42,13 @@ public class CreditViewHolder extends RecyclerView.ViewHolder implements View.On
         creditLinearLayout.setOnLongClickListener(this);
     }
 
+    // Forwards a tap on this row to the host's onPositionClicked.
     @Override
     public void onClick(View view) {
         listenerReference.get().onPositionClicked(getAdapterPosition());
     }
 
+    // Forwards a long-press on this row to the host's onLongClicked.
     @Override
     public boolean onLongClick(View view) {
         listenerReference.get().onLongClicked(getAdapterPosition());

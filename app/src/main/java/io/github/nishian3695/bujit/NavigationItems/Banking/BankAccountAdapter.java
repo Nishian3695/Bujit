@@ -19,11 +19,13 @@ public class BankAccountAdapter extends RecyclerView.Adapter<BankAccountViewHold
     private final Context context;
     private final List<BankAccountModel> accounts;
 
+    // Wires the adapter to the list of accounts to display.
     public BankAccountAdapter(Context context, List<BankAccountModel> accounts) {
         this.context = context;
         this.accounts = accounts;
     }
 
+    // Inflates a fresh bank account card layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public BankAccountViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -31,6 +33,7 @@ public class BankAccountAdapter extends RecyclerView.Adapter<BankAccountViewHold
         return new BankAccountViewHolder(view);
     }
 
+    // Populates one card's views from its BankAccountModel.
     @Override
     public void onBindViewHolder(@NonNull BankAccountViewHolder holder, int position) {
         BankAccountModel account = accounts.get(position);
@@ -44,11 +47,14 @@ public class BankAccountAdapter extends RecyclerView.Adapter<BankAccountViewHold
         holder.availableBalance.setText("Available: $" + formatBalance(account.getAvailableBalance()));
     }
 
+    // Tells the RecyclerView how many account cards to display.
     @Override
     public int getItemCount() {
         return accounts.size();
     }
 
+    // Parses a raw balance string and re-formats it to two decimal places, falling back to the
+    // raw string unchanged if it isn't a valid number.
     private String formatBalance(String raw) {
         if (raw == null || raw.isEmpty()) return "0.00";
         try {

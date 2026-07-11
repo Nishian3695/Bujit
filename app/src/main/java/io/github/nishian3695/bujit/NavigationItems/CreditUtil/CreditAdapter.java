@@ -27,12 +27,14 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
     ArrayList<ExpenseModel> creditList;
     private ClickListener clickListener;
 
+    // Wires the adapter to the list of credit-card expenses and the click callback.
     public CreditAdapter(Context context, ArrayList<ExpenseModel> creditList, ClickListener clickListener) {
         this.context = context;
         this.creditList = creditList;
         this.clickListener = clickListener;
     }
 
+    // Inflates a fresh credit card row layout and wraps it in a ViewHolder.
     @NonNull
     @Override
     public CreditViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -40,6 +42,8 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
         return new CreditViewHolder(creditView, clickListener);
     }
 
+    // Populates one row's views from its ExpenseModel: name, debt, limit, and a color-coded
+    // utilization percentage/progress bar.
     @Override
     public void onBindViewHolder(@NonNull CreditViewHolder holder, int position) {
         ExpenseModel credit = creditList.get(position);
@@ -69,21 +73,25 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
                 ColorStateList.valueOf(ContextCompat.getColor(context, color)));
     }
 
+    // Tells the RecyclerView how many credit card rows to display.
     @Override
     public int getItemCount() {
         return creditList.size();
     }
 
+    // Returns the expense model backing the row at the given adapter position.
     public ExpenseModel getItem(int position) {
         return creditList.get(position);
     }
 
+    // Maps a utilization percentage to a color: green under 30%, yellow under 70%, red at/above.
     private int utilColor(int pct) {
         if (pct < 30) return R.color.balance_positive;
         if (pct < 70) return R.color.util_warning;
         return R.color.balance_negative;
     }
 
+    // Parses a raw amount string and re-formats it to two decimal places, defaulting to "0.00".
     private String formatAmount(String raw) {
         if (raw == null || raw.isEmpty()) return "0.00";
         try { return String.format(Locale.US, "%.2f", Double.parseDouble(raw)); }

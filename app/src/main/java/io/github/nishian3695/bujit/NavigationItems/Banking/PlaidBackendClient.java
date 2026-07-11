@@ -36,6 +36,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
     private final String firebaseIdToken;
     private final String appCheckToken;
 
+    // Builds a client scoped to one access token, carrying the auth tokens needed on every request.
     public PlaidBackendClient(Context context, String accessToken, String firebaseIdToken, String appCheckToken) {
         this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
@@ -100,6 +101,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         }
     }
 
+    // Tells the backend to revoke this access token with Plaid (called before local cleanup).
     @Override
     public void revokeToken() throws IOException {
         RequestBody body = RequestBody.create("{}", JSON);
@@ -120,6 +122,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         }
     }
 
+    // Fetches all accounts under this access token and parses them into BankAccountModels.
     @Override
     public List<BankAccountModel> fetchAccounts() throws IOException {
         Log.d(TAG, "PlaidBackendClient: GET /plaid/accounts");
@@ -155,6 +158,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         return accounts;
     }
 
+    // Fetches one account's ledger/available/limit balances in a single call.
     @Override
     public float[] fetchAccountBalancePair(String accountId) throws IOException {
         String path = "/plaid/accounts/" + accountId + "/balance";
@@ -173,6 +177,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         }
     }
 
+    // Fetches just the ledger balance for one account.
     @Override
     public float fetchAccountBalance(String accountId) throws IOException {
         String path = "/plaid/accounts/" + accountId + "/balance";
@@ -188,6 +193,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         }
     }
 
+    // Builds a GET request against the backend, attaching the Plaid token and auth headers.
     private Request buildRequest(String path) {
         return new Request.Builder()
                 .url(BASE + path)
@@ -214,6 +220,7 @@ public class PlaidBackendClient implements PlaidApi, BankingApiClient {
         }
     }
 
+    // Parses a balance string, returning 0 instead of throwing on invalid input.
     private float parseFloatSafe(String s) {
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }

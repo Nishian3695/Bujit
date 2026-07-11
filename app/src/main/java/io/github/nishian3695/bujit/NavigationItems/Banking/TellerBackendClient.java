@@ -36,6 +36,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
     private final String firebaseIdToken;
     private final String appCheckToken;
 
+    // Builds a client scoped to one access token, carrying the auth tokens needed on every request.
     public TellerBackendClient(Context context, String accessToken, String firebaseIdToken, String appCheckToken) {
         this.accessToken     = accessToken;
         this.firebaseIdToken = firebaseIdToken;
@@ -43,6 +44,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         this.http            = BankingProviderConfig.buildSecureHttpClient();
     }
 
+    // Tells the backend to revoke this access token with Teller (called before local cleanup).
     @Override
     public void revokeToken() throws IOException {
         RequestBody body = RequestBody.create("{}", JSON);
@@ -63,6 +65,8 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         }
     }
 
+    // Fetches all accounts under this enrollment, then makes one extra request per account to
+    // fill in ledger/available balances (Teller's /accounts list endpoint doesn't include them).
     @Override
     public List<BankAccountModel> fetchAccounts() throws IOException {
         Log.d(TAG, "TellerBackendClient: GET /accounts");
@@ -115,6 +119,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         return accounts;
     }
 
+    // Fetches one account's ledger/available balances (credit limit is always 0 — see note below).
     @Override
     public float[] fetchAccountBalancePair(String accountId) throws IOException {
         String path = "/accounts/" + accountId + "/balances";
@@ -134,6 +139,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         }
     }
 
+    // Fetches just the ledger balance for one account.
     @Override
     public float fetchAccountBalance(String accountId) throws IOException {
         String path = "/accounts/" + accountId + "/balances";
@@ -149,6 +155,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         }
     }
 
+    // Builds a GET request against the backend, attaching the Teller token and auth headers.
     private Request buildRequest(String path) {
         return new Request.Builder()
                 .url(BASE + path)
@@ -166,6 +173,7 @@ public class TellerBackendClient implements TellerApi, BankingApiClient {
         }
     }
 
+    // Parses a balance string, returning 0 instead of throwing on invalid input.
     private float parseFloatSafe(String s) {
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }

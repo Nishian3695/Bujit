@@ -16,6 +16,7 @@ public class PeriodSnapshot implements Serializable {
     private final float incomeTotal;
     private final float expenseTotal;
 
+    // Captures a completed pay period's totals; instances are never mutated after creation.
     public PeriodSnapshot(LocalDate periodStart, float incomeTotal, float expenseTotal) {
         this.periodStart  = periodStart;
         this.incomeTotal  = incomeTotal;

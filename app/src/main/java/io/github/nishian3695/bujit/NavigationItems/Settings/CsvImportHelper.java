@@ -29,6 +29,8 @@ All valid rows are appended to (not replace) existing data.
 */
 public class CsvImportHelper {
 
+    // Tallies how many rows of each type were imported/skipped, plus any per-line error messages,
+    // so the calling UI can show a summary toast/dialog after the import finishes.
     public static class ImportResult {
         public int accountsAdded = 0;
         public int expensesAdded = 0;
@@ -37,10 +39,12 @@ public class CsvImportHelper {
         public int skipped = 0;
         public final ArrayList<String> errors = new ArrayList<>();
 
+        // Returns true if the import produced at least one usable row.
         public boolean hasData() {
             return accountsAdded + expensesAdded + creditsAdded + streamsAdded > 0;
         }
 
+        // Builds a multi-line human-readable summary of what was imported/skipped.
         public String summary() {
             StringBuilder sb = new StringBuilder();
             if (accountsAdded > 0)  sb.append(accountsAdded).append(" manual account(s) added\n");
@@ -52,6 +56,9 @@ public class CsvImportHelper {
         }
     }
 
+    // Reads a CSV file line by line, parsing and appending each row to the existing app data
+    // based on its type tag, then writes the combined result back to storage. Malformed lines
+    // are recorded as errors and skipped rather than aborting the whole import.
     public static ImportResult importFromUri(Context ctx, Uri uri) {
         ImportResult result = new ImportResult();
         StorageManager manager;
@@ -107,6 +114,7 @@ public class CsvImportHelper {
     }
 
     // manual_account,<name>,<type>,<balance>
+    // Parses one manual_account row and appends a new ManualAccountModel.
     private static void parseManualAccount(String[] p, StorageHolder h, ImportResult r) {
         require(p, 4, "manual_account,<name>,<type>,<balance>");
         String name    = nonEmpty(p[1], "name");
@@ -117,6 +125,7 @@ public class CsvImportHelper {
     }
 
     // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>
+    // Parses one expense row and appends a new (non-credit) ExpenseModel.
     private static void parseExpense(String[] p, StorageHolder h, ImportResult r) {
         require(p, 6, "expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>");
         String     name     = nonEmpty(p[1], "name");
@@ -135,6 +144,7 @@ public class CsvImportHelper {
     }
 
     // credit,<name>,<balance>,<credit_limit>,<due_date>
+    // Parses one credit row and appends a new credit-card ExpenseModel (monthly recurrence).
     private static void parseCredit(String[] p, StorageHolder h, ImportResult r) {
         require(p, 5, "credit,<name>,<balance>,<credit_limit>,<due_date>");
         String    name  = nonEmpty(p[1], "name");
@@ -153,6 +163,7 @@ public class CsvImportHelper {
     }
 
     // income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>
+    // Parses one income_stream row and appends a new IncomeStreamModel.
     private static void parseIncomeStream(String[] p, StorageHolder h, ImportResult r) {
         require(p, 6, "income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>");
         String    name  = nonEmpty(p[1], "name");
@@ -180,17 +191,20 @@ public class CsvImportHelper {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    // Throws if the row doesn't have enough fields for the given format, with a helpful message.
     private static void require(String[] p, int min, String format) {
         if (p.length < min)
             throw new IllegalArgumentException("expected format: " + format);
     }
 
+    // Trims a field and throws if it's empty.
     private static String nonEmpty(String s, String field) {
         s = s.trim();
         if (s.isEmpty()) throw new IllegalArgumentException(field + " cannot be empty");
         return s;
     }
 
+    // Parses a dollar amount, stripping commas and a leading "$" before parsing.
     private static float parseAmount(String s) {
         try {
             return Float.parseFloat(s.trim().replace(",", "").replace("$", ""));
@@ -199,6 +213,7 @@ public class CsvImportHelper {
         }
     }
 
+    // Parses a recurrence magnitude, requiring an integer of at least 1.
     private static int parseFreq(String s) {
         try {
             int f = Integer.parseInt(s.trim());
@@ -209,6 +224,7 @@ public class CsvImportHelper {
         }
     }
 
+    // Parses a date, accepting either YYYY-MM-DD or YYYY/MM/DD.
     private static LocalDate parseDate(String s) {
         // Accept YYYY-MM-DD or YYYY/MM/DD
         try {
@@ -219,6 +235,7 @@ public class CsvImportHelper {
         }
     }
 
+    // Parses a recurrence unit word ("day"/"week"/"month"/"year", singular or plural) into a ChronoUnit.
     private static ChronoUnit parseUnit(String s) {
         switch (s.trim().toLowerCase(Locale.US)) {
             case "day":   case "days":   return ChronoUnit.DAYS;
@@ -244,6 +261,8 @@ public class CsvImportHelper {
         }
     }
 
+    // Splits one CSV line on commas, honoring double-quoted fields so a quoted value can itself
+    // contain a comma without being split.
     private static String[] splitCsvLine(String line) {
         ArrayList<String> fields = new ArrayList<>();
         StringBuilder sb = new StringBuilder();

@@ -113,6 +113,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private ExecutorService executor;
     private Handler         mainHandler;
 
+    // Inflates the credit utilization screen, splits the incoming expense list into credit vs.
+    // non-credit entries, wires up the add/edit/pull-to-refresh flows, and shows totals.
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -195,6 +197,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Add credit dialog
 
+    // Builds the "Add Credit Card" dialog: the user either links a connected credit/loan account
+    // or enters a custom name/balance/limit, creating a brand-new ExpenseModel either way.
     private void showAddCreditDialog() {
         View dialogLayout = getLayoutInflater().inflate(R.layout.add_credit_dialog_layout, null);
 
@@ -329,6 +333,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Edit credit dialog
 
+    // Builds the dialog for editing an existing credit card's balance/limit/link, and a "Remove"
+    // path that moves the card back into the non-credit expense list.
     public void editCredit(int position) {
         View dialogLayout = getLayoutInflater().inflate(R.layout.edit_credit_dialog_layout, null);
 
@@ -434,6 +440,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Teller account picker (credit/loan only)
 
+    // Fetches all connected credit/loan accounts (excluding ones already linked to other cards)
+    // and shows a picker so the user can link this card to one, pre-filling name/balance/limit.
     // nameField may be null (e.g. from the edit dialog where the name is already fixed).
     // currentLinkedId is the account ID already linked to the card being edited (null when adding),
     // so the picker keeps that account available while excluding all other already-linked accounts.
@@ -551,7 +559,6 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     // Uses fetchAccounts() (Plaid's /accounts/get, cached data) rather than
     // fetchAccountBalancePair() (/accounts/balance/get, real-time and billed per call).
     // One fetchAccounts() call per unique token covers all accounts for that institution.
-
     private void syncLinkedCredits() {
         boolean hasLinked = false;
         for (ExpenseModel e : creditList) {
@@ -633,6 +640,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Return to caller
 
+    // Packages up every tracked change (edits, deletes, new cards) into the result Intent and
+    // finishes this activity, returning control to ExpenseActivity.
     public void goBackHome() {
         returnIntent = new Intent();
         returnIntent.putIntegerArrayListExtra("changedList",        changedList);
@@ -648,6 +657,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Helpers
 
+    // Returns a Firebase Auth ID token for authenticating banking-backend requests, signing the
+    // user in anonymously first if they aren't already signed in. Returns null on failure.
     private String getFirebaseIdToken() {
         try {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
@@ -662,6 +673,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         return null;
     }
 
+    // Returns a Firebase App Check token, proving to the banking backend that requests come from
+    // a genuine copy of this app. Returns null on failure.
     private String getAppCheckToken() {
         try {
             return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
@@ -671,14 +684,18 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         }
     }
 
+    // Loads the set of stored bank-connection access tokens (Plaid/Teller) for this device.
     private Set<String> loadBankTokens() {
         return BankingProviderConfig.loadTokens(this);
     }
 
+    // Parses a balance string, returning 0 instead of throwing on invalid input.
     private float parseFloatSafe(String s) {
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }
 
+    // Recomputes and displays the total debt, total limit, and overall utilization percentage
+    // across every credit card, with a color-coded bar.
     private void updateTotalUtilization() {
         float totalDebt  = 0f;
         float totalLimit = 0f;
@@ -703,6 +720,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         totalUtilBar.setProgressTintList(android.content.res.ColorStateList.valueOf(resolved));
     }
 
+    // Shows a "pull down to sync" hint if any card is linked to a bank, else a placeholder dash.
     private void updateSyncLabel() {
         boolean anyLinked = false;
         for (ExpenseModel e : creditList) { if (e.isLinkedToBank()) { anyLinked = true; break; } }
@@ -748,6 +766,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
     // Lifecycle
 
+    // Makes the toolbar's back arrow return to ExpenseActivity with any pending changes.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -757,12 +776,15 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         return super.onOptionsItemSelected(item);
     }
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay, then persists changes and signals ExpenseActivity to
+    // reload — covering every exit path (back arrow, swipe gesture, home button, process kill).
     @Override
     protected void onPause() {
         removeTutorialOverlay();
@@ -792,11 +814,14 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         }
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, CreditUtilActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), wiring "Next"/"Skip" to
+    // advance to the next step, hand off to another activity's tutorial, or return home.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -828,6 +853,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -836,6 +862,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         }
     }
 
+    // Shuts down the background executor so no pending sync work leaks past this activity's life.
     @Override
     protected void onDestroy() {
         super.onDestroy();

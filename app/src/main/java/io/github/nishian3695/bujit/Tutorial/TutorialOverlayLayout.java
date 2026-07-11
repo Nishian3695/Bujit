@@ -15,6 +15,9 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import io.github.nishian3695.bujit.R;
 
+// Full-screen overlay used by the guided tutorial: dims the whole screen, cuts a rounded-rect
+// "spotlight" hole around the target view (or shows a centered tooltip if there's no target),
+// and displays a tooltip card with title/message text and Next/Skip buttons.
 public class TutorialOverlayLayout extends FrameLayout {
 
     private final Paint overlayPaint;
@@ -28,6 +31,8 @@ public class TutorialOverlayLayout extends FrameLayout {
     private final Button   btnNext;
     private final Button   btnSkip;
 
+    // Sets up the dimming/clear paints, inflates the tooltip card, and fades the whole overlay in.
+    // Blocks touches on the dimmed background so only the tooltip's own buttons are interactive.
     public TutorialOverlayLayout(Context context) {
         super(context);
         // Software layer required for PorterDuff.CLEAR to work on a ViewGroup canvas
@@ -54,6 +59,8 @@ public class TutorialOverlayLayout extends FrameLayout {
         setOnTouchListener((v, e) -> true);
     }
 
+    // Paints the full-screen dim, then punches a transparent rounded-rect hole at spotRect (if a
+    // spotlight is active) using PorterDuff.CLEAR before drawing child views (the tooltip card).
     @Override
     protected void dispatchDraw(Canvas canvas) {
         canvas.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
@@ -63,6 +70,9 @@ public class TutorialOverlayLayout extends FrameLayout {
         super.dispatchDraw(canvas);
     }
 
+    // Configures the tooltip text and Next/Skip actions for one tutorial step, then either
+    // scrolls the target view into view and spotlights it, or (if target is null) shows the
+    // tooltip centered on screen with no spotlight.
     public void showStep(View target, String title, String message,
                          String nextText, Runnable onNext, Runnable onSkip) {
         tvTitle.setText(title);
@@ -88,6 +98,8 @@ public class TutorialOverlayLayout extends FrameLayout {
         setVisibility(VISIBLE);
     }
 
+    // Computes the spotlight rectangle (target's on-screen bounds plus padding, converted to this
+    // overlay's local coordinate space), triggers a redraw, and positions the tooltip near it.
     private void measureAndPositionSpotlight(View target) {
         int pad = dpToPx(16);
         int[] overlayLoc = new int[2];
@@ -105,6 +117,8 @@ public class TutorialOverlayLayout extends FrameLayout {
         tooltipCard.post(() -> positionTooltipNearSpot(top, bottom));
     }
 
+    // Places the tooltip card just above the spotlight if the spotlight is in the lower half of
+    // the screen, or just below it otherwise — clamped so it never runs off the bottom edge.
     private void positionTooltipNearSpot(float spotTop, float spotBottom) {
         int margin = dpToPx(16);
         LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
@@ -125,6 +139,7 @@ public class TutorialOverlayLayout extends FrameLayout {
         tooltipCard.setLayoutParams(lp);
     }
 
+    // Places the tooltip card vertically centered, used for steps with no spotlighted target.
     private void positionTooltipCenter() {
         post(() -> {
             LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
@@ -134,6 +149,7 @@ public class TutorialOverlayLayout extends FrameLayout {
         });
     }
 
+    // Converts a dp value to actual pixels for this device's screen density.
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }

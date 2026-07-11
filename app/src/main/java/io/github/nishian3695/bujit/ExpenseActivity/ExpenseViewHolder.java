@@ -22,6 +22,8 @@ public class ExpenseViewHolder extends RecyclerView.ViewHolder {
     View linkedIndicator;
     ProgressBar creditUtilBar;
 
+    // Looks up and caches every child view of a row once, so the adapter doesn't call findViewById
+    // on every bind.
     public ExpenseViewHolder(@NonNull View itemView) {
         super(itemView);
         checkBox         = itemView.findViewById(R.id.expense_checkbox);

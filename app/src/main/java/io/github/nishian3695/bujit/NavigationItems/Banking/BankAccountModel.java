@@ -66,6 +66,7 @@ public class BankAccountModel {
         return t;
     }
 
+    // Uppercases the first letter of a string, leaving the rest unchanged.
     private String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);

@@ -53,6 +53,7 @@ public class StorageManager {
     private final File encFile;
     private StorageHolder storageHolder;
 
+    // Resolves the app's data directory/files and eagerly loads (or migrates) existing data.
     public StorageManager(Context context) throws IOException, ClassNotFoundException {
         File dir = new File(context.getFilesDir(), DIR_NAME);
         if (!dir.exists()) dir.mkdirs();
@@ -61,10 +62,12 @@ public class StorageManager {
         storageHolder = load();
     }
 
+    // Returns the StorageHolder loaded at construction time.
     public StorageHolder getStorageHolder() {
         return storageHolder;
     }
 
+    // Serializes a StorageHolder to JSON, AES-256-GCM encrypts it, and writes it to disk.
     public void writeData(StorageHolder holder) throws IOException {
         try {
             byte[] plaintext = toJson(holder).getBytes(StandardCharsets.UTF_8);
@@ -88,6 +91,9 @@ public class StorageManager {
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    // Loads app data: tries the encrypted file first, falls back to migrating the legacy
+    // unencrypted serialized file if present, and returns a fresh default StorageHolder if
+    // neither is usable — so the app is always functional even after a corrupt/missing key.
     private StorageHolder load() {
         // 1. Try encrypted file first
         if (encFile.exists() && encFile.length() > 0) {
@@ -117,6 +123,7 @@ public class StorageManager {
         return new StorageHolder();
     }
 
+    // Reads, base64-decodes, decrypts, and parses the current encrypted data file.
     private StorageHolder readEncrypted() throws Exception {
         byte[] raw = new byte[(int) encFile.length()];
         try (FileInputStream fis = new FileInputStream(encFile)) {
@@ -131,12 +138,15 @@ public class StorageManager {
         return fromJson(new String(cipher.doFinal(enc), StandardCharsets.UTF_8));
     }
 
+    // Reads the old unencrypted Java-serialized data file (pre-encryption format).
     private StorageHolder readLegacy() throws Exception {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(legacyFile))) {
             return (StorageHolder) ois.readObject();
         }
     }
 
+    // Returns this app's AndroidKeyStore AES key, generating a new hardware-backed one if it
+    // doesn't exist yet.
     private SecretKey getOrCreateKey() throws Exception {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
         ks.load(null);
@@ -156,6 +166,7 @@ public class StorageManager {
 
     // ── JSON serialization ────────────────────────────────────────────────────
 
+    // Serializes an entire StorageHolder (all lists and scalar fields) into one JSON object.
     private String toJson(StorageHolder h) throws Exception {
         JSONObject o = new JSONObject();
         o.put("currentBalance",   h.getCurrentBalance());
@@ -207,6 +218,8 @@ public class StorageManager {
         return o.toString();
     }
 
+    // Reconstructs a StorageHolder from a JSON object produced by toJson(), defaulting any
+    // missing/malformed fields rather than failing the whole load.
     private StorageHolder fromJson(String json) throws Exception {
         JSONObject o = new JSONObject(json);
         StorageHolder h = new StorageHolder();
@@ -281,6 +294,7 @@ public class StorageManager {
         return h;
     }
 
+    // Serializes a single ExpenseModel to JSON.
     private JSONObject expenseToJson(ExpenseModel e) throws Exception {
         JSONObject o = new JSONObject();
         o.put("name",         e.getName());
@@ -304,6 +318,8 @@ public class StorageManager {
         return o;
     }
 
+    // Reconstructs an ExpenseModel from JSON, returning null (and logging) on parse failure so a
+    // single corrupt entry doesn't abort the whole load.
     private ExpenseModel jsonToExpense(JSONObject o) {
         try {
             LocalDate date = parseDate(o.optString("date", null));
@@ -338,6 +354,7 @@ public class StorageManager {
         }
     }
 
+    // Serializes a single IncomeStreamModel to JSON.
     private JSONObject streamToJson(IncomeStreamModel s) throws Exception {
         JSONObject o = new JSONObject();
         o.put("name",         s.getName());
@@ -350,6 +367,7 @@ public class StorageManager {
         return o;
     }
 
+    // Reconstructs an IncomeStreamModel from JSON, returning null on parse failure.
     private IncomeStreamModel jsonToStream(JSONObject o) {
         try {
             IncomeStreamModel s = new IncomeStreamModel(
@@ -368,6 +386,7 @@ public class StorageManager {
         }
     }
 
+    // Serializes a single SingleEventModel to JSON.
     private JSONObject singleEventToJson(SingleEventModel se) throws Exception {
         JSONObject o = new JSONObject();
         o.put("id",               se.getId());
@@ -383,6 +402,7 @@ public class StorageManager {
         return o;
     }
 
+    // Reconstructs a SingleEventModel from JSON, returning null on parse failure.
     private SingleEventModel jsonToSingleEvent(JSONObject o) {
         try {
             String id = o.optString("id", null);
@@ -404,6 +424,7 @@ public class StorageManager {
         }
     }
 
+    // Serializes a single PeriodSnapshot to JSON.
     private JSONObject snapshotToJson(PeriodSnapshot s) throws Exception {
         JSONObject o = new JSONObject();
         o.put("periodStart",  s.getPeriodStart().format(DATE_FMT));
@@ -412,6 +433,7 @@ public class StorageManager {
         return o;
     }
 
+    // Reconstructs a PeriodSnapshot from JSON, returning null on parse failure or missing date.
     private PeriodSnapshot jsonToSnapshot(JSONObject o) {
         try {
             LocalDate start = parseDate(o.optString("periodStart", null));
@@ -426,6 +448,7 @@ public class StorageManager {
         }
     }
 
+    // Serializes a single ManualAccountModel to JSON.
     private JSONObject manualAccountToJson(ManualAccountModel m) throws Exception {
         JSONObject o = new JSONObject();
         o.put("id",          m.getId());
@@ -435,6 +458,7 @@ public class StorageManager {
         return o;
     }
 
+    // Reconstructs a ManualAccountModel from JSON, returning null on parse failure.
     private ManualAccountModel jsonToManualAccount(JSONObject o) {
         try {
             ManualAccountModel m = new ManualAccountModel(
@@ -452,19 +476,23 @@ public class StorageManager {
 
     // ── Field helpers ─────────────────────────────────────────────────────────
 
+    // Formats a LocalDate for JSON, or JSONObject.NULL if it's null.
     private Object dateOrNull(LocalDate d) {
         return d != null ? d.format(DATE_FMT) : JSONObject.NULL;
     }
 
+    // Passes a string through for JSON, or JSONObject.NULL if it's null.
     private Object strOrNull(String s) {
         return s != null ? s : JSONObject.NULL;
     }
 
+    // Parses a date string from JSON, tolerating null/empty/"null" by returning null.
     private LocalDate parseDate(String s) {
         if (s == null || s.isEmpty() || s.equals("null")) return null;
         try { return LocalDate.parse(s, DATE_FMT); } catch (Exception e) { return null; }
     }
 
+    // Parses a ChronoUnit name from JSON, falling back to the given default on any failure.
     private ChronoUnit parseUnit(String s, ChronoUnit fallback) {
         try { return ChronoUnit.valueOf(s); } catch (Exception e) { return fallback; }
     }

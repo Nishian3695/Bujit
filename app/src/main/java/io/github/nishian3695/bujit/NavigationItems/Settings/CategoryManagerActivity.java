@@ -42,6 +42,8 @@ public class CategoryManagerActivity extends AppCompatActivity {
     private ArrayList<String> categories;
     private CategoryAdapter adapter;
 
+    // Inflates the category manager screen, loads the saved category list, and wires up
+    // drag-to-reorder (saving on drop) plus the "add category" FAB.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -129,6 +131,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
         fab.setOnClickListener(v -> showAddDialog());
     }
 
+    // Makes the toolbar's back arrow close this screen.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) { finish(); return true; }
@@ -137,6 +140,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
 
     public static final String KEY_CATEGORIES_CHANGED = "categories_changed";
 
+    // Persists the current category list to disk and flags ExpenseActivity to reload on resume.
     private void saveNow() {
         storageHolder.setCategoryList(new ArrayList<>(categories));
         try {
@@ -148,6 +152,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
         }
     }
 
+    // Returns true if the name matches "Other" or an existing category (case-insensitive).
     private boolean isDuplicate(String name) {
         if (CategoryManager.OTHER.equalsIgnoreCase(name)) return true;
         for (String existing : categories) {
@@ -156,6 +161,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
         return false;
     }
 
+    // Shows a simple text-input dialog for creating a new category, rejecting empty or duplicate names.
     private void showAddDialog() {
         EditText input = new EditText(this);
         input.setHint("Category name");
@@ -197,12 +203,15 @@ public class CategoryManagerActivity extends AppCompatActivity {
 
     // ── Adapter ──────────────────────────────────────────────────────────────
 
+    // RecyclerView adapter for the draggable, deletable list of category name rows.
     private class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.VH> {
 
         private ItemTouchHelper itemTouchHelper;
 
+        // Gives the adapter a reference to the drag-to-reorder helper so the drag handle can start a drag.
         void setItemTouchHelper(ItemTouchHelper ith) { this.itemTouchHelper = ith; }
 
+        // Inflates a fresh category row layout and wraps it in a ViewHolder.
         @NonNull @Override
         public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext())
@@ -210,6 +219,7 @@ public class CategoryManagerActivity extends AppCompatActivity {
             return new VH(v);
         }
 
+        // Populates one row's name and wires the drag handle and delete button.
         @Override
         public void onBindViewHolder(@NonNull VH holder, int position) {
             holder.name.setText(categories.get(position));
@@ -242,12 +252,15 @@ public class CategoryManagerActivity extends AppCompatActivity {
             });
         }
 
+        // Tells the RecyclerView how many category rows to display.
         @Override public int getItemCount() { return categories.size(); }
 
+        // Holds references to a category row's child views.
         class VH extends RecyclerView.ViewHolder {
             final TextView name;
             final TextView dragHandle;
             final View     deleteBtn;
+            // Looks up and caches every child view of the row once.
             VH(View v) {
                 super(v);
                 name       = v.findViewById(R.id.category_name);

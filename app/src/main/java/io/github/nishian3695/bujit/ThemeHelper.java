@@ -39,6 +39,9 @@ public class ThemeHelper {
     public static final String KEY_MODE        = "night_mode";
     public static final String KEY_CUSTOM_HEX  = "custom_hex";
 
+    // Enables edge-to-edge display for an activity: makes the status bar transparent, colors the
+    // action bar's container to match the theme, and pushes toolbar content below the status bar
+    // so nothing is obscured.
     public static void enableEdgeToEdge(ComponentActivity activity) {
         // Read colorPrimary from the current theme rather than getAccentColor() so that
         // custom accent colors (which intentionally do not recolor the action bar per
@@ -69,6 +72,9 @@ public class ThemeHelper {
         });
     }
 
+    // Applies the saved preset accent color's Material theme variant to an activity. Must be
+    // called before super.onCreate(). "blue" and "custom" both fall through to the manifest's
+    // default theme (custom colors are applied at runtime via the tint* methods instead).
     public static void applyAccentTheme(Activity activity) {
         String color = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_COLOR, "blue");
@@ -82,6 +88,8 @@ public class ThemeHelper {
         }
     }
 
+    // Applies the saved light/dark/system night-mode preference app-wide via AppCompatDelegate.
+    // Must be called from Application.onCreate() so it takes effect before any Activity draws.
     public static void applyNightMode(Context context) {
         String mode = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_MODE, "system");
@@ -92,14 +100,17 @@ public class ThemeHelper {
         }
     }
 
+    // Persists the chosen preset accent color key (e.g. "blue", "purple").
     public static void saveColor(Context context, String color) {
         prefs(context).edit().putString(KEY_COLOR, color).apply();
     }
 
+    // Persists the chosen night-mode preference ("light", "dark", or "system").
     public static void saveMode(Context context, String mode) {
         prefs(context).edit().putString(KEY_MODE, mode).apply();
     }
 
+    // Persists a custom accent color hex string and switches the active color key to "custom".
     public static void saveCustomColor(Context context, String hex) {
         prefs(context).edit()
                 .putString(KEY_COLOR, "custom")
@@ -107,14 +118,17 @@ public class ThemeHelper {
                 .apply();
     }
 
+    // Returns the currently saved accent color key, defaulting to "blue".
     public static String getSavedColor(Context context) {
         return prefs(context).getString(KEY_COLOR, "blue");
     }
 
+    // Returns the currently saved night-mode preference, defaulting to "system".
     public static String getSavedMode(Context context) {
         return prefs(context).getString(KEY_MODE, "system");
     }
 
+    // Returns true if the user has selected a custom (non-preset) accent color.
     public static boolean isCustomColor(Context context) {
         return "custom".equals(getSavedColor(context));
     }
@@ -145,7 +159,8 @@ public class ThemeHelper {
         }
     }
 
-    // Tints a FAB to the current accent color. Call after setContentView for every FAB
+    // Tints a FAB to the current accent color (works for both preset and custom colors).
+    // Call after setContentView for every FAB.
     public static void tintFab(FloatingActionButton fab, Context context) {
         fab.setBackgroundTintList(ColorStateList.valueOf(getAccentColor(context)));
     }
@@ -183,6 +198,7 @@ public class ThemeHelper {
         // Intentionally empty: action bar is not recolored for custom accent colors.
     }
 
+    // Returns this app's theme-settings SharedPreferences file.
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }

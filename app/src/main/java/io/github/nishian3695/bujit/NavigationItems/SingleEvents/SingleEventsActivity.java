@@ -34,6 +34,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+// Activity for managing one-off single events (unplanned debits/credits applied immediately to
+// the main balance, a manual account, or a credit card, as opposed to recurring ExpenseModels).
+// Events auto-expire and are purged after a configurable number of days. Every change is
+// persisted to disk immediately and flagged via SharedPreferences so ExpenseActivity picks it up
+// on its next resume (it owns the authoritative current balance).
 public class SingleEventsActivity extends AppCompatActivity {
 
     public static final String KEY_CHANGED = "single_events_changed";
@@ -47,6 +52,8 @@ public class SingleEventsActivity extends AppCompatActivity {
     private View emptyView;
     private TutorialOverlayLayout tutorialOverlay;
 
+    // Inflates the single events screen, loads and cleans up expired events, and wires the
+    // list adapter plus the "add" FAB.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -112,6 +119,7 @@ public class SingleEventsActivity extends AppCompatActivity {
 
     // ── Funding source helpers ────────────────────────────────────────────────
 
+    // One entry in the funding-source dropdown (balance, a manual account, or a credit card).
     private static class TargetOption {
         final String displayName;
         final String targetType;
@@ -124,6 +132,8 @@ public class SingleEventsActivity extends AppCompatActivity {
         }
     }
 
+    // Builds the list of possible funding sources: the main balance, every manual account, and
+    // every unlinked credit card.
     private List<TargetOption> buildTargetOptions() {
         List<TargetOption> options = new ArrayList<>();
         options.add(new TargetOption("Current Balance", "BALANCE", null));
@@ -144,6 +154,8 @@ public class SingleEventsActivity extends AppCompatActivity {
         return options;
     }
 
+    // Finds the dropdown index matching an event's stored target, so the edit dialog can
+    // pre-select the correct funding source.
     private int findTargetIndex(List<TargetOption> options, String targetType, String targetId) {
         for (int i = 0; i < options.size(); i++) {
             TargetOption opt = options.get(i);
@@ -174,6 +186,7 @@ public class SingleEventsActivity extends AppCompatActivity {
         }
     }
 
+    // Finds a manual account by its stored ID.
     private ManualAccountModel findManualAccount(String id) {
         ArrayList<ManualAccountModel> accounts = storageHolder.getManualAccountList();
         if (accounts == null || id == null) return null;
@@ -183,6 +196,7 @@ public class SingleEventsActivity extends AppCompatActivity {
         return null;
     }
 
+    // Finds an unlinked credit-card expense by name.
     private ExpenseModel findCreditCard(String name) {
         ArrayList<ExpenseModel> expenses = storageHolder.getExpenseList();
         if (expenses == null || name == null) return null;
@@ -194,6 +208,7 @@ public class SingleEventsActivity extends AppCompatActivity {
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
 
+    // Removes every event past its expiry window, saving if anything was removed.
     private void cleanupExpired() {
         boolean any = false;
         java.util.Iterator<SingleEventModel> it = eventList.iterator();
@@ -206,6 +221,9 @@ public class SingleEventsActivity extends AppCompatActivity {
         if (any) saveData(false, false, false);
     }
 
+    // Builds the add/edit single event dialog: name, signed amount (debit/credit toggle), and a
+    // funding-source dropdown. On save, applies the (possibly changed) effect to the target and
+    // persists the change; edits reverse the old effect before applying the new one.
     private void showEventDialog(SingleEventModel existing, int position) {
         boolean isAdd = (existing == null);
 
@@ -344,6 +362,8 @@ public class SingleEventsActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    // Confirms and then deletes a single event, reversing its effect on the funding source it was
+    // applied to.
     private void showDeleteConfirmation(int position) {
         if (position < 0 || position >= eventList.size()) return;
         SingleEventModel item = eventList.get(position);
@@ -365,10 +385,14 @@ public class SingleEventsActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Convenience overload for callers with no BALANCE-target delta to report.
     private void saveData(boolean flagChanged, boolean manualAccountModified, boolean creditCardModified) {
         saveData(flagChanged, manualAccountModified, creditCardModified, 0f);
     }
 
+    // Persists the event list to disk and, if flagChanged, sets SharedPreferences flags so
+    // ExpenseActivity/BankingActivity reload the affected data (and accumulates any BALANCE
+    // delta) on their next resume.
     private void saveData(boolean flagChanged, boolean manualAccountModified, boolean creditCardModified, float balanceDelta) {
         try {
             storageHolder.setSingleEventList(eventList);
@@ -396,29 +420,36 @@ public class SingleEventsActivity extends AppCompatActivity {
 
     // ── Misc ─────────────────────────────────────────────────────────────────
 
+    // Adds a few sample single events so the tutorial has something to show a first-time user
+    // whose list is otherwise empty. Not persisted unless the user later edits/saves them.
     private void injectTutorialDummyData() {
         eventList.add(new SingleEventModel("Spontaneous concert tickets", 85.00f, true));
         eventList.add(new SingleEventModel("Won trivia night 🎉", 50.00f, false));
         eventList.add(new SingleEventModel("Forgot to pack lunch", 12.75f, true));
     }
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay so it doesn't leak past this screen's lifecycle.
     @Override
     protected void onPause() {
         removeTutorialOverlay();
         super.onPause();
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, SingleEventsActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), wiring "Next"/"Skip" to
+    // advance to the next step, hand off to another activity's tutorial, or return home.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -450,6 +481,7 @@ public class SingleEventsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -458,17 +490,20 @@ public class SingleEventsActivity extends AppCompatActivity {
         }
     }
 
+    // Reads the user-configured single-event expiry window (in days) from Settings, default 30.
     private int getExpiryDays() {
         return getSharedPreferences("bujit_prefs", MODE_PRIVATE)
                 .getInt("single_event_expiry_days", 30);
     }
 
+    // Toggles the "no events" placeholder based on whether the list is empty.
     private void updateEmptyState() {
         if (emptyView != null) {
             emptyView.setVisibility(eventList.isEmpty() ? View.VISIBLE : View.GONE);
         }
     }
 
+    // Makes the toolbar's back arrow close this screen.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) { finish(); return true; }

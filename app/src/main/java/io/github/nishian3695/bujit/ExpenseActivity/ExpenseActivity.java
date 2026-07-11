@@ -170,6 +170,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private ActionMode activeActionMode;
     private OnBackPressedCallback projectionBackCallback;
 
+    // Drives the contextual action bar shown while multi-selecting expenses for batch delete.
     private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
         @Override
         public boolean onCreateActionMode(ActionMode mode, Menu menu) {
@@ -209,6 +210,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     };
     // endregion
 
+    // Android lifecycle entry point: inflates the home-screen layout, wires up all the toolbar,
+    // navigation-drawer, FAB/speed-dial, and swipe-nav listeners, then loads saved data and shows
+    // the first-run disclaimer/tutorial if needed.
     @SuppressLint({"ClickableViewAccessibility", "ResourceType"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -312,6 +316,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         showDisclaimerIfNeeded();
     }
 
+    // Shows the "not a financial advisor" legal disclaimer once, the very first time the app is
+    // opened; once accepted it is never shown again, and the tutorial can proceed.
     private void showDisclaimerIfNeeded() {
         SharedPreferences prefs = getSharedPreferences("bujit_legal_prefs", MODE_PRIVATE);
         if (prefs.getBoolean("disclaimer_accepted", false)) {
@@ -331,6 +337,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 .show();
     }
 
+    // Schedules the guided-tutorial overlay to appear shortly after the screen settles, guarding
+    // against double-scheduling with pendingTutorialShow.
     private void showTutorialIfNeeded() {
         if (!TutorialManager.isActive(this) || pendingTutorialShow != null) return;
         pendingTutorialShow = () -> {
@@ -340,11 +348,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         mainHandler.postDelayed(pendingTutorialShow, 400);
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, ExpenseActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble) for the given step index,
+    // opening the nav drawer first if that step targets a drawer item, and wiring "Next"/"Skip"
+    // to advance to the next step or hand off to another activity's tutorial.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
 
@@ -408,6 +420,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             android.view.ViewGroup p = (android.view.ViewGroup) tutorialOverlay.getParent();
@@ -660,6 +673,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         endCheckDate = nextCheckDate;
     }
 
+    // Saves a historical income/expense snapshot for a pay period that just ended, so the Visuals
+    // bar chart can show past periods. No-ops if a snapshot for this period already exists.
     private void recordPeriodSnapshot(LocalDate start, LocalDate end) {
         if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
         for (io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot existing : periodSnapshots) {
@@ -671,6 +686,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 start, totals[0], totals[1]));
     }
 
+    // Updates the saved pay-period length/unit and recalculates every expense's per-pay-period cost.
     public void setCheckFreq(int freq, ChronoUnit tag) {
         checkFrequency = freq;
         checkFrequencyTag = tag;
@@ -694,6 +710,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         if (checkBarSubtitle != null) updateCheckBarSubtitle();
     }
 
+    // Returns the name of the income stream currently marked as selected/active, or "" if none.
     private String activeStreamName() {
         if (incomeStreamList == null) return "";
         for (IncomeStreamModel s : incomeStreamList) {
@@ -702,6 +719,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return "";
     }
 
+    // Shows or hides the small subtitle under the check-period header that indicates the user is
+    // projecting with a non-default income stream and/or a custom period length.
     private void updateCheckBarSubtitle() {
         if (checkBarSubtitle == null) return;
         // Show subtitle only when the projection differs from the active stream
@@ -721,6 +740,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         checkBarSubtitle.setVisibility(android.view.View.VISIBLE);
     }
 
+    // Converts a ChronoUnit + magnitude into a human-readable singular/plural label ("day"/"days").
     private String chronoUnitLabel(ChronoUnit unit, int magnitude) {
         if (unit == ChronoUnit.DAYS)   return magnitude == 1 ? "day"   : "days";
         if (unit == ChronoUnit.WEEKS)  return magnitude == 1 ? "week"  : "weeks";
@@ -888,6 +908,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return total;
     }
 
+    // Maps a ChronoUnit to its index in the Days/Weeks/Months/Years dropdown; defaults to Weeks.
     private int chronoUnitToInt(ChronoUnit unit) {
         if (unit == ChronoUnit.DAYS)   return 0;
         if (unit == ChronoUnit.WEEKS)  return 1;
@@ -897,6 +918,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
     // End projection helpers
 
+    // Converts the legacy integer frequency-tag constants (DAY_INT/WEEK_INT/MONTH_INT/YEAR_INT)
+    // used in serialized data back into a ChronoUnit.
     public ChronoUnit intFreqTagToChronoUnit(int freqTag) {
         if (freqTag == DAY_INT) {
             return ChronoUnit.DAYS;
@@ -986,6 +1009,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         saveNow();
     }
 
+    // One-time setup performed in onCreate: initializes the RecyclerView, loads saved data (or
+    // safe defaults if loading fails), seeds sample data for first-time users, rolls the pay
+    // period forward to today, builds the expense adapter with click/selection/drag handling,
+    // and kicks off a background bank-balance refresh.
     private void getExpenses() throws IOException, ClassNotFoundException {
         // Reference RecyclerView
         expenseTable = findViewById(R.id.expense_table);
@@ -1142,6 +1169,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         refreshLinkedBankBalance(true);
     }
 
+    // Builds the "Add Expense"/"Edit Expense" dialog: sets up name/cost/frequency/category fields,
+    // the date picker, optional linked-bank-account picker, optional calendar-notification toggle,
+    // and validates + saves the result (add, update, or delete) when the user confirms.
     public AlertDialog addEditExpenseDialog(String method, int position) {
         // Go to home page to avoid bugs
         goHomePage();
@@ -1460,6 +1490,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return dialog;
     }
 
+    // Builds the "Update Balance" dialog, letting the user either type a balance directly or pull
+    // it from linked bank/manual accounts via the account picker, plus a manual "extra" adjustment.
     public AlertDialog changeBankBalance() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Update Balance");
@@ -1517,6 +1549,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return builder.create();
     }
 
+    // Formats a LocalDate using the given pattern (e.g. VIEW_FORMAT, STORE_FORMAT, HEADER_FORMAT).
     public String calendarToString(LocalDate calendar, String format) {
         DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern(format, Locale.US);
         return calendar.format(dateFormat);
@@ -1556,11 +1589,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 finVal >= 0 ? R.color.balance_positive : R.color.balance_negative));
     }
 
+    // Writes a dollar-formatted value into the header's current-balance TextView.
     private void setCurrentBalanceText(float value) {
         currentBankBalance.setText("$" + currencyFormat.formatToString(value));
     }
 
     // Swipe functions
+    // Advances the projection one pay period forward: applies this period's expenses, adds the
+    // next period's projected income, updates the UI with a slide animation, and leaves the home
+    // screen (enabling the back button to step back through the projection).
     public void getNextCheck() {
         if (incomeStreamList == null || incomeStreamList.isEmpty()) {
             Toast.makeText(this, "Add an income stream to project future checks.",
@@ -1591,6 +1628,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         });
     }
 
+    // Steps the projection one pay period backward (or straight home if only one step forward has
+    // been taken), reversing the income/expense changes applied by getNextCheck().
     public void getPrevCheck() {
         if (projStepsForward == 0) return; // already home
         if (projStepsForward == 1) {
@@ -1615,6 +1654,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Resets the view to the current (non-projected) pay period: re-enables balance editing,
+    // brings expense data up to date, resets the projection state, and swaps the FAB back to "add".
     public void goHomePage() {
         closeSpeedDial();
         // Bank balance can be edited only on home page
@@ -1690,12 +1731,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     // Navigation menu
+    // Inflates the toolbar's overflow menu (currently just the "select" action for batch delete).
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.expense_action_menu, menu);
         return true;
     }
 
+    // Handles toolbar menu taps: "select" enters multi-select mode, the drawer toggle opens the
+    // nav drawer, otherwise falls through to the default handling.
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_select) {
@@ -1708,6 +1752,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return super.onOptionsItemSelected(item);
     }
 
+    // Confirms and then batch-deletes every currently multi-selected expense, cleaning up any
+    // linked Google Tasks along the way.
     private void showDeleteConfirmation() {
         Set<Integer> selected = expenseAdapter.getSelectedPositions();
         if (selected.isEmpty()) return;
@@ -1736,12 +1782,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 .show();
     }
 
+    // Binds this activity as the click handler for the navigation drawer's menu items.
     public void setNavigationViewListener() {
         navigationView = findViewById(R.id.main_navigation_view);
         navigationView.setNavigationItemSelectedListener(this);
     }
 
     // Navigation menu items
+    // Routes drawer taps to the corresponding sub-activity (Income Streams, Banking, Settings,
+    // Credit Util, Visuals, Single Events), passing along the data each screen needs.
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -1790,6 +1839,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return true;
     }
 
+    // Returns a Firebase Auth ID token for authenticating banking-backend requests, signing the
+    // user in anonymously first if they aren't already signed in. Returns null on failure.
     private String getFirebaseIdToken() {
         try {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
@@ -1804,6 +1855,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return null;
     }
 
+    // Returns a Firebase App Check token, proving to the banking backend that requests come from
+    // a genuine copy of this app. Returns null on failure.
     private String getAppCheckToken() {
         try {
             return Tasks.await(FirebaseAppCheck.getInstance().getToken(false)).getToken();
@@ -1813,6 +1866,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Loads the set of stored bank-connection access tokens (Plaid/Teller) for this device.
     private Set<String> loadBankTokens() {
         return BankingProviderConfig.loadTokens(this);
     }
@@ -1837,18 +1891,22 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Persists the set of "token|accountId" pairs that contribute to the main balance figure.
     private void saveLinkedAccounts(Set<String> composites) {
         BankingProviderConfig.saveLinkedAccounts(this, composites);
     }
 
+    // Records the timestamp of the most recent successful bank-balance sync.
     private void saveLastSyncTime(long millis) {
         BankingPrefs.saveLastSync(this, millis);
     }
 
+    // Returns the timestamp of the last successful bank-balance sync, or 0 if never synced.
     private long loadLastSyncTime() {
         return BankingPrefs.loadLastSync(this);
     }
 
+    // Updates the "Synced today at ..." label under the balance, hiding it if nothing is linked.
     private void updateSyncLabel() {
         long millis = loadLastSyncTime();
         if (millis == 0 || loadLinkedAccounts().isEmpty()) {
@@ -1998,11 +2056,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         });
     }
 
+    // Parses a balance string, tolerating null/placeholder ("—") values by returning 0 instead of throwing.
     private float parseBalanceSafe(String s) {
         if (s == null || s.equals("—")) return 0f;
         try { return Float.parseFloat(s); } catch (NumberFormatException e) { return 0f; }
     }
 
+    // Sums the balances of manual accounts the user has selected to contribute to curBalance.
     private float computeManualAccountsTotal(StorageHolder holder) {
         if (holder == null) return 0f;
         Set<String> selectedIds = BankingProviderConfig.loadManualLinkedIds(this);
@@ -2014,6 +2074,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return total;
     }
 
+    // Re-reads the manual account list from disk (after BankingActivity edited it) and applies
+    // the resulting balance delta to curBalance without clobbering other unsaved in-memory state.
     private void reloadManualAccountsFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2035,6 +2097,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Builds the dialog for editing a credit-card expense's balance/limit, including the option to
+    // re-link it to a different connected credit/loan account.
     private void editCreditDialog(int position) {
         goHomePage();
         ExpenseModel credit = expenseListStor.get(position);
@@ -2095,6 +2159,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 .show();
     }
 
+    // Fetches all connected credit/loan accounts (excluding ones already linked to other expenses)
+    // and shows a picker so the user can link this credit expense to one, pre-filling its balance/limit.
     private void showConnectedCreditPickerForEdit(
             EditText debtField,
             EditText limitField,
@@ -2191,6 +2257,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         showBankAccountPicker(target, null);
     }
 
+    // Loads both bank-linked (Plaid/Teller, non-credit) and manual accounts, then shows a
+    // multi-select dialog letting the user choose which sources sum into the target balance field;
+    // runs onLinked afterward so callers can mark the field as "picker confirmed".
     private void showBankAccountPicker(EditText target, Runnable onLinked) {
         AlertDialog loadingDialog = new AlertDialog.Builder(this)
                 .setTitle("Loading accounts…")
@@ -2401,6 +2470,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         });
     }
 
+    // Returns true if any expense (typically a linked credit card) is tied to a bank account,
+    // used to decide whether a balance refresh is worth running even with no main-balance links.
     private boolean hasAnyLinkedExpenses() {
         if (expenseListStor == null) return false;
         for (ExpenseModel e : expenseListStor) {
@@ -2409,6 +2480,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return false;
     }
 
+    // Parses a raw balance string and re-formats it to exactly two decimal places, defaulting to
+    // "0.00" on any parse failure.
     private String formatBalance(String raw) {
         if (raw == null || raw.isEmpty()) return "0.00";
         try {
@@ -2418,6 +2491,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Immediately serializes and writes all app state to disk, swallowing any I/O error.
     private void saveNow() {
         try {
             handleStorage(WRITE);
@@ -2428,6 +2502,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     // region Speed dial
 
+    // Reveals the speed-dial FAB menu (Recurring/Single Event options) with a staggered
+    // fade+slide animation and rotates the main FAB into an "X" close icon.
     private void openSpeedDial() {
         speedDialOpen = true;
         speedDialScrim.setVisibility(View.VISIBLE);
@@ -2442,6 +2518,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         addExpenseButton.animate().rotation(45f).setDuration(200).start();
     }
 
+    // Hides the speed-dial FAB menu and rotates the main FAB back to its default icon.
     private void closeSpeedDial() {
         if (!speedDialOpen) return;
         speedDialOpen = false;
@@ -2456,6 +2533,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         addExpenseButton.animate().rotation(0f).setDuration(200).start();
     }
 
+    // Fades and slides a single speed-dial row (FAB or label card) into view after delayMs.
     private void showSpeedDialRow(View row, long delayMs) {
         row.setVisibility(View.VISIBLE);
         row.setAlpha(0f);
@@ -2463,6 +2541,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         row.animate().alpha(1f).translationY(0f).setStartDelay(delayMs).setDuration(200).start();
     }
 
+    // Fades and slides a single speed-dial row out of view, hiding it once the animation ends.
     private void hideSpeedDialRow(View row, long delayMs) {
         row.animate().alpha(0f).translationY(24f).setStartDelay(delayMs).setDuration(160)
                 .withEndAction(() -> row.setVisibility(View.GONE)).start();
@@ -2472,6 +2551,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     // region Single Events
 
+    // Builds the "Add Single Event" dialog (a one-off debit/credit against the balance, a manual
+    // account, or a credit card), applying its effect immediately to the chosen target on save.
     private void showAddSingleEventDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.add_single_event_layout, null);
         com.google.android.material.textfield.TextInputLayout nameLayout = dialogView.findViewById(R.id.add_single_event_name);
@@ -2592,6 +2673,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         dialog.show();
     }
 
+    // Purges single events older than the configured expiry window (default 30 days) and saves
+    // if anything was removed.
     private void cleanupExpiredSingleEvents() {
         if (singleEventList == null) return;
         int expiryDays = getSharedPreferences("bujit_prefs", MODE_PRIVATE)
@@ -2600,6 +2683,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         if (any) saveNow();
     }
 
+    // Re-reads single events from disk (after SingleEventsActivity edited them) and applies any
+    // pending BALANCE-target delta that activity recorded, since it doesn't write curBalance itself.
     private void reloadSingleEventsFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2625,11 +2710,16 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     // endregion
 
+    // Lazily creates (once) and returns the Google Tasks helper used for calendar sync.
     private GoogleTasksHelper tasksHelper() {
         if (googleTasksHelper == null) googleTasksHelper = new GoogleTasksHelper(this);
         return googleTasksHelper;
     }
 
+    // Re-syncs in-memory state with anything a sub-activity (Single Events, Banking, Income
+    // Streams, Credit Util, Category Manager, Settings) changed on disk while this activity was
+    // paused, using a set of SharedPreferences "changed" flags each sub-activity sets before it
+    // finishes. Also handles pending calendar sync/disconnect and resumes the tutorial.
     @Override
     protected void onResume() {
         super.onResume();
@@ -2698,6 +2788,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Re-reads the expense list from disk (after Banking/CreditUtil edited it) and refreshes the UI.
     private void reloadExpenseListFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2711,6 +2802,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Re-reads expenses and the category list from disk after CategoryManagerActivity renamed,
+    // merged, or deleted categories (which can also alter expenses referencing them).
     private void reloadAfterCategoryChange() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2725,6 +2818,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Re-reads income streams from disk (after IncomeStreamsActivity edited them), re-applies the
+    // now-selected stream's amount/frequency/date to check calculations, and returns home.
     private void reloadIncomeStreamsFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
@@ -2813,6 +2908,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
     }
 
+    // Shuts down the background executor so no pending sync work leaks past this activity's life.
     @Override
     protected void onDestroy() {
         super.onDestroy();

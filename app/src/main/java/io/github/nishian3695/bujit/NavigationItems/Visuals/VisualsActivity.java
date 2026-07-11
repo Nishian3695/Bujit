@@ -110,6 +110,9 @@ public class VisualsActivity extends AppCompatActivity {
     private int                  currentHighlightDsIdx  = -1;
     private TutorialOverlayLayout tutorialOverlay;
 
+    // Inflates the visuals screen, loads the expense/income/snapshot/category data passed in via
+    // Intent (or straight from storage when launched from the tutorial), wires up the Cash Flow /
+    // Categories tabs and the GROSS/NET toggle, and builds the initial charts.
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeHelper.applyAccentTheme(this);
@@ -207,6 +210,11 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Cash Flow ────────────────────────────────────────────────────────────
 
+    // Builds the 12-period cash-flow bar chart for the currently displayed year: determines pay
+    // period bars from the selected income stream, pulls past-period totals from saved snapshots
+    // and projects current/future periods from recurring rules, then renders either GROSS
+    // (separate income/expense bars) or NET (single signed bar) mode with custom tap-to-highlight
+    // and marker-popup behavior, and hatches bars that represent future (unelapsed) periods.
     private void buildCashFlowChart(boolean gross) {
         isGrossMode = gross;
         currentHighlightBarIdx = -1;
@@ -578,6 +586,7 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Categories ───────────────────────────────────────────────────────────
 
+    // Builds the "all categories" pie chart (includes credit cards as their own slice).
     private void buildCategoriesChart() {
         double payPeriodDays = getPayPeriodDays();
         Map<String, Float> amounts = buildCategoryAmounts(false, payPeriodDays);
@@ -585,6 +594,7 @@ public class VisualsActivity extends AppCompatActivity {
                 this::buildCategoriesChart);
     }
 
+    // Builds the "excluding credit cards" pie chart.
     private void buildPerCheckChart() {
         double payPeriodDays = getPayPeriodDays();
         Map<String, Float> amounts = buildCategoryAmounts(true, payPeriodDays);
@@ -592,6 +602,9 @@ public class VisualsActivity extends AppCompatActivity {
                 this::buildPerCheckChart);
     }
 
+    // Sums each expense's per-pay-period equivalent cost into its category bucket (or "Credit
+    // Cards"/"Other" as appropriate), seeding all known categories at 0 first so chart/legend
+    // ordering matches the user's category list.
     private Map<String, Float> buildCategoryAmounts(boolean excludeCredit, double payPeriodDays) {
         Map<String, Float> amounts = new LinkedHashMap<>();
         // Seed in user category order first so the chart respects that order
@@ -611,6 +624,9 @@ public class VisualsActivity extends AppCompatActivity {
         return amounts;
     }
 
+    // Renders one pie chart from a category→amount map, skipping categories the user has toggled
+    // off in the legend (still shown in the legend, just excluded from the slices), and rebuilds
+    // the accompanying custom legend row.
     private void buildPieChart(PieChart chart, LinearLayout legendContainer,
                                 Map<String, Float> amounts, Set<String> hidden,
                                 Runnable rebuild) {
@@ -680,6 +696,9 @@ public class VisualsActivity extends AppCompatActivity {
         chart.invalidate();
     }
 
+    // Builds a two-column tappable legend below a pie chart: each chip shows a color swatch and
+    // category name, struck-through and dimmed when hidden, and toggles that category's visibility
+    // (re-running `rebuild`) on tap.
     private void buildLegend(LinearLayout container, List<String> names, List<Integer> colors,
                               Set<String> hidden, Runnable rebuild) {
         container.removeAllViews();
@@ -749,6 +768,7 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Data helpers ─────────────────────────────────────────────────────────
 
+    // Finds the saved snapshot matching a given period's start date, or null if none was recorded.
     private PeriodSnapshot findSnapshot(LocalDate periodStart) {
         if (snapshotList == null) return null;
         for (PeriodSnapshot s : snapshotList) {
@@ -864,6 +884,7 @@ public class VisualsActivity extends AppCompatActivity {
     }
 
 
+    // Maps a category name to a fixed accent color for consistent chart/legend coloring.
     private int categoryColor(String category) {
         switch (category) {
             case "Housing":       return 0xFF5C6BC0;
@@ -881,10 +902,12 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Chart helpers ────────────────────────────────────────────────────────
 
+    // Returns a copy of a color with a different alpha channel, used to dim a legend's swatch color.
     private int withAlpha(int color, int alpha) {
         return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
     }
 
+    // Converts a recurrence magnitude + ChronoUnit into an approximate day count.
     private double periodToDays(int freq, ChronoUnit unit) {
         switch (unit) {
             case DAYS:   return freq;
@@ -897,6 +920,7 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Theme helpers ────────────────────────────────────────────────────────
 
+    // Resolves the theme's primary text color for use in chart labels.
     @SuppressLint("ResourceType")
     private int getThemeTextColor() {
         int[] attrs = { android.R.attr.textColorPrimary };
@@ -908,6 +932,7 @@ public class VisualsActivity extends AppCompatActivity {
         }
     }
 
+    // Resolves an arbitrary theme attribute color (e.g. grid line color) at runtime.
     private int resolveAttrColor(int attr) {
         int[] attrs = { attr };
         TypedArray ta = obtainStyledAttributes(attrs);
@@ -918,23 +943,29 @@ public class VisualsActivity extends AppCompatActivity {
         }
     }
 
+    // Resumes the guided tutorial if this screen still has unfinished tutorial steps.
     @Override
     protected void onResume() {
         super.onResume();
         maybeShowTutorial();
     }
 
+    // Removes any active tutorial overlay so it doesn't leak past this screen's lifecycle.
     @Override
     protected void onPause() {
         removeTutorialOverlay();
         super.onPause();
     }
 
+    // Kicks off the tutorial's current step, but only if this activity still has steps left to show.
     private void maybeShowTutorial() {
         if (!TutorialManager.hasStepsForActivity(this, VisualsActivity.class)) return;
         showTutorialStep(TutorialManager.getCurrentStep(this));
     }
 
+    // Renders a single tutorial overlay step (spotlight + text bubble), switching to the
+    // Categories tab first if that step targets a view inside it, and wiring "Next"/"Skip" to
+    // advance to the next step, hand off to another activity's tutorial, or return home.
     private void showTutorialStep(int step) {
         TutorialManager.StepDef def = TutorialManager.STEPS[step];
         removeTutorialOverlay();
@@ -976,6 +1007,7 @@ public class VisualsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
+    // Detaches the tutorial overlay view from the window decor, if one is currently showing.
     private void removeTutorialOverlay() {
         if (tutorialOverlay != null) {
             ViewGroup p = (ViewGroup) tutorialOverlay.getParent();
@@ -984,6 +1016,7 @@ public class VisualsActivity extends AppCompatActivity {
         }
     }
 
+    // Makes the toolbar's back arrow close this screen.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -1001,6 +1034,7 @@ public class VisualsActivity extends AppCompatActivity {
         private final boolean[] futureFlags;
         private final Paint     hatchPaint;
 
+        // Builds the renderer with a per-bar-index flag array indicating which bars are future/projected.
         HatchedBarChartRenderer(BarChart chart, boolean[] futureFlags) {
             super(chart, chart.getAnimator(), chart.getViewPortHandler());
             this.futureFlags = futureFlags;
@@ -1010,6 +1044,7 @@ public class VisualsActivity extends AppCompatActivity {
             hatchPaint.setStrokeWidth(3f);
         }
 
+        // Draws the normal bars, then overlays diagonal hatch lines on every bar flagged as future.
         @Override
         public void drawData(Canvas c) {
             super.drawData(c);
@@ -1050,16 +1085,20 @@ public class VisualsActivity extends AppCompatActivity {
 
     // ── Marker popup ─────────────────────────────────────────────────────────
 
+    // Custom tooltip popup shown when a chart value is tapped/highlighted; the actual text is
+    // produced by a caller-supplied formatter function so one class serves both chart types.
     private class ChartMarker extends MarkerView {
         private final TextView label;
         private final BiFunction<Entry, Highlight, String> formatter;
         private final boolean isCashFlow;
         private Entry lastEntry;
 
+        // Convenience constructor for non-cash-flow (pie chart) markers.
         ChartMarker(BiFunction<Entry, Highlight, String> fmt) {
             this(fmt, false);
         }
 
+        // Inflates the marker layout and stores the formatter used to build its text.
         ChartMarker(BiFunction<Entry, Highlight, String> fmt, boolean cashFlow) {
             super(VisualsActivity.this, R.layout.marker_chart_value);
             label = findViewById(R.id.marker_text);
@@ -1067,6 +1106,7 @@ public class VisualsActivity extends AppCompatActivity {
             isCashFlow = cashFlow;
         }
 
+        // Updates the marker's displayed text whenever a new value is highlighted.
         @Override
         public void refreshContent(Entry e, Highlight highlight) {
             lastEntry = e;
@@ -1074,6 +1114,9 @@ public class VisualsActivity extends AppCompatActivity {
             super.refreshContent(e, highlight);
         }
 
+        // Positions the marker relative to the highlighted point: centered above/below for
+        // pie/net charts, or specially anchored at the expense-bar tip in GROSS cash-flow mode
+        // (since the highlight itself is anchored to the income bar's coordinate space).
         @Override
         public MPPointF getOffset() {
             float w = getWidth();
