@@ -41,6 +41,7 @@ import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.QueryProductDetailsParams;
 import io.github.nishian3695.bujit.AppLockPrefs;
 import io.github.nishian3695.bujit.BujitApp;
+import io.github.nishian3695.bujit.DisplayPrefs;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import io.github.nishian3695.bujit.Tutorial.TutorialManager;
 import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
@@ -276,6 +277,11 @@ public class SettingsActivity extends AppCompatActivity {
                 AppLockPrefs.setLockEnabled(this, false);
             }
         });
+
+        SwitchMaterial switchCommaSeparators = findViewById(R.id.switch_comma_separators);
+        switchCommaSeparators.setChecked(DisplayPrefs.useCommaSeparators(this));
+        switchCommaSeparators.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DisplayPrefs.setUseCommaSeparators(this, isChecked));
 
         findViewById(R.id.row_categories).setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, CategoryManagerActivity.class)));

@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
@@ -514,7 +515,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     labels[i] = m.getInstitutionName()
                             + " – " + m.getDisplayType()
                             + " (…" + m.getLastFour() + ")"
-                            + "  $" + String.format(Locale.US, "%.2f", ledger);
+                            + "  $" + CurrencyFormat.display(this, ledger);
                 }
                 new AlertDialog.Builder(this)
                         .setTitle("Link connected account")
@@ -705,8 +706,8 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         }
         int utilPct = (totalLimit > 0) ? Math.min(100, Math.round(totalDebt / totalLimit * 100)) : 0;
 
-        totalDebtView.setText("$" + String.format(Locale.US, "%.2f", totalDebt));
-        totalLimitView.setText("$" + String.format(Locale.US, "%.2f", totalLimit));
+        totalDebtView.setText("$" + CurrencyFormat.display(this, totalDebt));
+        totalLimitView.setText("$" + CurrencyFormat.display(this, totalLimit));
         totalUtilView.setText(utilPct + "%");
         totalUtilBar.setProgress(utilPct);
 

@@ -1584,14 +1584,14 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             shownBalance = currencyFormat.formatToFloat(curBalance);
         }
         float finVal = shownBalance - getCheckExpenses();
-        finalBalance.setText("$" + currencyFormat.formatToString(String.valueOf(finVal)));
+        finalBalance.setText("$" + CurrencyFormat.display(this, String.valueOf(finVal)));
         finalBalance.setTextColor(ContextCompat.getColor(this,
                 finVal >= 0 ? R.color.balance_positive : R.color.balance_negative));
     }
 
     // Writes a dollar-formatted value into the header's current-balance TextView.
     private void setCurrentBalanceText(float value) {
-        currentBankBalance.setText("$" + currencyFormat.formatToString(value));
+        currentBankBalance.setText("$" + CurrencyFormat.display(this, value));
     }
 
     // Swipe functions
@@ -2328,14 +2328,14 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                     labels[i] = m.getInstitutionName()
                             + " - " + m.getDisplayType()
                             + " (…" + m.getLastFour() + ")"
-                            + "  $" + m.getLedgerBalance();
+                            + "  $" + CurrencyFormat.display(this, m.getLedgerBalance());
                     checked[i] = alreadyLinkedPlaid.contains(m.getToken() + "|" + m.getId());
                 }
                 for (int i = 0; i < manualCount; i++) {
                     ManualAccountModel m = finalManual.get(i);
                     labels[plaidCount + i] = m.getName()
                             + " (" + m.getAccountType() + " · Manual)"
-                            + String.format(Locale.US, "  $%.2f", m.getBalance());
+                            + "  $" + CurrencyFormat.display(this, m.getBalance());
                     checked[plaidCount + i] = alreadyLinkedManual.contains(m.getId());
                 }
 

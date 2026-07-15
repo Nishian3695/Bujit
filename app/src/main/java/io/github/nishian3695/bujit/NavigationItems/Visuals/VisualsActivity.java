@@ -44,6 +44,8 @@ import com.github.mikephil.charting.utils.MPPointF;
 import android.view.MotionEvent;
 import java.util.function.BiFunction;
 import com.google.android.material.tabs.TabLayout;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
+import io.github.nishian3695.bujit.DisplayPrefs;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.StorageManagement.CategoryManager;
@@ -58,6 +60,7 @@ import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
+import java.text.DecimalFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -381,9 +384,11 @@ public class VisualsActivity extends AppCompatActivity {
         leftAxis.setDrawZeroLine(true);
         leftAxis.setZeroLineColor(textColor);
         leftAxis.setZeroLineWidth(1.2f);
+        DecimalFormat axisFmt = new DecimalFormat(
+                DisplayPrefs.useCommaSeparators(this) ? "#,##0" : "#0");
         leftAxis.setValueFormatter(new ValueFormatter() {
             @Override public String getFormattedValue(float value) {
-                return "$" + Math.abs(Math.round(value));
+                return "$" + axisFmt.format(Math.abs(Math.round(value)));
             }
         });
         cashFlowChart.getAxisRight().setEnabled(false);
@@ -483,10 +488,10 @@ public class VisualsActivity extends AppCompatActivity {
                         ? grossPayDates.get(idx).format(markerDateFmt) : "";
                 if (grossLastTapWasExpense) {
                     float val = (idx >= 0 && idx < grossExpenseTotals.length) ? grossExpenseTotals[idx] : 0f;
-                    return "Expenses: $" + String.format(Locale.US, "%.2f", val) + "\n" + dateStr;
+                    return "Expenses: $" + CurrencyFormat.display(this, val) + "\n" + dateStr;
                 } else {
                     float val = (idx >= 0 && idx < grossIncomeTotals.length) ? grossIncomeTotals[idx] : 0f;
-                    return "Income: $" + String.format(Locale.US, "%.2f", val) + "\n" + dateStr;
+                    return "Income: $" + CurrencyFormat.display(this, val) + "\n" + dateStr;
                 }
             }, true));
             if (legendIncomeSwatch != null) legendIncomeSwatch.setVisibility(View.VISIBLE);
@@ -572,7 +577,7 @@ public class VisualsActivity extends AppCompatActivity {
                         ? netPayDates.get(idx).format(markerDateFmt) : "";
                 float val = e.getY();
                 String sign = val >= 0 ? "+" : "-";
-                return "Net: " + sign + "$" + String.format(Locale.US, "%.2f", Math.abs(val))
+                return "Net: " + sign + "$" + CurrencyFormat.display(this, Math.abs(val))
                         + "\n" + dateStr;
             }, true));
             if (legendIncomeSwatch != null) legendIncomeSwatch.setVisibility(View.GONE);
@@ -690,7 +695,7 @@ public class VisualsActivity extends AppCompatActivity {
         chart.setHighlightPerTapEnabled(true);
         chart.setMarker(new ChartMarker((e, h) -> {
             PieEntry pe = (PieEntry) e;
-            return pe.getLabel() + "\n$" + String.format(Locale.US, "%.2f", pe.getValue()) + "/check";
+            return pe.getLabel() + "\n$" + CurrencyFormat.display(this, pe.getValue()) + "/check";
         }));
         chart.animateY(700);
         chart.invalidate();

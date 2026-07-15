@@ -9,7 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
-import java.util.Locale;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.R;
 
 /*
@@ -49,7 +49,7 @@ public class ManualAccountAdapter extends RecyclerView.Adapter<ManualAccountAdap
         ManualAccountModel account = accounts.get(position);
         holder.accountType.setText(account.getAccountType());
         holder.accountName.setText(account.getName());
-        holder.balance.setText(String.format(Locale.US, "Balance: $%.2f", account.getBalance()));
+        holder.balance.setText("Balance: $" + CurrencyFormat.display(context, account.getBalance()));
         holder.editBtn.setOnClickListener(v -> {
             int pos = holder.getAdapterPosition();
             if (pos != RecyclerView.NO_POSITION) listener.onEditClicked(accounts.get(pos), pos);

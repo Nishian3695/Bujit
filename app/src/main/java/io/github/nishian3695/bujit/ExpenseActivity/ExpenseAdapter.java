@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
@@ -113,8 +114,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         ExpenseModel anExpense = expenseList.get(position);
         holder.expenseName.setText(anExpense.getName());
         holder.expenseStartDate.setText(expenseDateToString(anExpense.getShownDate()));
-        holder.expenseRate.setText(rateString(anExpense));
-        holder.expenseCost.setText("$" + anExpense.getShownCost());
+        holder.expenseRate.setText(rateString(anExpense, context));
+        holder.expenseCost.setText("$" + CurrencyFormat.display(context, anExpense.getShownCost()));
         ThemeHelper.tintPrimaryText(holder.expenseCost, context);
         holder.expenseStatus.setText(anExpense.getShownStatusAsString());
         holder.linkedIndicator.setVisibility(
@@ -324,7 +325,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     // Utility
 
     // Builds the compact "$cost/unit" label shown under an expense's name (e.g. "$15.99/mo").
-    private static String rateString(ExpenseModel expense) {
+    private static String rateString(ExpenseModel expense, Context context) {
         int freq = expense.getFrequency();
         java.time.temporal.ChronoUnit tag = expense.getFrequencyTag();
         String unit;
@@ -339,7 +340,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         } else {
             unit = "period";
         }
-        return "$" + expense.getCost() + "/" + unit;
+        return "$" + CurrencyFormat.display(context, expense.getCost()) + "/" + unit;
     }
 
     // Formats a date for display in the row (MM/dd/yyyy).

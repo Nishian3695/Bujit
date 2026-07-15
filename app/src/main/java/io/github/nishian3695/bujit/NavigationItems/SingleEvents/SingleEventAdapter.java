@@ -8,11 +8,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.R;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Locale;
 
 // RecyclerView adapter for the single events list in SingleEventsActivity.
 // Each row shows the event name, signed dollar amount (colored green/red), the funding
@@ -56,7 +56,7 @@ public class SingleEventAdapter extends RecyclerView.Adapter<SingleEventAdapter.
         holder.name.setText(item.getName());
 
         String prefix = item.isDebit() ? "-" : "+";
-        holder.amount.setText(String.format(Locale.US, "%s$%.2f", prefix, item.getAmount()));
+        holder.amount.setText(prefix + "$" + CurrencyFormat.display(context, item.getAmount()));
 
         int colorRes = item.isDebit() ? R.color.balance_negative : R.color.balance_positive;
         int color = ContextCompat.getColor(context, colorRes);
