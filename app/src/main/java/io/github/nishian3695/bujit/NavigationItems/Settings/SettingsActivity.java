@@ -287,6 +287,7 @@ public class SettingsActivity extends AppCompatActivity {
                 startActivity(new android.content.Intent(this, CategoryManagerActivity.class)));
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());
         findViewById(R.id.row_tutorial).setOnClickListener(v -> startTutorial());
+        findViewById(R.id.row_rate_app).setOnClickListener(v -> openPlayStoreListing());
         findViewById(R.id.row_import_csv).setOnClickListener(v ->
                 csvPickerLauncher.launch(new String[]{"text/csv", "text/plain", "application/octet-stream", "*/*"}));
         findViewById(R.id.row_csv_template).setOnClickListener(v -> promptTemplateAction());
@@ -627,6 +628,17 @@ public class SettingsActivity extends AppCompatActivity {
     // Opens the banking provider's (Plaid's) privacy statement in the device browser.
     private void openTellerPrivacy() {
         openUrl("https://plaid.com/legal/#privacy-statement");
+    }
+
+    // Opens Bujit's Play Store listing for rating, preferring the Play Store app itself and
+    // falling back to the web listing if it isn't installed.
+    private void openPlayStoreListing() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("market://details?id=" + getPackageName())));
+        } catch (android.content.ActivityNotFoundException e) {
+            openUrl("https://play.google.com/store/apps/details?id=" + getPackageName());
+        }
     }
 
     // Opens a URL in the device's default browser, showing a toast if none is available.
