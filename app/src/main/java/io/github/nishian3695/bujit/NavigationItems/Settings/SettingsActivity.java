@@ -6,21 +6,35 @@ import android.util.Log;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.FileProvider;
+import io.github.nishian3695.bujit.StorageManagement.BackupCrypto;
+import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
+import io.github.nishian3695.bujit.StorageManagement.StorageManager;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -125,6 +139,13 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String TIP_MEDIUM = "tip_medium";
     private static final String TIP_LARGE  = "tip_large";
 
+    // Backup export/import (see BackupCrypto) — off-UI-thread crypto/serialization work.
+    private ExecutorService backupExecutor;
+    private Handler backupMainHandler;
+    // Holds the export passphrase between the "Save Your Passphrase" confirmation and the async
+    // CreateDocument result, since the SAF picker must be launched before the file URI is known.
+    private char[] pendingExportPassphrase;
+
     // Handles the result of the Google Sign-In flow, completing calendar sync setup on success.
     private final ActivityResultLauncher<Intent> googleSignInLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -160,6 +181,20 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             });
 
+    // Handles the result of the "Save As" dialog used for "Export Backup".
+    private final ActivityResultLauncher<String> exportBackupLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("application/octet-stream"), uri -> {
+                char[] passphrase = pendingExportPassphrase;
+                pendingExportPassphrase = null;
+                if (uri != null && passphrase != null) performBackupExport(uri, passphrase);
+            });
+
+    // Handles the result of the system file picker used for "Import Backup".
+    private final ActivityResultLauncher<String[]> importBackupLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null) promptImportPassphrase(uri);
+            });
+
     // Inflates the settings screen and wires up every section: appearance (accent color/theme),
     // Google Calendar sync, app lock, category manager link, CSV import/export, single-event
     // expiry, help/legal links, and the in-app tip jar.
@@ -191,8 +226,12 @@ public class SettingsActivity extends AppCompatActivity {
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_support_dev), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_data), this);
+        ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_backup), this);
         ThemeHelper.tintPrimaryText(findViewById(R.id.section_header_legal), this);
         themeToggle = findViewById(R.id.theme_toggle);
+
+        backupExecutor    = Executors.newSingleThreadExecutor();
+        backupMainHandler = new Handler(Looper.getMainLooper());
 
         swatches = new MaterialCardView[SWATCH_IDS.length];
         checks   = new View[CHECK_IDS.length];
@@ -294,6 +333,9 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_csv_reference).setOnClickListener(v ->
                 openUrl("https://nishian3695.github.io/Bujit/csv-import-reference.html"));
         findViewById(R.id.row_clear_data).setOnClickListener(v -> confirmClearData());
+        findViewById(R.id.row_export_backup).setOnClickListener(v -> promptExportPassphrase());
+        findViewById(R.id.row_import_backup).setOnClickListener(v ->
+                importBackupLauncher.launch(new String[]{"application/octet-stream", "*/*"}));
         findViewById(R.id.row_website).setOnClickListener(v ->
                 openUrl("https://nishian3695.github.io/Bujit/"));
         findViewById(R.id.row_privacy_policy).setOnClickListener(v -> openPrivacyPolicy());
@@ -603,6 +645,272 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    // ── Backup export/import (passphrase-encrypted, fully local — see BackupCrypto) ──────────
+
+    // Shows the passphrase entry dialog for exporting a backup. Both fields may be left blank,
+    // in which case a secure random passphrase is generated on the user's behalf — either way,
+    // confirmSavePassphrase() below is always shown next before the file is actually written.
+    private void promptExportPassphrase() {
+        int padPx = (int) (20 * getResources().getDisplayMetrics().density);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(padPx, padPx / 2, padPx, 0);
+
+        EditText passInput = new EditText(this);
+        passInput.setHint("Leave blank to auto-generate a secure passphrase");
+        passInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        container.addView(passInput);
+
+        EditText confirmInput = new EditText(this);
+        confirmInput.setHint("Confirm passphrase");
+        confirmInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = padPx / 2;
+        confirmInput.setLayoutParams(lp);
+        container.addView(confirmInput);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Export Backup")
+                .setMessage("Set a passphrase to protect this backup, or leave both fields blank "
+                        + "and Bujit will generate one for you.")
+                .setView(container)
+                .setPositiveButton("Next", (d, w) -> {
+                    String pass = passInput.getText() != null ? passInput.getText().toString() : "";
+                    String confirm = confirmInput.getText() != null ? confirmInput.getText().toString() : "";
+                    if (pass.isEmpty() && confirm.isEmpty()) {
+                        confirmSavePassphrase(BackupCrypto.generatePassphrase());
+                    } else if (!pass.equals(confirm)) {
+                        Toast.makeText(this, "Passphrases don't match", Toast.LENGTH_SHORT).show();
+                        promptExportPassphrase();
+                    } else if (pass.length() < 8) {
+                        Toast.makeText(this, "Passphrase must be at least 8 characters", Toast.LENGTH_SHORT).show();
+                        promptExportPassphrase();
+                    } else {
+                        confirmSavePassphrase(pass);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // Mandatory checkpoint shown for every export, regardless of whether the passphrase was
+    // self-chosen or generated — Bujit never stores it, so this is the user's only chance to
+    // record it before continuing.
+    private void confirmSavePassphrase(String passphrase) {
+        int padPx = (int) (20 * getResources().getDisplayMetrics().density);
+        TextView passphraseView = new TextView(this);
+        passphraseView.setText(passphrase);
+        passphraseView.setTextIsSelectable(true);
+        passphraseView.setTextSize(18f);
+        passphraseView.setTypeface(android.graphics.Typeface.MONOSPACE);
+        passphraseView.setGravity(android.view.Gravity.CENTER);
+        passphraseView.setPadding(padPx, padPx, padPx, padPx / 2);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Save Your Passphrase")
+                .setView(passphraseView)
+                .setMessage("Bujit does not store this passphrase anywhere and cannot recover "
+                        + "your backup without it. Write it down or save it somewhere safe before continuing.")
+                .setCancelable(false)
+                .setPositiveButton("I've Saved It — Export", (d, w) -> {
+                    pendingExportPassphrase = passphrase.toCharArray();
+                    exportBackupLauncher.launch(defaultBackupFilename());
+                })
+                .setNegativeButton("Go Back", (d, w) -> promptExportPassphrase())
+                .show();
+    }
+
+    // Builds a dated default filename for the exported backup, e.g. "bujit_backup_2026-07-15.bujitbackup".
+    private String defaultBackupFilename() {
+        return "bujit_backup_" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE) + ".bujitbackup";
+    }
+
+    // Serializes and passphrase-encrypts the current data, then writes it to the chosen file.
+    // Runs off the UI thread since PBKDF2 key derivation is deliberately slow.
+    private void performBackupExport(Uri uri, char[] passphrase) {
+        AlertDialog loading = new AlertDialog.Builder(this)
+                .setTitle("Exporting…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loading.show();
+        backupExecutor.execute(() -> {
+            try {
+                StorageManager sm = new StorageManager(getApplicationContext());
+                String json = sm.exportJson(sm.getStorageHolder());
+                String envelope = BackupCrypto.encrypt(json, passphrase);
+                try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                    if (os != null) os.write(envelope.getBytes(StandardCharsets.UTF_8));
+                }
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    Toast.makeText(this, "Backup exported", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    Toast.makeText(this, "Could not export backup: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            } finally {
+                Arrays.fill(passphrase, '\0');
+            }
+        });
+    }
+
+    // Prompts for the passphrase used to create the selected backup file.
+    private void promptImportPassphrase(Uri uri) {
+        int padPx = (int) (20 * getResources().getDisplayMetrics().density);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(padPx, padPx / 2, padPx, 0);
+
+        EditText passInput = new EditText(this);
+        passInput.setHint("Passphrase");
+        passInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        container.addView(passInput);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Import Backup")
+                .setMessage("Enter the passphrase used to create this backup.")
+                .setView(container)
+                .setPositiveButton("Import", (d, w) -> {
+                    String pass = passInput.getText() != null ? passInput.getText().toString() : "";
+                    performBackupDecrypt(uri, pass.toCharArray());
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // Reads and decrypts the selected file off the UI thread. Current data is left completely
+    // untouched on any failure — the destructive-overwrite confirmation only appears after a
+    // successful decrypt, so a wrong passphrase never puts existing data at risk.
+    private void performBackupDecrypt(Uri uri, char[] passphrase) {
+        AlertDialog loading = new AlertDialog.Builder(this)
+                .setTitle("Reading backup…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loading.show();
+        backupExecutor.execute(() -> {
+            try {
+                String envelopeText = readUriAsString(uri);
+                String json;
+                try {
+                    json = BackupCrypto.decrypt(envelopeText, passphrase);
+                } catch (BackupCrypto.BackupCryptoException e) {
+                    backupMainHandler.post(() -> {
+                        loading.dismiss();
+                        showBackupErrorDialog(e);
+                    });
+                    return;
+                }
+                StorageManager sm = new StorageManager(getApplicationContext());
+                StorageHolder restored = sm.importJson(json);
+                String exportedAt = BackupCrypto.readExportedAt(envelopeText);
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    confirmOverwriteWithBackup(sm, restored, exportedAt);
+                });
+            } catch (Exception e) {
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    Toast.makeText(this, "Could not read backup file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            } finally {
+                Arrays.fill(passphrase, '\0');
+            }
+        });
+    }
+
+    // Reads the full text contents of a picked SAF Uri.
+    private String readUriAsString(Uri uri) throws Exception {
+        try (InputStream is = getContentResolver().openInputStream(uri)) {
+            if (is == null) throw new java.io.IOException("Could not open file");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+            return sb.toString();
+        }
+    }
+
+    // Maps a decrypt failure reason to a user-facing explanation. Wrong-passphrase and
+    // corrupted-file collapse into the same message since AES-GCM can't distinguish them.
+    private void showBackupErrorDialog(BackupCrypto.BackupCryptoException e) {
+        String title;
+        String message;
+        switch (e.reason) {
+            case UNSUPPORTED_VERSION:
+                title = "Update Required";
+                message = "This backup was created with a newer version of Bujit and can't be "
+                        + "read by this version. Please update the app and try again.";
+                break;
+            case MALFORMED_ENVELOPE:
+                title = "Not a Backup File";
+                message = "This doesn't look like a Bujit backup file. Please select a "
+                        + ".bujitbackup file exported from Bujit.";
+                break;
+            case WRONG_PASSPHRASE_OR_CORRUPT:
+            default:
+                title = "Import Failed";
+                message = "Incorrect passphrase, or this file is corrupted. Please check the "
+                        + "passphrase and try again.";
+                break;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    // Confirms the destructive overwrite now that the backup has been verified as valid —
+    // shown only after a successful decrypt, so it can reference the actual export date.
+    private void confirmOverwriteWithBackup(StorageManager sm, StorageHolder restored, String exportedAt) {
+        String dateText = exportedAt != null ? " from " + exportedAt : "";
+        new AlertDialog.Builder(this)
+                .setTitle("Import Backup")
+                .setMessage("Import backup" + dateText + "? This will replace all current data "
+                        + "on this device. This cannot be undone.")
+                .setPositiveButton("Import", (d, w) -> performBackupWrite(sm, restored))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // Persists the restored data and relaunches ExpenseActivity fresh, mirroring
+    // performClearData() — but unlike a full clear, SharedPreferences (theme, App Lock, linked
+    // bank tokens) are device-local settings that are NOT part of the portable backup and must
+    // survive a restore untouched.
+    private void performBackupWrite(StorageManager sm, StorageHolder restored) {
+        AlertDialog loading = new AlertDialog.Builder(this)
+                .setTitle("Restoring…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loading.show();
+        backupExecutor.execute(() -> {
+            try {
+                sm.writeData(restored);
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    Intent intent = new Intent(this, ExpenseActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                });
+            } catch (Exception e) {
+                backupMainHandler.post(() -> {
+                    loading.dismiss();
+                    Toast.makeText(this, "Could not restore backup: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
     // Resets the guided tutorial's progress and closes Settings so it replays from the start.
     private void startTutorial() {
         TutorialManager.reset(this);
@@ -830,6 +1138,7 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (billingClient != null) billingClient.endConnection();
+        if (backupExecutor != null) backupExecutor.shutdown();
         super.onDestroy();
     }
 }
