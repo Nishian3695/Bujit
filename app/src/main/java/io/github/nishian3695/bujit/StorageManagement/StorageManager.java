@@ -328,6 +328,9 @@ public class StorageManager {
         o.put("googleTaskId",         strOrNull(e.getGoogleTaskId()));
         o.put("calendarNotif",        e.isCalendarNotificationsEnabled());
         o.put("category",             e.getCategory());
+        o.put("source",               e.getSource());
+        o.put("sourceId",             strOrNull(e.getSourceId()));
+        o.put("sourceDisplayName",    strOrNull(e.getSourceDisplayName()));
         return o;
     }
 
@@ -360,6 +363,9 @@ public class StorageManager {
             if (tid != null) e.setGoogleTaskId(tid);
             e.setCalendarNotificationsEnabled(o.optBoolean("calendarNotif", true));
             e.setCategory(o.optString("category", "Other"));
+            e.setSource(o.optString("source", "BALANCE"));
+            if (!o.isNull("sourceId")) e.setSourceId(o.optString("sourceId", null));
+            if (!o.isNull("sourceDisplayName")) e.setSourceDisplayName(o.optString("sourceDisplayName", null));
             return e;
         } catch (Exception ex) {
             Log.e(TAG, "jsonToExpense failed", ex);

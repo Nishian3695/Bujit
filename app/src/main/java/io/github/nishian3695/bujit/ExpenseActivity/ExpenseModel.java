@@ -1,9 +1,11 @@
 package io.github.nishian3695.bujit.ExpenseActivity;
 
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
+import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Locale;
 
 /*
@@ -52,6 +54,12 @@ public class ExpenseModel implements Serializable {
     private LocalDate shownDate;
     private String shownCost;
     private int shownStatus;
+    // Credit cards only, in-memory/not persisted: the ongoing standing balance as of whichever
+    // period is currently displayed (real or projected via paging), for the Rate label and
+    // utilization bar. Deliberately separate from shownCost, which represents "amount due this
+    // period" — 0 except in the specific period the card's due date falls in. A card can be
+    // carrying a nonzero balance (shown here) while nothing is due yet (shownCost == 0).
+    private transient String displayBalance;
 
     // New variables
     private float ePerPay;
@@ -64,6 +72,14 @@ public class ExpenseModel implements Serializable {
     private boolean calendarNotificationsEnabled = true;
     // User-assigned spending category (e.g. "Food", "Housing"). Defaults to "Other".
     private String category = "Other";
+    // Funding source for this expense, distinct from linkedAccountId/isLinkedToBank() above
+    // (which drives the loan/credit cost-sync feature). "BALANCE" (default) means occurrences
+    // deduct from Current Balance as before; "MANUAL_ACCOUNT"/"CREDIT_CARD" redirect the
+    // deduction to a specific manual account or manual credit card; "LINKED_ACCOUNT" means a
+    // Plaid/Teller account already reflects the debit on its own, so nothing should be deducted.
+    private String source = "BALANCE";
+    private String sourceId = null;
+    private String sourceDisplayName = null;
 
     //Constructor
     // Creates a new expense/credit entry with its base recurrence data; shownDate/shownCost start
@@ -145,6 +161,17 @@ public class ExpenseModel implements Serializable {
         try { return currencyFormat.formatToString(this.shownCost); }
         catch (NumberFormatException e) { return "0.00"; }
     }
+    // Credit cards' ongoing balance for the currently displayed period (see field comment above).
+    // Falls back to getCost() when unset (e.g. a freshly loaded expense that hasn't been through
+    // makeCurrent()/getNextCheckPayments()/getPrevCheckPayments() yet this session).
+    public String getDisplayBalance() {
+        if (this.displayBalance == null || this.displayBalance.isEmpty()) return getCost();
+        try { return currencyFormat.formatToString(this.displayBalance); }
+        catch (NumberFormatException e) { return getCost(); }
+    }
+    private void setDisplayBalance(float balance) {
+        this.displayBalance = currencyFormat.formatToString(balance);
+    }
     public String getName() {
         return this.expenseName;
     }
@@ -206,6 +233,14 @@ public class ExpenseModel implements Serializable {
     // Category
     public String getCategory() { return category != null ? category : "Other"; }
     public void setCategory(String category) { this.category = (category != null && !category.isEmpty()) ? category : "Other"; }
+
+    // Funding source
+    public String getSource() { return source != null ? source : "BALANCE"; }
+    public void setSource(String source) { this.source = (source != null && !source.isEmpty()) ? source : "BALANCE"; }
+    public String getSourceId() { return sourceId; }
+    public void setSourceId(String sourceId) { this.sourceId = sourceId; }
+    public String getSourceDisplayName() { return sourceDisplayName; }
+    public void setSourceDisplayName(String sourceDisplayName) { this.sourceDisplayName = sourceDisplayName; }
 
     // Credit
     public void setIsCredit(boolean expenseIsCredit) {
@@ -294,68 +329,179 @@ public class ExpenseModel implements Serializable {
     }
 
     /*
-    Advances shownDate forward until it falls within [beg, end) and sets shownCost
-    to the total amount due in that check period. Used when navigating to a future check.
+    Advances shownDate forward until it falls within [beg, end) and sets shownCost to the total
+    amount due in that check period. Used when navigating to a future check. allExpenses is the
+    full expense list, used only for credit cards (see creditAmountFor/getDisplayBalance).
     */
-    public void getNextCheckPayments(LocalDate beg, LocalDate end) {
+    public void getNextCheckPayments(LocalDate beg, LocalDate end, List<ExpenseModel> allExpenses) {
         while (this.shownDate.isBefore(beg)) {
             this.shownDate = this.shownDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
         }
-        int occurrences;
-        if (expenseIsCredit && this.expenseDate.isBefore(this.shownDate)) {
-            occurrences = 0; // Since shownDate after expenseDate, credit is already paid
-        } else {
-            occurrences = getOccurrences(beg, end, false);
+        if (expenseIsCredit) {
+            setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+            setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
+            return;
         }
-        setShownCost(expenseIsCredit
-                ? (occurrences > 0 ? Float.parseFloat(this.expenseCost) : 0f)
-                : occurrences * Float.parseFloat(this.expenseCost));
+        int occurrences = getOccurrences(beg, end, false);
+        setShownCost(occurrences * Float.parseFloat(this.expenseCost));
     }
 
     /*
-    Rewinds shownDate backward until it falls within [beg, end) and sets shownCost
-    to the total amount due in that check period. Used when navigating to a past check.
+    Rewinds shownDate backward until it falls within [beg, end) and sets shownCost to the total
+    amount due in that check period. Used when navigating to a past check. allExpenses is the
+    full expense list, used only for credit cards (see creditAmountFor/getDisplayBalance).
     */
-    public void getPrevCheckPayments(LocalDate beg, LocalDate end) {
+    public void getPrevCheckPayments(LocalDate beg, LocalDate end, List<ExpenseModel> allExpenses) {
         while (beg.isBefore(this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag))) {
             this.shownDate = this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag);
         }
-        int occurrences;
-        if (expenseIsCredit && this.expenseDate.isBefore(this.shownDate)) {
-            occurrences = 0; // Since shownDate after expenseDate, credit is already paid
-        } else {
-            occurrences = getOccurrences(beg, end, false);
+        if (expenseIsCredit) {
+            setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+            setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
+            return;
         }
-        setShownCost(expenseIsCredit
-                ? (occurrences > 0 ? Float.parseFloat(this.expenseCost) : 0f)
-                : occurrences * Float.parseFloat(this.expenseCost));
+        int occurrences = getOccurrences(beg, end, false);
+        setShownCost(occurrences * Float.parseFloat(this.expenseCost));
+    }
+
+    /*
+    Credit cards only. Two distinct questions, deliberately kept separate:
+
+    creditAmountDueWithin(beg, end) answers "is this card's due date in this specific window, and
+    if so what's owed?" — the Amount column. It's 0 in every period except the one the due date
+    actually falls in, where it's the balance accumulated since the PRECEDING due date (i.e. what
+    gets paid off/reset at this due date) — not the ongoing balance as of `end`.
+
+    projectedBalanceAsOf(beg, end) answers "what does this card currently stand at, as of this
+    period?" — the Rate label / utilization bar. It carries forward regardless of whether
+    anything is due this period, but its reset lags creditAmountDueWithin's by exactly one
+    period: if this card's due date falls within [beg, end) itself, the balance still reflects
+    what's being paid off THIS period (matching the Amount column) rather than jumping straight
+    to the post-payoff figure — the reset only takes visible effect starting the NEXT period,
+    once `beg` has advanced past the due date. That's why the reset lookup below is bounded by
+    `beg` (exclusive of this period), not `end`.
+
+    Both use dueDateWithin/mostRecentDueDateAtOrBefore, which search purely from this card's real,
+    fixed expenseDate/expenseFrequency — not the mutable shownDate paging state, which steps by
+    the CARD's own frequency while beg/end step by the pay period's frequency and so can't be
+    relied on to land exactly on a due-date instance.
+    */
+    private float creditAmountDueWithin(LocalDate beg, LocalDate end, List<ExpenseModel> allExpenses) {
+        LocalDate due = dueDateWithin(beg, end);
+        if (due == null) return 0f;
+        LocalDate precedingDue = due.minus(this.expenseFrequency, this.expenseFrequencyTag);
+        return projectedBalanceUpTo(allExpenses, precedingDue, due);
+    }
+
+    private float projectedBalanceAsOf(List<ExpenseModel> allExpenses, LocalDate beg, LocalDate end) {
+        LocalDate reset = mostRecentDueDateAtOrBefore(beg.minusDays(1));
+        return projectedBalanceUpTo(allExpenses, reset, end);
+    }
+
+    // Shared by both projections above: the balance at `asOf`, starting from whichever is later
+    // — today's real, persisted expenseCost (nothing has reset since), or zero as of a due-date
+    // reset that falls after today but at/before asOf — plus any Source-attributed charges
+    // between that starting point and asOf. bringDataUpToDate()/makeCurrent() only ever applies
+    // occurrences up through today, so charges from today onward haven't been added to
+    // expenseCost yet and must be simulated here instead.
+    private float projectedBalanceUpTo(List<ExpenseModel> allExpenses, LocalDate resetPoint, LocalDate asOf) {
+        LocalDate today = LocalDate.now();
+        float base;
+        LocalDate from;
+        if (resetPoint != null && resetPoint.isAfter(today)) {
+            base = 0f;
+            from = resetPoint;
+        } else {
+            try { base = Float.parseFloat(this.expenseCost); } catch (NumberFormatException e) { base = 0f; }
+            from = today;
+        }
+        return base + sourcedChargesBetween(allExpenses, from, asOf);
+    }
+
+    // Sums the cost of every non-credit expense whose funding Source points at this credit card
+    // (by name, matching applySourcedPayment's convention) that occurs in [from, to).
+    private float sourcedChargesBetween(List<ExpenseModel> allExpenses, LocalDate from, LocalDate to) {
+        if (allExpenses == null || !from.isBefore(to)) return 0f;
+        float total = 0f;
+        for (ExpenseModel e : allExpenses) {
+            if (e == this || e.getIsCredit()) continue;
+            if (!"CREDIT_CARD".equals(e.getSource())) continue;
+            if (e.getSourceId() == null || !e.getSourceId().equals(this.expenseName)) continue;
+            int occ = FinancialCalc.countExpenseOccurrences(e, from, to);
+            if (occ <= 0) continue;
+            try { total += occ * Float.parseFloat(e.getCost()); } catch (NumberFormatException ignored) {}
+        }
+        return total;
+    }
+
+    // Finds this card's due-date instance (if any) that falls within [beg, end), searching from
+    // its real, fixed expenseDate — independent of the shownDate navigation state, which steps
+    // by this card's frequency while beg/end step by the (possibly different) pay-period
+    // frequency and so can't be assumed to already be in sync with the window.
+    private LocalDate dueDateWithin(LocalDate beg, LocalDate end) {
+        LocalDate candidate = this.expenseDate;
+        int safety = 0;
+        while (!candidate.isBefore(end) && safety++ < 3650) {
+            candidate = candidate.minus(this.expenseFrequency, this.expenseFrequencyTag);
+        }
+        safety = 0;
+        while (candidate.isBefore(beg) && safety++ < 3650) {
+            candidate = candidate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+        }
+        return (!candidate.isBefore(beg) && candidate.isBefore(end)) ? candidate : null;
+    }
+
+    // Finds the latest due-date instance of this card (starting from its real, fixed expenseDate
+    // and stepping forward by its own frequency) that falls at or before `end` — i.e. the most
+    // recent point up to `end` where the balance would reset to zero. Returns null if the due
+    // date hasn't been reached within the window at all.
+    private LocalDate mostRecentDueDateAtOrBefore(LocalDate end) {
+        LocalDate candidate = this.expenseDate;
+        LocalDate mostRecent = null;
+        int safety = 0;
+        while (!candidate.isAfter(end) && safety++ < 3650) {
+            mostRecent = candidate;
+            candidate = candidate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+        }
+        return mostRecent;
     }
 
     /*
     Advances the expense's base date forward until it is in the future (today or later),
     and resets shownDate to match. Returns the total amount of past occurrences that have
     already been paid (so the caller can deduct that from the current balance).
-    For credit expenses that have passed, the cost is zeroed and the paid amount returned.
+    For credit expenses, expenseCost (the real, applied balance) is zeroed the moment the due
+    date passes — that part is unaffected by display lag, since it drives the real curBalance
+    deduction. shownCost/displayBalance, however, use the same "lags one check period behind
+    the Amount reset" rule as getNextCheckPayments/getPrevCheckPayments (see creditAmountDueWithin/
+    projectedBalanceAsOf) so the home screen and paged views agree: if the just-passed due date
+    fell within [beg, end) (this check period), the display still shows what was paid off through
+    this period rather than jumping straight to $0 — that only happens starting next period.
+    allExpenses is the full expense list, needed only for credit cards' display computation.
     */
-    public float makeCurrent(LocalDate beg, LocalDate end) {
+    public float makeCurrent(LocalDate beg, LocalDate end, List<ExpenseModel> allExpenses) {
+        LocalDate dueBeforeAdvance = this.expenseDate;
         int passedExpenses = 0;
         while (LocalDate.now().isAfter(this.expenseDate)) {
             this.expenseDate = this.expenseDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
             passedExpenses++;
         }
         setShownDate(this.expenseDate);
-        // If credit and expense has passed, assume paid
-        // Passed Expenses = 1 (since paid once) and expenseCost = 0 (since paid)
         if (this.expenseIsCredit && passedExpenses > 0) {
             float paid = Float.parseFloat(this.expenseCost);
             this.expenseCost = "0.00";
-            this.shownCost = "0.00";
+            boolean dueThisCheck = !dueBeforeAdvance.isBefore(beg) && dueBeforeAdvance.isBefore(end);
+            setShownCost(dueThisCheck ? paid : 0f);
+            setDisplayBalance(dueThisCheck ? paid : 0f);
             return paid;
         }
+        if (this.expenseIsCredit) {
+            setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+            setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
+            return 0f;
+        }
         int occ = getOccurrences(beg, end, true);
-        setShownCost(expenseIsCredit
-                ? (occ > 0 ? Float.parseFloat(this.expenseCost) : 0f)
-                : occ * Float.parseFloat(this.expenseCost));
+        setShownCost(occ * Float.parseFloat(this.expenseCost));
         return currencyFormat.formatToFloat(passedExpenses * Float.parseFloat(this.expenseCost));
     }
 }

@@ -1262,6 +1262,60 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             }
         });
 
+        // Set up Source dropdown — where the money for this expense comes from. Mirrors
+        // showAddSingleEventDialog's funding-source dropdown (Current Balance / manual accounts /
+        // manual credit cards), plus a trigger row that opens showSourceAccountPicker() for a
+        // Plaid/Teller-linked account. This is intentionally separate from linkedAccountId/
+        // btn_from_connected above, which drives a different feature (syncing a loan/credit
+        // expense's displayed cost from its linked account).
+        AutoCompleteTextView sourceInput = dialogLayout.findViewById(R.id.expense_source_input);
+        ArrayList<String> sourceNames = new ArrayList<>();
+        ArrayList<String> sourceTypes = new ArrayList<>();
+        ArrayList<String> sourceIds   = new ArrayList<>();
+        ArrayList<String> sourceDisplayNames = new ArrayList<>();
+        sourceNames.add("Current Balance"); sourceTypes.add("BALANCE"); sourceIds.add(null); sourceDisplayNames.add("Current Balance");
+        ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> sourceManualAccounts =
+                storageHolder.getManualAccountList();
+        if (sourceManualAccounts != null) {
+            for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : sourceManualAccounts) {
+                sourceNames.add(a.getName()); sourceTypes.add("MANUAL_ACCOUNT");
+                sourceIds.add(a.getId()); sourceDisplayNames.add(a.getName());
+            }
+        }
+        for (ExpenseModel e : expenseListStor) {
+            if (e.getIsCredit() && !e.isLinkedToBank()) {
+                String label = e.getName() + " (card)";
+                sourceNames.add(label); sourceTypes.add("CREDIT_CARD");
+                sourceIds.add(e.getName()); sourceDisplayNames.add(label);
+            }
+        }
+        final String LINKED_TRIGGER = "Linked Bank/Credit Account…";
+        sourceNames.add(LINKED_TRIGGER);
+        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, R.layout.expense_dropdown_item, sourceNames);
+        sourceInput.setAdapter(sourceAdapter);
+        final String[] selSource        = {"BALANCE"};
+        final String[] selSourceId      = {null};
+        final String[] selSourceDisplay = {null};
+        final String[] lastSourceText   = {sourceNames.get(0)};
+        sourceInput.setText(sourceNames.get(0), false);
+        sourceInput.setOnItemClickListener((parent, v2, pos, id) -> {
+            String pickedName = sourceNames.get(pos);
+            if (LINKED_TRIGGER.equals(pickedName)) {
+                sourceInput.setText(lastSourceText[0], false); // revert until a pick is made/cancelled
+                showSourceAccountPicker(display -> {
+                    if (display == null) return; // cancelled
+                    selSource[0] = "LINKED_ACCOUNT";
+                    lastSourceText[0] = display;
+                    sourceInput.setText(display, false);
+                }, selSourceId, selSourceDisplay);
+            } else {
+                selSource[0]        = sourceTypes.get(pos);
+                selSourceId[0]      = sourceIds.get(pos);
+                selSourceDisplay[0] = sourceDisplayNames.get(pos);
+                lastSourceText[0]   = pickedName;
+            }
+        });
+
         expenseCost.addTextChangedListener(new CurrencyEditTextWatcher(expenseCost));
         int year;
         int month;
@@ -1307,6 +1361,33 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             String existingCat = expenseModel.getCategory();
             selectedCategory[0] = existingCat;
             categoryInput.setText(existingCat, false);
+
+            // Pre-fill Source
+            String existingSource = expenseModel.getSource();
+            if ("LINKED_ACCOUNT".equals(existingSource)) {
+                selSource[0]        = "LINKED_ACCOUNT";
+                selSourceId[0]      = expenseModel.getSourceId();
+                selSourceDisplay[0] = expenseModel.getSourceDisplayName();
+                String text = selSourceDisplay[0] != null ? selSourceDisplay[0] : "Linked Account";
+                lastSourceText[0] = text;
+                sourceInput.setText(text, false);
+            } else if (!"BALANCE".equals(existingSource)) {
+                int matchIdx = -1;
+                for (int i = 0; i < sourceTypes.size(); i++) {
+                    if (sourceTypes.get(i).equals(existingSource)
+                            && java.util.Objects.equals(sourceIds.get(i), expenseModel.getSourceId())) {
+                        matchIdx = i;
+                        break;
+                    }
+                }
+                if (matchIdx >= 0) {
+                    selSource[0]        = sourceTypes.get(matchIdx);
+                    selSourceId[0]      = sourceIds.get(matchIdx);
+                    selSourceDisplay[0] = sourceDisplayNames.get(matchIdx);
+                    lastSourceText[0]   = sourceNames.get(matchIdx);
+                    sourceInput.setText(sourceNames.get(matchIdx), false);
+                } // else: the target account/card no longer exists — falls back to Current Balance
+            }
         } else {
             LocalDate today = LocalDate.now();
             year = today.getYear();
@@ -1420,6 +1501,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                     case ADD: {
                         ExpenseModel newExpense = new ExpenseModel(eName, eCost, finalDate, eFreqNum, eFreqTag, false);
                         newExpense.setCategory(eCategory);
+                        newExpense.setSource(selSource[0]);
+                        newExpense.setSourceId(selSourceId[0]);
+                        newExpense.setSourceDisplayName(selSourceDisplay[0]);
                         if (linkedId[0] != null) {
                             newExpense.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
                             BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
@@ -1439,7 +1523,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                             });
                         }
                         expenseListStor.add(newExpense);
-                        newExpense.makeCurrent(begCheckDate, nextCheckDate);
+                        newExpense.makeCurrent(begCheckDate, nextCheckDate, expenseListStor);
                         expenseAdapter.notifyItemInserted(expenseListStor.size() - 1);
                         break;
                     }
@@ -1451,7 +1535,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         expenseModel.setFrequencyTag(eFreqTag);
                         expenseModel.setDate(finalDate);
                         expenseModel.setCategory(eCategory);
-                        expenseModel.makeCurrent(begCheckDate, nextCheckDate);
+                        expenseModel.setSource(selSource[0]);
+                        expenseModel.setSourceId(selSourceId[0]);
+                        expenseModel.setSourceDisplayName(selSourceDisplay[0]);
+                        expenseModel.makeCurrent(begCheckDate, nextCheckDate, expenseListStor);
                         expenseModel.setIsVariable(false);
                         if (linkedId[0] != null) {
                             expenseModel.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
@@ -1616,7 +1703,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             endCheckDate = begCheckDate.plus(projFrequency, projFreqTag);
             shownBalance -= getCheckExpenses();
             for (ExpenseModel expenseModel : expenseListStor) {
-                expenseModel.getNextCheckPayments(begCheckDate, endCheckDate);
+                expenseModel.getNextCheckPayments(begCheckDate, endCheckDate, expenseListStor);
             }
             float periodIncome = computeProjectedIncome(begCheckDate, endCheckDate);
             projIncomeStack.add(periodIncome);
@@ -1640,7 +1727,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 begCheckDate = begCheckDate.minus(projFrequency, projFreqTag);
                 endCheckDate = endCheckDate.minus(projFrequency, projFreqTag);
                 for (ExpenseModel expenseModel : expenseListStor) {
-                    expenseModel.getPrevCheckPayments(begCheckDate, endCheckDate);
+                    expenseModel.getPrevCheckPayments(begCheckDate, endCheckDate, expenseListStor);
                 }
                 expenseAdapter.notifyDataSetChanged();
                 checkName.setText("Check of " + calendarToString(begCheckDate, HEADER_FORMAT));
@@ -1679,20 +1766,96 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     /*
-    Calls makeCurrent() on every expense to advance base dates to today, then
-    deducts the sum of past occurrences from curBalance. Pass notifyAdapter=true
-    after navigating back home so the RecyclerView rows refresh their displayed costs.
+    Calls makeCurrent() on every expense to advance base dates to today, then routes each
+    expense's paid amount to its own funding Source (see applySourcedPayment) rather than always
+    deducting from curBalance. Pass notifyAdapter=true after navigating back home so the
+    RecyclerView rows refresh their displayed costs.
+
+    This is deliberately two passes, not one: makeCurrent() runs for every expense FIRST — which
+    includes a credit card's own "due date passed, assume paid off" zeroing — before any
+    Source-redirected charge is applied. If a card's own payoff and a same-cycle charge sourced to
+    it both land in the same catch-up batch (e.g. the app wasn't opened for a while), a single
+    combined pass would let expenseListStor's iteration order decide whether the fresh charge
+    lands on the zeroed balance or gets wiped out by a zeroing that runs after it — this way the
+    outcome is always the same regardless of order: every due card is paid off first, then new
+    charges post on top of that.
     */
     public void bringDataUpToDate(boolean notifyAdapter) {
-        float paid = 0;
+        ArrayList<ExpenseModel> occurred = new ArrayList<>();
+        ArrayList<Float> occurredPaid = new ArrayList<>();
         for (ExpenseModel expenseModel : expenseListStor) {
-            paid += expenseModel.makeCurrent(begCheckDate, nextCheckDate);
+            float paid = expenseModel.makeCurrent(begCheckDate, nextCheckDate, expenseListStor);
+            if (paid != 0f) {
+                occurred.add(expenseModel);
+                occurredPaid.add(paid);
+            }
+        }
+        for (int i = 0; i < occurred.size(); i++) {
+            applySourcedPayment(occurred.get(i), occurredPaid.get(i));
         }
         if (notifyAdapter) {
             expenseAdapter.notifyDataSetChanged();
         }
-        curBalance -= paid;
         setCurrentBalanceText(curBalance);
+    }
+
+    /*
+    Deducts a just-occurred expense's paid amount from its funding Source. Credit-card expenses
+    aren't Source-configurable (they have their own Plaid-sync/manual-edit mechanism via
+    CreditUtilActivity) and always go to curBalance here, matching prior behavior exactly.
+
+    BALANCE (default): curBalance -= paid, same as before this feature existed.
+    LINKED_ACCOUNT: nothing is deducted anywhere — the linked Plaid/Teller account's own balance
+    sync already reflects this real-world debit, so an app-side deduction here would double-count it.
+    MANUAL_ACCOUNT: deducted from the matching ManualAccountModel's balance instead, keeping
+    curBalance consistent via the same computeManualAccountsTotal() delta showAddSingleEventDialog
+    already uses for the same purpose.
+    CREDIT_CARD: added to the matching manual credit card's owed balance (a new charge increases
+    debt) — the mirror image of showAddSingleEventDialog's CREDIT_CARD branch, which subtracts
+    since a single event there represents paying the card down.
+    */
+    private void applySourcedPayment(ExpenseModel expense, float paid) {
+        String source = expense.getIsCredit() ? "BALANCE" : expense.getSource();
+        if (source == null) source = "BALANCE";
+        switch (source) {
+            case "LINKED_ACCOUNT":
+                return;
+            case "MANUAL_ACCOUNT": {
+                ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> accounts =
+                        storageHolder.getManualAccountList();
+                String sourceId = expense.getSourceId();
+                if (accounts != null && sourceId != null) {
+                    for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : accounts) {
+                        if (sourceId.equals(a.getId())) {
+                            a.setBalance(a.getBalance() - paid);
+                            break;
+                        }
+                    }
+                }
+                float newTotal = computeManualAccountsTotal(storageHolder);
+                curBalance += newTotal - manualAccountsTotal;
+                manualAccountsTotal = newTotal;
+                return;
+            }
+            case "CREDIT_CARD": {
+                String sourceId = expense.getSourceId();
+                if (sourceId != null) {
+                    for (ExpenseModel e : expenseListStor) {
+                        if (e.getIsCredit() && sourceId.equals(e.getName())) {
+                            try {
+                                String costStr = String.format(Locale.US, "%.2f", Float.parseFloat(e.getCost()) + paid);
+                                e.setCost(costStr);
+                                e.setShownCost(costStr);
+                            } catch (NumberFormatException ignored) {}
+                            break;
+                        }
+                    }
+                }
+                return;
+            }
+            default: // "BALANCE"
+                curBalance -= paid;
+        }
     }
 
     /*
@@ -2465,6 +2628,75 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                             bannerView.setVisibility(View.VISIBLE);
                         })
                         .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        });
+    }
+
+    // Lets the user pick any linked Plaid/Teller account (all types, not just credit/loan) as an
+    // expense's funding Source. Unlike showConnectedAccountPicker(), this never touches the name
+    // or cost fields — picking a Source only marks the expense as "already handled by this
+    // account's own sync," it doesn't attach the account's balance to the expense's displayed
+    // cost. onPicked is called with the chosen display name, or null if the user cancelled.
+    private void showSourceAccountPicker(java.util.function.Consumer<String> onPicked,
+                                          String[] sourceId, String[] sourceDisplay) {
+        Set<String> tokens = loadBankTokens();
+        if (tokens.isEmpty()) {
+            Toast.makeText(this, "No banks connected — add one in Banking.", Toast.LENGTH_SHORT).show();
+            onPicked.accept(null);
+            return;
+        }
+
+        AlertDialog loadingDialog = new AlertDialog.Builder(this)
+                .setTitle("Loading accounts…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loadingDialog.show();
+
+        executor.execute(() -> {
+            String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
+            List<BankAccountModel> all = new ArrayList<>();
+            for (String token : tokens) {
+                try {
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
+                    for (BankAccountModel m : client.fetchAccounts()) {
+                        m.setToken(token);
+                        all.add(m);
+                    }
+                } catch (Exception e) {
+                    Log.e("SourcePicker", "fetch failed: " + e.getMessage());
+                }
+            }
+            mainHandler.post(() -> {
+                loadingDialog.dismiss();
+                if (all.isEmpty()) {
+                    Toast.makeText(this, "No linked accounts found.", Toast.LENGTH_SHORT).show();
+                    onPicked.accept(null);
+                    return;
+                }
+                String[] labels = new String[all.size()];
+                for (int i = 0; i < all.size(); i++) {
+                    BankAccountModel m = all.get(i);
+                    labels[i] = m.getInstitutionName()
+                            + " – " + m.getDisplayType()
+                            + " (…" + m.getLastFour() + ")"
+                            + "  $" + formatBalance(m.getLedgerBalance());
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Select Linked Account")
+                        .setItems(labels, (d, idx) -> {
+                            BankAccountModel selected = all.get(idx);
+                            String display = selected.getInstitutionName()
+                                    + " " + selected.getDisplayType()
+                                    + " …" + selected.getLastFour();
+                            sourceId[0]      = selected.getId();
+                            sourceDisplay[0] = display;
+                            onPicked.accept(display);
+                        })
+                        .setOnCancelListener(d -> onPicked.accept(null))
+                        .setNegativeButton("Cancel", (d, w) -> onPicked.accept(null))
                         .show();
             });
         });

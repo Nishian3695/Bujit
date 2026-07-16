@@ -125,7 +125,11 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         if (anExpense.getIsCredit()) {
             int utilPct = 0;
             try {
-                float debt  = Float.parseFloat(anExpense.getCost());
+                // getDisplayBalance(), not getShownCost() — shownCost is "amount due this
+                // period" (0 except in the specific period the card's due date falls in);
+                // displayBalance is the ongoing standing balance regardless of due status, which
+                // is what the utilization bar (and Rate label below) should track.
+                float debt  = Float.parseFloat(anExpense.getDisplayBalance());
                 float limit = Float.parseFloat(anExpense.getCreditLimit());
                 if (limit > 0) utilPct = Math.min(100, Math.round(debt / limit * 100));
             } catch (NumberFormatException ignored) {}
@@ -340,7 +344,12 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         } else {
             unit = "period";
         }
-        return "$" + CurrencyFormat.display(context, expense.getCost()) + "/" + unit;
+        // For a credit card this label shows the ongoing balance, not a fixed periodic rate, so
+        // it tracks getDisplayBalance() — the standing balance regardless of due status — rather
+        // than getCost() (which can go stale between real updates) or getShownCost() (which is
+        // "amount due this period" and mostly 0).
+        String amount = expense.getIsCredit() ? expense.getDisplayBalance() : expense.getCost();
+        return "$" + CurrencyFormat.display(context, amount) + "/" + unit;
     }
 
     // Formats a date for display in the row (MM/dd/yyyy).
