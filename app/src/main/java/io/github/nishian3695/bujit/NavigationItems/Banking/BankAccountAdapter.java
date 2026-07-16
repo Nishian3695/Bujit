@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.R;
 import java.util.List;
 
@@ -57,10 +58,6 @@ public class BankAccountAdapter extends RecyclerView.Adapter<BankAccountViewHold
     // raw string unchanged if it isn't a valid number.
     private String formatBalance(String raw) {
         if (raw == null || raw.isEmpty()) return "0.00";
-        try {
-            return String.format("%.2f", Double.parseDouble(raw));
-        } catch (NumberFormatException e) {
-            return raw;
-        }
+        return CurrencyFormat.display(context, raw);
     }
 }

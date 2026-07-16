@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
 import java.util.List;
@@ -53,7 +54,8 @@ public class IncomeStreamAdapter extends RecyclerView.Adapter<IncomeStreamViewHo
 
         holder.streamName.setText(stream.getName());
         holder.streamDetails.setText(
-                "$" + stream.getAmount() + "  ·  " + stream.getFrequencyDisplayString());
+                "$" + CurrencyFormat.display(context, stream.getAmount())
+                        + "  ·  " + stream.getFrequencyDisplayString());
 
         boolean selected = stream.isSelected();
         holder.activeBadge.setVisibility(selected ? View.VISIBLE : View.GONE);

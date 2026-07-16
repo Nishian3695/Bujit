@@ -67,6 +67,19 @@ public class StorageManager {
         return storageHolder;
     }
 
+    // Serializes a StorageHolder to the same JSON used for on-device storage, exposed so
+    // BackupCrypto can wrap it in passphrase encryption for a portable backup file instead of
+    // the device-bound Keystore key used by writeData().
+    public String exportJson(StorageHolder holder) throws Exception {
+        return toJson(holder);
+    }
+
+    // Reconstructs a StorageHolder from JSON produced by exportJson()/toJson(), exposed so a
+    // decrypted backup file's contents can be restored without re-implementing per-model parsing.
+    public StorageHolder importJson(String json) throws Exception {
+        return fromJson(json);
+    }
+
     // Serializes a StorageHolder to JSON, AES-256-GCM encrypts it, and writes it to disk.
     public void writeData(StorageHolder holder) throws IOException {
         try {

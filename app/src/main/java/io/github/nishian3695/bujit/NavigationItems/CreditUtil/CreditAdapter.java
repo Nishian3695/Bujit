@@ -8,12 +8,12 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
+import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
 import java.util.ArrayList;
-import java.util.Locale;
 
 /*
 RecyclerView adapter that displays the list of credit cards in CreditUtilActivity.
@@ -91,10 +91,10 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
         return R.color.balance_negative;
     }
 
-    // Parses a raw amount string and re-formats it to two decimal places, defaulting to "0.00".
+    // Parses a raw amount string and re-formats it for display, defaulting to "0.00".
     private String formatAmount(String raw) {
         if (raw == null || raw.isEmpty()) return "0.00";
-        try { return String.format(Locale.US, "%.2f", Double.parseDouble(raw)); }
+        try { return CurrencyFormat.display(context, raw); }
         catch (NumberFormatException e) { return "0.00"; }
     }
 }
