@@ -86,19 +86,13 @@ public class TutorialManager {
             "Track your credit card balances against their limits. Bujit highlights utilization:\n✅ 0-30%: Good utilization\n⚠️ 31-50%: Moderate utilization\n❌ 51%+: High utilization",
             8, BankingActivity.class),
         // BankingActivity: step 9
-        // Plaid linking step temporarily disabled -- see BankingActivity's "Plaid Coming Soon"
-        // button. Restore once bank linking is re-enabled.
-        // new StepDef(BankingActivity.class, R.id.btn_connect_bank,
-        //     "Link your bank or credit card",
-        //     "Securely connect your bank via Plaid to auto-sync your balance and credit card amounts.\nBujit does not store your login credentials.",
-        //     16),
-        // new StepDef(BankingActivity.class, R.id.btn_add_manual_account,
-        //     "My Accounts",
-        //     "Don't have a supported bank, or want to track cash savings separately? Add manual accounts here! You choose which ones contribute to your balance via \"From Bank Accounts\" when editing your balance.",
-        //     16, SingleEventsActivity.class),
+        new StepDef(BankingActivity.class, R.id.btn_connect_bank,
+            "Link your bank or credit card",
+            "Securely connect your bank via Plaid to auto-sync your balance and credit card amounts.\nBujit does not store your login credentials.",
+            16),
         new StepDef(BankingActivity.class, R.id.btn_add_manual_account,
             "My Accounts",
-            "Add manual accounts here! You choose which ones contribute to your balance via \"From Bank Accounts\" when editing your balance.",
+            "Don't have a supported bank, or want to track cash savings separately? Add manual accounts here! You choose which ones contribute to your balance via \"From Bank Accounts\" when editing your balance.",
             16, SingleEventsActivity.class),
         // SingleEventsActivity: step 10
         new StepDef(SingleEventsActivity.class, R.id.single_events_recycler,
