@@ -1,11 +1,14 @@
 name: Release
 
-# Triggers on any tag matching vX.Y.Z (e.g. v0.3.17).
-# Push a tag to kick off a full signed build, GitHub Release, and Play Store upload.
+# Triggers on any tag matching vX.Y.Z (e.g. v0.3.17), optionally followed by a
+# "-<destination>" suffix that routes the release to an extra Play Store track
+# (e.g. v0.3.17-closed1). See TRACK_MAP in the "Promote to target track" step
+# below to add new destinations. No suffix = internal track only.
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
 # contents:write is required to create the GitHub Release and attach the APK.
 permissions:
@@ -54,20 +57,27 @@ jobs:
 
       # ── Version ────────────────────────────────────────────────────────────
 
-      # versionName  = tag without leading 'v'  (e.g. 0.3.21)
+      # versionName  = tag without leading 'v' or trailing "-<destination>" (e.g. 0.3.21)
       # versionCode  = major*10000 + minor*1000 + patch  (e.g. v0.3.21 → 3021)
       #   Predictable, human-readable, and always increases with the tag.
       #   Max patch supported: 999. Max minor before overflow: 999.
+      # trackSuffix  = whatever follows "-" in the tag (e.g. v0.3.21-closed1 → closed1),
+      #   empty if the tag has no suffix. Looked up in TRACK_MAP below to decide where,
+      #   beyond the internal track, this build gets promoted to.
       - name: Compute version
         id: version
         run: |
           TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#v}"
+          VERSION_FULL="${TAG#v}"
+          VERSION="${VERSION_FULL%%-*}"
+          SUFFIX="${VERSION_FULL#*-}"
+          [ "$SUFFIX" = "$VERSION_FULL" ] && SUFFIX=""
           VERSION_CODE=$(echo "$VERSION" | awk -F. '{print $1*10000 + $2*1000 + $3}')
           echo "versionName=$VERSION"       >> "$GITHUB_OUTPUT"
           echo "versionCode=$VERSION_CODE"  >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"                   >> "$GITHUB_OUTPUT"
-          echo "Release: $VERSION  (versionCode $VERSION_CODE)"
+          echo "trackSuffix=$SUFFIX"        >> "$GITHUB_OUTPUT"
+          echo "Release: $VERSION  (versionCode $VERSION_CODE)  suffix: '${SUFFIX:-<none>}'"
 
       # ── Build ──────────────────────────────────────────────────────────────
 
@@ -134,18 +144,54 @@ jobs:
           mappingFile: app/build/outputs/mapping/release/mapping.txt
 
       # The AAB is already uploaded to Play Store by the internal-track step above.
-      # Re-uploading the same file would fail with "version already in use".
-      # Both tracks are updated inside a single edit so only one review is triggered.
-      - name: Promote to closed testing (alpha + closed_0.1.0)
+      # Re-uploading the same file would fail with "version already in use" -- every
+      # track below this point is promoted via edits().tracks().update() referencing
+      # the versionCode already on internal, never a fresh file upload.
+      #
+      # Routes a release to zero or more extra tracks based on the tag's "-<suffix>"
+      # (see the "Compute version" step). To add a new destination:
+      #   1. Find its real Play Console track ID -- this is NOT the display name you
+      #      gave the track in the console. Run locally with your service account JSON:
+      #        edit = api.edits().insert(packageName=pkg, body={}).execute()
+      #        print(api.edits().tracks().list(packageName=pkg, editId=edit['id']).execute())
+      #        api.edits().delete(packageName=pkg, editId=edit['id']).execute()  # no changes made
+      #   2. Add one line to TRACK_MAP below: 'yoursuffix': ['the_real_track_id'].
+      #   3. Push a tag ending in -yoursuffix.
+      # A suffix can map to multiple track IDs (all staged in one edit, one review).
+      # An unrecognized suffix fails the job loudly rather than silently no-op'ing.
+      - name: Promote to target track(s)
         env:
           SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           VERSION_CODE: ${{ steps.version.outputs.versionCode }}
+          TRACK_SUFFIX: ${{ steps.version.outputs.trackSuffix }}
         run: |
           pip3 install --quiet google-auth google-api-python-client
           python3 - << 'EOF'
-          import os, json
+          import os, json, sys
           from google.oauth2.service_account import Credentials
           from googleapiclient.discovery import build
+
+          # ── Play Store track ID(s) here ──────────────
+          TRACK_MAP = {
+              '':          [],                    # no suffix is internal only, nothing further
+              'closedalpha':   ['alpha'],             # default closed track
+              'closedbeta':   ['closed_0.1.0'],      # custom closed track
+              'closed': ['alpha', 'closed_0.1.0'],  # every closed track at once
+              'open':      ['beta'],              # only open testing track Play Console allows
+          }
+          # ───────────────────────────────────────────────────────────────────
+
+          suffix = os.environ['TRACK_SUFFIX']
+          if suffix not in TRACK_MAP:
+              sys.exit(
+                  f"Unknown tag suffix '{suffix}'. Known suffixes: "
+                  f"{sorted(k for k in TRACK_MAP if k)}. "
+                  f"Add it to TRACK_MAP in release.yml to use it."
+              )
+          tracks = TRACK_MAP[suffix]
+          if not tracks:
+              print('No extra track for this tag -- release stays on internal.')
+              sys.exit(0)
 
           sa    = json.loads(os.environ['SERVICE_ACCOUNT_JSON'])
           creds = Credentials.from_service_account_info(
@@ -157,11 +203,11 @@ jobs:
 
           edit = api.edits().insert(packageName=pkg, body={}).execute()
           eid  = edit['id']
-          for track in ('alpha', 'closed_0.1.0'):
+          for track in tracks:
               api.edits().tracks().update(
                   packageName=pkg, editId=eid, track=track, body=release_body
               ).execute()
               print(f'Staged versionCode {vc} → {track}')
           api.edits().commit(packageName=pkg, editId=eid).execute()
-          print(f'Committed — single review covers both tracks')
+          print(f'Committed — single review covers: {", ".join(tracks)}')
           EOF
