@@ -1,6 +1,6 @@
 package io.github.nishian3695.bujit.StorageManagement;
 
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import io.github.nishian3695.bujit.NavigationItems.SingleEvents.SingleEventModel;
@@ -19,7 +19,7 @@ public class StorageHolder implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // region Stored Data
-    private ArrayList<ExpenseModel> expenseList;
+    private ArrayList<ExpenseItem> expenseList;
     private String currentBalance;
     private String averageCheck;
     private String checkFrequency;
@@ -53,7 +53,7 @@ public class StorageHolder implements Serializable {
     }
 
     // region Getters
-    public ArrayList<ExpenseModel> getExpenseList() {
+    public ArrayList<ExpenseItem> getExpenseList() {
         return expenseList;
     }
     public float getCurrentBalance() {
@@ -99,7 +99,7 @@ public class StorageHolder implements Serializable {
     // endregion
 
     // region Setters
-    public void setExpenseList(ArrayList<ExpenseModel> expenseList) {
+    public void setExpenseList(ArrayList<ExpenseItem> expenseList) {
         this.expenseList = expenseList;
     }
     public void setCurrentBalance(float currentBalance) {

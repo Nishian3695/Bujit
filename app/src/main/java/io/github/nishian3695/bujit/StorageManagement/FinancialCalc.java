@@ -1,6 +1,6 @@
 package io.github.nishian3695.bujit.StorageManagement;
 
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -41,10 +41,10 @@ public final class FinancialCalc {
     }
 
     // Returns how many times this expense falls within [start, end).
-    public static int countExpenseOccurrences(ExpenseModel e, LocalDate start, LocalDate end) {
+    public static int countExpenseOccurrences(ExpenseItem e, LocalDate start, LocalDate end) {
         LocalDate date = e.getDate();
         if (date == null) return 0;
-        if (e.getIsCredit()) {
+        if (e.isCredit()) {
             return (!date.isBefore(start) && date.isBefore(end)) ? 1 : 0;
         }
         int freq = e.getFrequency();
@@ -64,7 +64,7 @@ public final class FinancialCalc {
     // Returns float[]{incomeTotal, expenseTotal}.
     public static float[] computePeriodTotals(
             List<IncomeStreamModel> incomeList,
-            List<ExpenseModel> expenseList,
+            List<ExpenseItem> expenseList,
             LocalDate start, LocalDate end) {
         float income = 0f, expenses = 0f;
         if (incomeList != null) {
@@ -77,7 +77,7 @@ public final class FinancialCalc {
             }
         }
         if (expenseList != null) {
-            for (ExpenseModel e : expenseList) {
+            for (ExpenseItem e : expenseList) {
                 float cost;
                 try { cost = Float.parseFloat(e.getCost()); }
                 catch (NumberFormatException ex) { continue; }

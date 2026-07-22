@@ -57,6 +57,39 @@ public class CreditModel extends ExpenseItem {
         this.displayBalance = currencyFormat.formatToString(balance);
     }
 
+    // Directly sets the current balance from a source of truth -- a manual edit, or a fresh sync
+    // from a linked bank account -- resetting shownCost and displayBalance to match rather than
+    // offsetting them by a delta. Unlike applyCharge(), this represents a full correction ("this
+    // is the balance right now"), which should clear out any stale in-between projection.
+    public void setBalance(String newCost) {
+        setCost(newCost);
+        setShownCost(getCost());
+        float cost;
+        try { cost = Float.parseFloat(getCost()); } catch (NumberFormatException e) { cost = 0f; }
+        setDisplayBalance(cost);
+    }
+
+    // Applies a signed balance delta from an occurred sourced expense or a manual single-event
+    // debit/credit (see ExpenseActivity.applySourcedPayment / showAddSingleEventDialog's
+    // CREDIT_CARD case). A card's own makeCurrent()/getNextCheckPayments()/getPrevCheckPayments()
+    // won't run again until the next check-period navigation, so callers must go through this
+    // method rather than setCost()/setShownCost() directly -- otherwise displayBalance (the Rate
+    // label/utilization bar) keeps showing the pre-charge balance until then.
+    public void applyCharge(float delta) {
+        // Read both "before" values up front -- getDisplayBalance() falls back to getCost() when
+        // displayBalance hasn't been set yet, so reading it after setCost() below would silently
+        // pick up the already-updated cost and double-apply delta.
+        float base;
+        try { base = Float.parseFloat(getCost()); } catch (NumberFormatException e) { base = 0f; }
+        float displayBase;
+        try { displayBase = Float.parseFloat(getDisplayBalance()); } catch (NumberFormatException e) { displayBase = 0f; }
+
+        String costStr = currencyFormat.formatToString(Math.max(0f, base + delta));
+        setCost(costStr);
+        setShownCost(costStr);
+        setDisplayBalance(Math.max(0f, displayBase + delta));
+    }
+
     /*
     Advances shownDate forward until it falls within [beg, end), and sets shownCost/displayBalance
     for that future check period. allExpenses is the full item list, used to project any

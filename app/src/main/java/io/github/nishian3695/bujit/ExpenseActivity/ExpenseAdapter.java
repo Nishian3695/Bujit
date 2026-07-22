@@ -53,7 +53,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     private static final int ANIM_DURATION = 180;
 
     Context context;
-    ArrayList<ExpenseModel> expenseList;
+    ArrayList<ExpenseItem> expenseList;
     private final ClickListener clickListener;
     private final SelectionCallback selectionCallback;
 
@@ -69,7 +69,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
 
     // Wires the adapter to the expense data list plus the two callback interfaces the host
     // activity uses to react to taps and selection-mode changes.
-    public ExpenseAdapter(Context context, ArrayList<ExpenseModel> expenseList,
+    public ExpenseAdapter(Context context, ArrayList<ExpenseItem> expenseList,
                           ClickListener clickListener, SelectionCallback selectionCallback) {
         this.context = context;
         this.expenseList = expenseList;
@@ -111,26 +111,30 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     // tap/long-press handlers for click, selection-toggle, and drag-start.
     @Override
     public void onBindViewHolder(@NonNull ExpenseViewHolder holder, int position) {
-        ExpenseModel anExpense = expenseList.get(position);
+        ExpenseItem anExpense = expenseList.get(position);
         holder.expenseName.setText(anExpense.getName());
         holder.expenseStartDate.setText(expenseDateToString(anExpense.getShownDate()));
         holder.expenseRate.setText(rateString(anExpense, context));
         holder.expenseCost.setText("$" + CurrencyFormat.display(context, anExpense.getShownCost()));
         ThemeHelper.tintPrimaryText(holder.expenseCost, context);
-        holder.expenseStatus.setText(anExpense.getShownStatusAsString());
+        // Payment status is a regular-expense-only concept (the status TextView is hidden by
+        // default in the layout regardless, so this only matters if that ever changes).
+        holder.expenseStatus.setText(
+                anExpense instanceof ExpenseModel ? ((ExpenseModel) anExpense).getShownStatusAsString() : "");
         holder.linkedIndicator.setVisibility(
                 anExpense.isLinkedToBank() ? View.VISIBLE : View.GONE);
 
         // Show the utilization bar for credit card entries; hide it for regular expenses.
-        if (anExpense.getIsCredit()) {
+        if (anExpense instanceof CreditModel) {
+            CreditModel card = (CreditModel) anExpense;
             int utilPct = 0;
             try {
                 // getDisplayBalance(), not getShownCost() — shownCost is "amount due this
                 // period" (0 except in the specific period the card's due date falls in);
                 // displayBalance is the ongoing standing balance regardless of due status, which
                 // is what the utilization bar (and Rate label below) should track.
-                float debt  = Float.parseFloat(anExpense.getDisplayBalance());
-                float limit = Float.parseFloat(anExpense.getCreditLimit());
+                float debt  = Float.parseFloat(card.getDisplayBalance());
+                float limit = Float.parseFloat(card.getCreditLimit());
                 if (limit > 0) utilPct = Math.min(100, Math.round(debt / limit * 100));
             } catch (NumberFormatException ignored) {}
             int color = utilPct < 30 ? R.color.balance_positive
@@ -189,7 +193,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     }
 
     // Returns the expense model backing the row at the given adapter position.
-    public ExpenseModel getItem(int position) {
+    public ExpenseItem getItem(int position) {
         return expenseList.get(position);
     }
 
@@ -329,7 +333,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     // Utility
 
     // Builds the compact "$cost/unit" label shown under an expense's name (e.g. "$15.99/mo").
-    private static String rateString(ExpenseModel expense, Context context) {
+    private static String rateString(ExpenseItem expense, Context context) {
         int freq = expense.getFrequency();
         java.time.temporal.ChronoUnit tag = expense.getFrequencyTag();
         String unit;
@@ -348,7 +352,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
         // it tracks getDisplayBalance() — the standing balance regardless of due status — rather
         // than getCost() (which can go stale between real updates) or getShownCost() (which is
         // "amount due this period" and mostly 0).
-        String amount = expense.getIsCredit() ? expense.getDisplayBalance() : expense.getCost();
+        String amount = expense instanceof CreditModel ? ((CreditModel) expense).getDisplayBalance() : expense.getCost();
         return "$" + CurrencyFormat.display(context, amount) + "/" + unit;
     }
 

@@ -5,6 +5,8 @@ import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import android.util.Log;
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
@@ -193,7 +195,7 @@ public class StorageManager {
 
         JSONArray expenses = new JSONArray();
         if (h.getExpenseList() != null) {
-            for (ExpenseModel e : h.getExpenseList()) expenses.put(expenseToJson(e));
+            for (ExpenseItem e : h.getExpenseList()) expenses.put(expenseToJson(e));
         }
         o.put("expenseList", expenses);
 
@@ -245,10 +247,10 @@ public class StorageManager {
         h.setLastOpenedDate(parseDate(o.optString("lastOpenedDate", null)));
 
         JSONArray expenses = o.optJSONArray("expenseList");
-        ArrayList<ExpenseModel> expList = new ArrayList<>();
+        ArrayList<ExpenseItem> expList = new ArrayList<>();
         if (expenses != null) {
             for (int i = 0; i < expenses.length(); i++) {
-                ExpenseModel e = jsonToExpense(expenses.getJSONObject(i));
+                ExpenseItem e = jsonToExpense(expenses.getJSONObject(i));
                 if (e != null) expList.add(e);
             }
         }
@@ -307,62 +309,80 @@ public class StorageManager {
         return h;
     }
 
-    // Serializes a single ExpenseModel to JSON.
-    private JSONObject expenseToJson(ExpenseModel e) throws Exception {
+    // Serializes a single ExpenseItem (ExpenseModel or CreditModel) to JSON. The on-disk schema
+    // is unchanged from before the ExpenseItem/ExpenseModel/CreditModel split — "isCredit" is
+    // still written/read as a plain field, just derived from the item's type instead of a mutable
+    // flag, so existing data and .bujitbackup files remain fully compatible.
+    private JSONObject expenseToJson(ExpenseItem e) throws Exception {
         JSONObject o = new JSONObject();
         o.put("name",         e.getName());
         o.put("cost",         e.getCost());
         o.put("date",         dateOrNull(e.getDate()));
         o.put("frequency",    e.getFrequency());
         o.put("frequencyTag", e.getFrequencyTag() != null ? e.getFrequencyTag().name() : "MONTHS");
-        o.put("isVariable",   e.getIsVariable());
-        o.put("status",       e.getStatus());
-        o.put("partPaid",     e.getPartPaid());
         o.put("shownDate",    dateOrNull(e.getShownDate()));
         o.put("shownCost",    e.getShownCost());
-        o.put("shownStatus",  e.getShownStatus());
-        o.put("isCredit",     e.getIsCredit());
-        o.put("creditLimit",  e.getCreditLimit());
+        o.put("isCredit",     e.isCredit());
         o.put("linkedAccountId",      strOrNull(e.getLinkedAccountId()));
         o.put("linkedAccountDisplay", strOrNull(e.getLinkedAccountDisplay()));
         o.put("googleTaskId",         strOrNull(e.getGoogleTaskId()));
         o.put("calendarNotif",        e.isCalendarNotificationsEnabled());
-        o.put("category",             e.getCategory());
         o.put("source",               e.getSource());
         o.put("sourceId",             strOrNull(e.getSourceId()));
         o.put("sourceDisplayName",    strOrNull(e.getSourceDisplayName()));
+        if (e instanceof CreditModel) {
+            CreditModel c = (CreditModel) e;
+            o.put("creditLimit", c.getCreditLimit());
+        } else {
+            ExpenseModel m = (ExpenseModel) e;
+            o.put("isVariable",  m.getIsVariable());
+            o.put("status",      m.getStatus());
+            o.put("partPaid",    m.getPartPaid());
+            o.put("shownStatus", m.getShownStatus());
+            o.put("category",    m.getCategory());
+        }
         return o;
     }
 
-    // Reconstructs an ExpenseModel from JSON, returning null (and logging) on parse failure so a
-    // single corrupt entry doesn't abort the whole load.
-    private ExpenseModel jsonToExpense(JSONObject o) {
+    // Reconstructs an ExpenseItem from JSON, returning null (and logging) on parse failure so a
+    // single corrupt entry doesn't abort the whole load. The "isCredit" field picks which
+    // concrete type to construct.
+    private ExpenseItem jsonToExpense(JSONObject o) {
         try {
             LocalDate date = parseDate(o.optString("date", null));
             if (date == null) date = LocalDate.now();
-            ChronoUnit tag = parseUnit(o.optString("frequencyTag", "MONTHS"), ChronoUnit.MONTHS);
-            ExpenseModel e = new ExpenseModel(
-                    o.optString("name", ""),
-                    o.optString("cost", "0.00"),
-                    date,
-                    o.optInt("frequency", 1),
-                    tag,
-                    o.optBoolean("isVariable", false));
-            e.setStatus(o.optInt("status", -1));
-            e.setPartPaid(o.optInt("partPaid", 0));
+            boolean isCredit = o.optBoolean("isCredit", false);
+            ExpenseItem e;
+            if (isCredit) {
+                e = new CreditModel(
+                        o.optString("name", ""),
+                        o.optString("cost", "0.00"),
+                        date,
+                        o.optString("creditLimit", "1.00"));
+            } else {
+                ChronoUnit tag = parseUnit(o.optString("frequencyTag", "MONTHS"), ChronoUnit.MONTHS);
+                ExpenseModel m = new ExpenseModel(
+                        o.optString("name", ""),
+                        o.optString("cost", "0.00"),
+                        date,
+                        o.optInt("frequency", 1),
+                        tag,
+                        o.optBoolean("isVariable", false));
+                m.setStatus(o.optInt("status", -1));
+                m.setPartPaid(o.optInt("partPaid", 0));
+                m.setShownStatus(o.optInt("shownStatus", -1));
+                m.setCategory(o.optString("category", "Other"));
+                e = m;
+            }
             LocalDate shownDate = parseDate(o.optString("shownDate", null));
             if (shownDate != null) e.setShownDate(shownDate);
             e.setShownCost(o.optString("shownCost", o.optString("cost", "0.00")));
-            e.setShownStatus(o.optInt("shownStatus", -1));
-            e.setIsCredit(o.optBoolean("isCredit", false));
-            e.setCreditLimit(o.optString("creditLimit", "1.00"));
             String lid = o.isNull("linkedAccountId")      ? null : o.optString("linkedAccountId",      null);
             String ldi = o.isNull("linkedAccountDisplay") ? null : o.optString("linkedAccountDisplay", null);
             if (lid != null) e.setLinkedAccount(lid, null, ldi);
             String tid = o.isNull("googleTaskId") ? null : o.optString("googleTaskId", null);
             if (tid != null) e.setGoogleTaskId(tid);
             e.setCalendarNotificationsEnabled(o.optBoolean("calendarNotif", true));
-            e.setCategory(o.optString("category", "Other"));
             e.setSource(o.optString("source", "BALANCE"));
             if (!o.isNull("sourceId")) e.setSourceId(o.optString("sourceId", null));
             if (!o.isNull("sourceDisplayName")) e.setSourceDisplayName(o.optString("sourceDisplayName", null));

@@ -152,7 +152,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private View speedDialRecurringLabelCard, speedDialSingleEventLabelCard;
     private com.google.android.material.floatingactionbutton.FloatingActionButton speedDialRecurringFab, speedDialSingleEventFab;
     // Data variables
-    private ArrayList<ExpenseModel> expenseListStor;
+    private ArrayList<ExpenseItem> expenseListStor;
     private ArrayList<SingleEventModel> singleEventList;
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
@@ -430,7 +430,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
     // Recalculates ePerPay for every expense using the current check frequency.
     public void updateExpensePerPaid() {
-        for (ExpenseModel anExpense : expenseListStor) {
+        for (ExpenseItem anExpense : expenseListStor) {
             anExpense.setPerPay(checkFrequency, checkFrequencyTag, mToday);
         }
     }
@@ -514,6 +514,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                             ArrayList<String> howChangedList     = data.getStringArrayListExtra("howChangedList");
                             ArrayList<String> changedCredUseList = data.getStringArrayListExtra("changedCredUseList");
                             ArrayList<String> changedCredLimList = data.getStringArrayListExtra("changedCredLimList");
+                            ArrayList<String> changedCredSourceList        = data.getStringArrayListExtra("changedCredSourceList");
+                            ArrayList<String> changedCredSourceIdList      = data.getStringArrayListExtra("changedCredSourceIdList");
+                            ArrayList<String> changedCredSourceDisplayList = data.getStringArrayListExtra("changedCredSourceDisplayList");
                             ArrayList<Integer> delPositions = new ArrayList<>();
                             try {
                                 for (int i = 0; i < changedList.size(); i++) {
@@ -522,12 +525,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                                     String howChanged = howChangedList.get(i);
                                     if (DEL.equals(howChanged)) {
                                         delPositions.add(changedPos);
-                                    } else {
-                                        ExpenseModel changedExpense = expenseListStor.get(changedPos);
-                                        if (ADD.equals(howChanged)) changedExpense.setIsCredit(true);
-                                        changedExpense.setCost(changedCredUseList.get(i));
-                                        changedExpense.setShownCost(changedCredUseList.get(i));
+                                    } else if (expenseListStor.get(changedPos) instanceof CreditModel) {
+                                        CreditModel changedExpense = (CreditModel) expenseListStor.get(changedPos);
+                                        changedExpense.setBalance(changedCredUseList.get(i));
                                         changedExpense.setCreditLimit(changedCredLimList.get(i));
+                                        if (changedCredSourceList != null) changedExpense.setSource(changedCredSourceList.get(i));
+                                        if (changedCredSourceIdList != null) changedExpense.setSourceId(changedCredSourceIdList.get(i));
+                                        if (changedCredSourceDisplayList != null) changedExpense.setSourceDisplayName(changedCredSourceDisplayList.get(i));
                                         expenseAdapter.notifyItemChanged(changedPos);
                                     }
                                 }
@@ -545,10 +549,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         }
 
                         // New credit entries created from Teller - append to expense list
-                        ArrayList<ExpenseModel> newCredits = (ArrayList<ExpenseModel>)
+                        ArrayList<CreditModel> newCredits = (ArrayList<CreditModel>)
                                 data.getSerializableExtra("newCreditList");
                         if (newCredits != null && !newCredits.isEmpty()) {
-                            for (ExpenseModel e : newCredits) {
+                            for (CreditModel e : newCredits) {
                                 expenseListStor.add(e);
                             }
                             expenseAdapter.notifyDataSetChanged();
@@ -962,21 +966,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         electric.setCategory("Utilities");
 
         // Credit cards (appear in expense list and credit utilization screen)
-        ExpenseModel everyday = new ExpenseModel(
-                "Everyday Card", "450.00", mToday.plusDays(3), 1, ChronoUnit.MONTHS, false);
-        everyday.setIsCredit(true);
-        everyday.setCreditLimit("2000.00");
-        everyday.setCategory("Shopping");
-        ExpenseModel travel = new ExpenseModel(
-                "Travel Card", "1200.00", mToday.plusDays(13), 1, ChronoUnit.MONTHS, false);
-        travel.setIsCredit(true);
-        travel.setCreditLimit("3000.00");
-        travel.setCategory("Transport");
-        ExpenseModel hobby = new ExpenseModel(
-                "Hobby Card", "6000.00", mToday.plusDays(7), 1, ChronoUnit.MONTHS, false);
-        hobby.setIsCredit(true);
-        hobby.setCreditLimit("6200.00");
-        hobby.setCategory("Entertainment");
+        CreditModel everyday = new CreditModel("Everyday Card", "450.00", mToday.plusDays(3), "2000.00");
+        CreditModel travel = new CreditModel("Travel Card", "1200.00", mToday.plusDays(13), "3000.00");
+        CreditModel hobby = new CreditModel("Hobby Card", "6000.00", mToday.plusDays(7), "6200.00");
 
         // Prepend: Rent, Netflix, Electric, Everyday Card, Travel Card
         expenseListStor.add(0, hobby);
@@ -1076,8 +1068,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         expenseAdapter = new ExpenseAdapter(this, expenseListStor, new ClickListener() {
             @Override
             public void onPositionClicked(int position) {
-                ExpenseModel tapped = expenseListStor.get(position);
-                if (tapped.getIsCredit()) {
+                ExpenseItem tapped = expenseListStor.get(position);
+                if (tapped.isCredit()) {
                     editCreditDialog(position);
                 } else {
                     addEditExpenseDialog(EDIT, position).show();
@@ -1282,8 +1274,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 sourceIds.add(a.getId()); sourceDisplayNames.add(a.getName());
             }
         }
-        for (ExpenseModel e : expenseListStor) {
-            if (e.getIsCredit() && !e.isLinkedToBank()) {
+        for (ExpenseItem e : expenseListStor) {
+            if (e.isCredit() && !e.isLinkedToBank()) {
                 String label = e.getName() + " (card)";
                 sourceNames.add(label); sourceTypes.add("CREDIT_CARD");
                 sourceIds.add(e.getName()); sourceDisplayNames.add(label);
@@ -1321,7 +1313,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         int month;
         int day;
         if (method.equals(EDIT)) {
-            ExpenseModel expenseModel = expenseAdapter.getItem(position);
+            ExpenseModel expenseModel = (ExpenseModel) expenseAdapter.getItem(position);
             expenseName.setText(expenseModel.getName());
             expenseCost.setText(expenseModel.getCost());
             int freqNum = expenseModel.getFrequency();
@@ -1437,7 +1429,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         dialog.setOnShowListener(d -> {
             if (method.equals(EDIT)) {
                 dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                    ExpenseModel toDelete = expenseListStor.get(position);
+                    ExpenseItem toDelete = expenseListStor.get(position);
                     new AlertDialog.Builder(ExpenseActivity.this)
                             .setTitle("Delete Expense")
                             .setMessage("Delete \"" + toDelete.getName() + "\"? This cannot be undone.")
@@ -1528,7 +1520,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         break;
                     }
                     case EDIT: {
-                        ExpenseModel expenseModel = expenseAdapter.getItem(position);
+                        ExpenseModel expenseModel = (ExpenseModel) expenseAdapter.getItem(position);
                         expenseModel.setName(eName);
                         expenseModel.setCost(eCost);
                         expenseModel.setFrequency(eFreqNum);
@@ -1655,7 +1647,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // Sums the shownCost of every expense in the list for the currently displayed check period
     public float getCheckExpenses() {
         float expenseSum = 0;
-        for (ExpenseModel anExpense : expenseListStor) {
+        for (ExpenseItem anExpense : expenseListStor) {
             try { expenseSum += Float.parseFloat(anExpense.getShownCost()); }
             catch (NumberFormatException ignored) {}
         }
@@ -1702,7 +1694,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             begCheckDate = begCheckDate.plus(projFrequency, projFreqTag);
             endCheckDate = begCheckDate.plus(projFrequency, projFreqTag);
             shownBalance -= getCheckExpenses();
-            for (ExpenseModel expenseModel : expenseListStor) {
+            for (ExpenseItem expenseModel : expenseListStor) {
                 expenseModel.getNextCheckPayments(begCheckDate, endCheckDate, expenseListStor);
             }
             float periodIncome = computeProjectedIncome(begCheckDate, endCheckDate);
@@ -1726,7 +1718,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 projStepsForward--;
                 begCheckDate = begCheckDate.minus(projFrequency, projFreqTag);
                 endCheckDate = endCheckDate.minus(projFrequency, projFreqTag);
-                for (ExpenseModel expenseModel : expenseListStor) {
+                for (ExpenseItem expenseModel : expenseListStor) {
                     expenseModel.getPrevCheckPayments(begCheckDate, endCheckDate, expenseListStor);
                 }
                 expenseAdapter.notifyDataSetChanged();
@@ -1781,9 +1773,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     charges post on top of that.
     */
     public void bringDataUpToDate(boolean notifyAdapter) {
-        ArrayList<ExpenseModel> occurred = new ArrayList<>();
+        ArrayList<ExpenseItem> occurred = new ArrayList<>();
         ArrayList<Float> occurredPaid = new ArrayList<>();
-        for (ExpenseModel expenseModel : expenseListStor) {
+        for (ExpenseItem expenseModel : expenseListStor) {
             float paid = expenseModel.makeCurrent(begCheckDate, nextCheckDate, expenseListStor);
             if (paid != 0f) {
                 occurred.add(expenseModel);
@@ -1800,9 +1792,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     /*
-    Deducts a just-occurred expense's paid amount from its funding Source. Credit-card expenses
-    aren't Source-configurable (they have their own Plaid-sync/manual-edit mechanism via
-    CreditUtilActivity) and always go to curBalance here, matching prior behavior exactly.
+    Deducts a just-occurred item's paid amount from its funding Source. Both regular expenses and
+    credit cards use their own getSource() now — a credit card's own editing UI just never offers
+    "CREDIT_CARD" as a choice for itself (paying off a card with another card isn't modeled).
 
     BALANCE (default): curBalance -= paid, same as before this feature existed.
     LINKED_ACCOUNT: nothing is deducted anywhere — the linked Plaid/Teller account's own balance
@@ -1814,8 +1806,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     debt) — the mirror image of showAddSingleEventDialog's CREDIT_CARD branch, which subtracts
     since a single event there represents paying the card down.
     */
-    private void applySourcedPayment(ExpenseModel expense, float paid) {
-        String source = expense.getIsCredit() ? "BALANCE" : expense.getSource();
+    private void applySourcedPayment(ExpenseItem expense, float paid) {
+        String source = expense.getSource();
         if (source == null) source = "BALANCE";
         switch (source) {
             case "LINKED_ACCOUNT":
@@ -1840,13 +1832,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             case "CREDIT_CARD": {
                 String sourceId = expense.getSourceId();
                 if (sourceId != null) {
-                    for (ExpenseModel e : expenseListStor) {
-                        if (e.getIsCredit() && sourceId.equals(e.getName())) {
-                            try {
-                                String costStr = String.format(Locale.US, "%.2f", Float.parseFloat(e.getCost()) + paid);
-                                e.setCost(costStr);
-                                e.setShownCost(costStr);
-                            } catch (NumberFormatException ignored) {}
+                    for (ExpenseItem e : expenseListStor) {
+                        // e != expense guards against a card whose own Source somehow points at
+                        // itself (never offered by the UI, but not enforced at the data layer
+                        // either) -- without this, a card could re-add its own just-paid-off
+                        // balance back onto itself in the same pass.
+                        if (e != expense && e instanceof CreditModel && sourceId.equals(e.getName())) {
+                            ((CreditModel) e).applyCharge(paid);
                             break;
                         }
                     }
@@ -1929,7 +1921,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                     Collections.sort(positions, Collections.reverseOrder());
                     boolean calSync = GoogleTasksHelper.isCalendarSyncEnabled(this);
                     for (int pos : positions) {
-                        ExpenseModel toDelete = expenseListStor.get(pos);
+                        ExpenseItem toDelete = expenseListStor.get(pos);
                         if (calSync && toDelete.getGoogleTaskId() != null) {
                             String taskId = toDelete.getGoogleTaskId();
                             executor.execute(() -> tasksHelper().deleteTask(taskId));
@@ -2124,7 +2116,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             // Collect all unique tokens across main-balance accounts and linked expenses.
             Set<String> allTokens = new HashSet<>(tokenToIds.keySet());
             if (expenseListStor != null) {
-                for (ExpenseModel expense : expenseListStor) {
+                for (ExpenseItem expense : expenseListStor) {
                     if (!expense.isLinkedToBank()) continue;
                     String tok = expense.getLinkedAccountToken();
                     if (tok == null) tok = BankingProviderConfig.getTokenForAccount(this, expense.getLinkedAccountId());
@@ -2164,25 +2156,25 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             // Update linked expense amounts and credit limits from the batch result.
             boolean expensesUpdated = false;
             if (expenseListStor != null) {
-                for (ExpenseModel expense : expenseListStor) {
+                for (ExpenseItem expense : expenseListStor) {
                     if (!expense.isLinkedToBank()) continue;
                     BankAccountModel acct = accountMap.get(expense.getLinkedAccountId());
                     if (acct == null) continue;
                     try {
-                        if (expense.getIsCredit()) {
+                        if (expense instanceof CreditModel) {
+                            CreditModel card = (CreditModel) expense;
                             float ledger    = parseBalanceSafe(acct.getLedgerBalance());
                             float available = parseBalanceSafe(acct.getAvailableBalance());
                             String limitRaw = acct.getCreditLimit();
-                            expense.setCost(String.format(Locale.US, "%.2f", ledger));
-                            expense.setShownCost(String.format(Locale.US, "%.2f", ledger));
+                            card.setBalance(String.format(Locale.US, "%.2f", ledger));
                             // Only update the stored credit limit when we have reliable data.
                             // If Plaid omits both `limit` and `available` (e.g. charge cards),
                             // keep the existing stored value rather than corrupting it.
                             if (limitRaw != null) {
                                 float lf = parseBalanceSafe(limitRaw);
-                                if (lf > 0f) expense.setCreditLimit(String.format(Locale.US, "%.2f", lf));
+                                if (lf > 0f) card.setCreditLimit(String.format(Locale.US, "%.2f", lf));
                             } else if (available > 0f) {
-                                expense.setCreditLimit(String.format(Locale.US, "%.2f", ledger + available));
+                                card.setCreditLimit(String.format(Locale.US, "%.2f", ledger + available));
                             }
                         } else {
                             String formatted = String.format(Locale.US, "%.2f", parseBalanceSafe(acct.getLedgerBalance()));
@@ -2264,7 +2256,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // re-link it to a different connected credit/loan account.
     private void editCreditDialog(int position) {
         goHomePage();
-        ExpenseModel credit = expenseListStor.get(position);
+        CreditModel credit = (CreditModel) expenseListStor.get(position);
 
         View dialogLayout = getLayoutInflater().inflate(R.layout.edit_credit_dialog_layout, null);
         EditText credUseET        = dialogLayout.findViewById(R.id.cred_use_ET);
@@ -2276,6 +2268,75 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
         credUseET.setText(credit.getCost());
         credLimET.setText(credit.getCreditLimit());
+
+        // Source dropdown — same options as the regular Add/Edit Expense dialog's Source
+        // section, minus any credit-card entries (a card can't be paid off by another card).
+        AutoCompleteTextView sourceInput = dialogLayout.findViewById(R.id.edit_credit_source_input);
+        ArrayList<String> sourceNames = new ArrayList<>();
+        ArrayList<String> sourceTypes = new ArrayList<>();
+        ArrayList<String> sourceIds   = new ArrayList<>();
+        ArrayList<String> sourceDisplayNames = new ArrayList<>();
+        sourceNames.add("Current Balance"); sourceTypes.add("BALANCE"); sourceIds.add(null); sourceDisplayNames.add("Current Balance");
+        ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> sourceManualAccounts =
+                storageHolder.getManualAccountList();
+        if (sourceManualAccounts != null) {
+            for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : sourceManualAccounts) {
+                sourceNames.add(a.getName()); sourceTypes.add("MANUAL_ACCOUNT");
+                sourceIds.add(a.getId()); sourceDisplayNames.add(a.getName());
+            }
+        }
+        final String CREDIT_LINKED_TRIGGER = "Linked Bank/Credit Account…";
+        sourceNames.add(CREDIT_LINKED_TRIGGER);
+        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, R.layout.expense_dropdown_item, sourceNames);
+        sourceInput.setAdapter(sourceAdapter);
+        final String[] selSource        = {credit.getSource()};
+        final String[] selSourceId      = {credit.getSourceId()};
+        final String[] selSourceDisplay = {credit.getSourceDisplayName()};
+        final String[] lastSourceText   = {sourceNames.get(0)};
+        int existingIdx = -1;
+        if (!"LINKED_ACCOUNT".equals(selSource[0])) {
+            for (int i = 0; i < sourceTypes.size(); i++) {
+                if (sourceTypes.get(i).equals(selSource[0])
+                        && java.util.Objects.equals(sourceIds.get(i), selSourceId[0])) {
+                    existingIdx = i;
+                    break;
+                }
+            }
+        }
+        if ("LINKED_ACCOUNT".equals(selSource[0])) {
+            String text = selSourceDisplay[0] != null ? selSourceDisplay[0] : "Linked Account";
+            lastSourceText[0] = text;
+            sourceInput.setText(text, false);
+        } else if (existingIdx >= 0) {
+            lastSourceText[0] = sourceNames.get(existingIdx);
+            sourceInput.setText(sourceNames.get(existingIdx), false);
+        } else {
+            // The previously-selected manual account no longer exists (deleted since this card's
+            // Source was set) -- warn rather than silently falling back, since saving now would
+            // permanently overwrite the stored reference with "BALANCE".
+            if (selSource[0] != null && !"BALANCE".equals(selSource[0])) {
+                Toast.makeText(this, "This card's funding source is no longer available; reset to Current Balance.", Toast.LENGTH_LONG).show();
+            }
+            selSource[0] = "BALANCE"; selSourceId[0] = null; selSourceDisplay[0] = null;
+            sourceInput.setText(sourceNames.get(0), false);
+        }
+        sourceInput.setOnItemClickListener((parent, v2, pos, id) -> {
+            String pickedName = sourceNames.get(pos);
+            if (CREDIT_LINKED_TRIGGER.equals(pickedName)) {
+                sourceInput.setText(lastSourceText[0], false);
+                showSourceAccountPicker(display -> {
+                    if (display == null) return;
+                    selSource[0] = "LINKED_ACCOUNT";
+                    lastSourceText[0] = display;
+                    sourceInput.setText(display, false);
+                }, selSourceId, selSourceDisplay);
+            } else {
+                selSource[0]        = sourceTypes.get(pos);
+                selSourceId[0]      = sourceIds.get(pos);
+                selSourceDisplay[0] = sourceDisplayNames.get(pos);
+                lastSourceText[0]   = pickedName;
+            }
+        });
 
         String[] linkedId      = {credit.getLinkedAccountId()};
         String storedToken     = credit.getLinkedAccountToken();
@@ -2306,9 +2367,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 .setPositiveButton("Save", (d, w) -> {
                     String newCost  = credUseET.getText() != null ? credUseET.getText().toString().trim() : "";
                     String newLimit = credLimET.getText() != null ? credLimET.getText().toString().trim() : "";
-                    credit.setCost(newCost.isEmpty() ? "0" : newCost);
-                    credit.setShownCost(credit.getCost());
+                    credit.setBalance(newCost.isEmpty() ? "0" : newCost);
                     credit.setCreditLimit(newLimit.isEmpty() ? "0" : newLimit);
+                    credit.setSource(selSource[0]);
+                    credit.setSourceId(selSourceId[0]);
+                    credit.setSourceDisplayName(selSourceDisplay[0]);
                     if (linkedId[0] != null) {
                         credit.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
                         BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
@@ -2341,8 +2404,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         }
 
         Set<String> alreadyLinked = new HashSet<>();
-        for (ExpenseModel e : expenseListStor) {
-            if (e.getIsCredit() && e.isLinkedToBank()) {
+        for (ExpenseItem e : expenseListStor) {
+            if (e.isCredit() && e.isLinkedToBank()) {
                 String id = e.getLinkedAccountId();
                 if (id != null && !id.equals(currentLinkedId)) alreadyLinked.add(id);
             }
@@ -2706,7 +2769,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     // used to decide whether a balance refresh is worth running even with no main-balance links.
     private boolean hasAnyLinkedExpenses() {
         if (expenseListStor == null) return false;
-        for (ExpenseModel e : expenseListStor) {
+        for (ExpenseItem e : expenseListStor) {
             if (e.isLinkedToBank()) return true;
         }
         return false;
@@ -2811,8 +2874,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 targetIds.add(a.getId()); targetDisplayNames.add(a.getName());
             }
         }
-        for (ExpenseModel e : expenseListStor) {
-            if (e.getIsCredit() && !e.isLinkedToBank()) {
+        for (ExpenseItem e : expenseListStor) {
+            if (e.isCredit() && !e.isLinkedToBank()) {
                 String label = e.getName() + " (card)";
                 targetNames.add(label); targetTypes.add("CREDIT_CARD");
                 targetIds.add(e.getName()); targetDisplayNames.add(label);
@@ -2885,14 +2948,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 shownBalance = curBalance;
                 setCurrentBalanceText(curBalance);
             } else if ("CREDIT_CARD".equals(tType)) {
-                for (ExpenseModel e : expenseListStor) {
-                    if (e.getIsCredit() && tId != null && tId.equals(e.getName())) {
-                        try {
-                            float cost = Math.max(0f, Float.parseFloat(e.getCost()) - delta);
-                            String costStr = String.format(java.util.Locale.US, "%.2f", cost);
-                            e.setCost(costStr);
-                            e.setShownCost(costStr);
-                        } catch (NumberFormatException ignored) {}
+                for (ExpenseItem e : expenseListStor) {
+                    if (e instanceof CreditModel && tId != null && tId.equals(e.getName())) {
+                        ((CreditModel) e).applyCharge(-delta);
                         break;
                     }
                 }
@@ -3024,7 +3082,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private void reloadExpenseListFromDisk() {
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
-            ArrayList<ExpenseModel> fresh = manager.getStorageHolder().getExpenseList();
+            ArrayList<ExpenseItem> fresh = manager.getStorageHolder().getExpenseList();
             expenseListStor.clear();
             expenseListStor.addAll(fresh);
             bringDataUpToDate(true);
