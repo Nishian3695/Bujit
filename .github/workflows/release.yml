@@ -14,6 +14,15 @@ on:
 permissions:
   contents: write
 
+# The Play Developer API only allows one open "edit" per package at a time, so two
+# tags pushed close together (e.g. one for main, one for a feature branch) could race
+# and fail with "the app has been modified since this edit began." This queues runs
+# instead of letting them race -- cancel-in-progress stays false because these are
+# real release uploads, never something to abort partway through.
+concurrency:
+  group: play-store-release
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     name: Build, Sign & Publish
