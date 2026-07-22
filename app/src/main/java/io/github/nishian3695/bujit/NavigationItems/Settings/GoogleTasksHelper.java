@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 import com.google.android.gms.auth.UserRecoverableAuthException;
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -159,7 +159,7 @@ public class GoogleTasksHelper {
 
     // Computes the next unpaid due date for an expense (rolling forward past occurrences),
     // formatted as an RFC3339 date for the Tasks API's "due" field.
-    private String expenseDueDate(ExpenseModel e) {
+    private String expenseDueDate(ExpenseItem e) {
         LocalDate date = e.getDate();
         LocalDate today = LocalDate.now();
         while (date.isBefore(today)) {
@@ -188,7 +188,7 @@ public class GoogleTasksHelper {
     }
 
     // Builds the JSON body for creating/updating a Google Task representing an expense.
-    private JSONObject buildExpenseTask(ExpenseModel expense) throws Exception {
+    private JSONObject buildExpenseTask(ExpenseItem expense) throws Exception {
         JSONObject task = new JSONObject();
         task.put("title", expense.getName() + " — $" + expense.getCost());
         task.put("notes", "Every " + expense.getFrequency() + " "
@@ -212,7 +212,7 @@ public class GoogleTasksHelper {
 
     // Creates a Google Task for an expense. Returns the task ID on success, null on failure.
     // Must run on background thread.
-    public String createExpenseTask(ExpenseModel expense) throws Exception {
+    public String createExpenseTask(ExpenseItem expense) throws Exception {
         String token  = getAccessToken();
         String listId = getOrCreateBujitList(token);
         JSONObject body = buildExpenseTask(expense);
@@ -231,7 +231,7 @@ public class GoogleTasksHelper {
     }
 
     // Updates the Google Task for an expense. Must run on background thread.
-    public void updateExpenseTask(ExpenseModel expense) throws Exception {
+    public void updateExpenseTask(ExpenseItem expense) throws Exception {
         if (expense.getGoogleTaskId() == null) return;
         String token  = getAccessToken();
         String listId = prefs.getString(KEY_LIST_ID, null);
@@ -291,10 +291,10 @@ public class GoogleTasksHelper {
 
     // Creates tasks for all items that don't already have one.
     // Returns a SyncResult with created/failed counts. Must run on background thread.
-    public SyncResult syncAll(ArrayList<ExpenseModel> expenses, ArrayList<IncomeStreamModel> streams) {
+    public SyncResult syncAll(ArrayList<ExpenseItem> expenses, ArrayList<IncomeStreamModel> streams) {
         int created = 0, failed = 0;
         String lastError = null;
-        for (ExpenseModel e : expenses) {
+        for (ExpenseItem e : expenses) {
             if (e.getGoogleTaskId() == null) {
                 try {
                     e.setGoogleTaskId(createExpenseTask(e));
@@ -322,9 +322,9 @@ public class GoogleTasksHelper {
     }
 
     // Deletes all synced tasks and clears stored IDs. Must run on background thread.
-    public void disconnectAndDeleteAll(ArrayList<ExpenseModel> expenses,
+    public void disconnectAndDeleteAll(ArrayList<ExpenseItem> expenses,
                                        ArrayList<IncomeStreamModel> streams) {
-        for (ExpenseModel e : expenses) {
+        for (ExpenseItem e : expenses) {
             deleteTask(e.getGoogleTaskId());
             e.setGoogleTaskId(null);
         }

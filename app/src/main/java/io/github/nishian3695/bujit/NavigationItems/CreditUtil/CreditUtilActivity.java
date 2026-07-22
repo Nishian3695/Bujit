@@ -27,6 +27,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingPrefs;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankAccountModel;
@@ -87,18 +89,21 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private static final String DEL = "DEL";
 
     private TutorialOverlayLayout tutorialOverlay;
-    private ArrayList<ExpenseModel> expenseModelsList;
+    private ArrayList<ExpenseItem> expenseModelsList;
     private ArrayList<ExpenseModel> notCreditList;
     private ArrayList<Integer>      notCreditPosList;
-    private ArrayList<ExpenseModel> creditList;
+    private ArrayList<CreditModel> creditList;
     private ArrayList<Integer>      creditPosList;
     // New entries created from Teller (not in expenseModelsList)
-    private ArrayList<ExpenseModel> newCreditModels;
+    private ArrayList<CreditModel> newCreditModels;
 
     private ArrayList<Integer> changedList;
     private ArrayList<String>  howChangedList;
     private ArrayList<String>  changedCredUseList;
     private ArrayList<String>  changedCredLimList;
+    private ArrayList<String>  changedCredSourceList;
+    private ArrayList<String>  changedCredSourceIdList;
+    private ArrayList<String>  changedCredSourceDisplayList;
 
     private CreditAdapter        creditAdapter;
     private SwipeRefreshLayout   swipeRefreshLayout;
@@ -149,6 +154,9 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         howChangedList     = new ArrayList<>();
         changedCredUseList = new ArrayList<>();
         changedCredLimList = new ArrayList<>();
+        changedCredSourceList        = new ArrayList<>();
+        changedCredSourceIdList      = new ArrayList<>();
+        changedCredSourceDisplayList = new ArrayList<>();
         newCreditModels    = new ArrayList<>();
 
         swipeRefreshLayout = findViewById(R.id.credit_swipe_refresh);
@@ -162,19 +170,19 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         ThemeHelper.tintFab(addBtn, this);
 
         // Separate credit from non-credit expenses
-        expenseModelsList = (ArrayList<ExpenseModel>) getIntent().getSerializableExtra("creditList");
+        expenseModelsList = (ArrayList<ExpenseItem>) getIntent().getSerializableExtra("creditList");
         notCreditList    = new ArrayList<>();
         notCreditPosList = new ArrayList<>();
         creditList       = new ArrayList<>();
         creditPosList    = new ArrayList<>();
 
         for (int i = 0; i < expenseModelsList.size(); i++) {
-            ExpenseModel e = expenseModelsList.get(i);
-            if (e.getIsCredit()) {
-                creditList.add(e);
+            ExpenseItem e = expenseModelsList.get(i);
+            if (e instanceof CreditModel) {
+                creditList.add((CreditModel) e);
                 creditPosList.add(i);
             } else {
-                notCreditList.add(e);
+                notCreditList.add((ExpenseModel) e);
                 notCreditPosList.add(i);
             }
         }
@@ -215,6 +223,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         EditText             customNameInput    = dialogLayout.findViewById(R.id.add_credit_custom_name_input);
         TextInputLayout      customBalanceLayout = dialogLayout.findViewById(R.id.add_credit_custom_balance_layout);
         EditText             customBalanceInput = dialogLayout.findViewById(R.id.add_credit_custom_balance_input);
+        AutoCompleteTextView sourceInput        = dialogLayout.findViewById(R.id.add_credit_source_input);
 
         // TODO: Re-enable "link to existing expense" once the expense-to-credit sync is fixed.
         dialogLayout.findViewById(R.id.add_credit_existing_header).setVisibility(View.GONE);
@@ -239,6 +248,45 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         unlinkBtn.setOnClickListener(v -> {
             linkedId[0] = linkedToken[0] = linkedDisplay[0] = null;
             linkedBanner.setVisibility(View.GONE);
+        });
+
+        // Source dropdown — same options as the regular Add/Edit Expense dialog's Source
+        // section, minus any credit-card entries (a card can't be paid off by another card).
+        ArrayList<String> sourceNames = new ArrayList<>();
+        ArrayList<String> sourceTypes = new ArrayList<>();
+        ArrayList<String> sourceIds   = new ArrayList<>();
+        ArrayList<String> sourceDisplayNames = new ArrayList<>();
+        sourceNames.add("Current Balance"); sourceTypes.add("BALANCE"); sourceIds.add(null); sourceDisplayNames.add("Current Balance");
+        ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> sourceManualAccounts = loadManualAccounts();
+        for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : sourceManualAccounts) {
+            sourceNames.add(a.getName()); sourceTypes.add("MANUAL_ACCOUNT");
+            sourceIds.add(a.getId()); sourceDisplayNames.add(a.getName());
+        }
+        final String CREDIT_LINKED_TRIGGER = "Linked Bank/Credit Account…";
+        sourceNames.add(CREDIT_LINKED_TRIGGER);
+        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, R.layout.expense_dropdown_item, sourceNames);
+        sourceInput.setAdapter(sourceAdapter);
+        final String[] selSource        = {"BALANCE"};
+        final String[] selSourceId      = {null};
+        final String[] selSourceDisplay = {null};
+        final String[] lastSourceText   = {sourceNames.get(0)};
+        sourceInput.setText(sourceNames.get(0), false);
+        sourceInput.setOnItemClickListener((parent, v2, pos, id) -> {
+            String pickedName = sourceNames.get(pos);
+            if (CREDIT_LINKED_TRIGGER.equals(pickedName)) {
+                sourceInput.setText(lastSourceText[0], false);
+                showSourceAccountPicker(display -> {
+                    if (display == null) return;
+                    selSource[0] = "LINKED_ACCOUNT";
+                    lastSourceText[0] = display;
+                    sourceInput.setText(display, false);
+                }, selSourceId, selSourceDisplay);
+            } else {
+                selSource[0]        = sourceTypes.get(pos);
+                selSourceId[0]      = sourceIds.get(pos);
+                selSourceDisplay[0] = sourceDisplayNames.get(pos);
+                lastSourceText[0]   = pickedName;
+            }
         });
 
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -286,11 +334,11 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             ? customBalanceInput.getText().toString().trim() : "";
                     if (debtStr.isEmpty()) debtStr = "0";
 
-                    ExpenseModel newEntry = new ExpenseModel(
-                            customName, debtStr, LocalDate.now(),
-                            1, ChronoUnit.MONTHS, false);
-                    newEntry.setIsCredit(true);
-                    newEntry.setCreditLimit(limitStr);
+                    CreditModel newEntry = new CreditModel(
+                            customName, debtStr, LocalDate.now(), limitStr);
+                    newEntry.setSource(selSource[0]);
+                    newEntry.setSourceId(selSourceId[0]);
+                    newEntry.setSourceDisplayName(selSourceDisplay[0]);
                     if (isConnected) {
                         newEntry.setLinkedAccount(linkedId[0], linkedToken[0], linkedDisplay[0]);
                         BankingProviderConfig.saveAccountToken(this, linkedId[0], linkedToken[0]);
@@ -346,9 +394,75 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         TextView         linkedLabel    = dialogLayout.findViewById(R.id.edit_credit_linked_label);
         View             unlinkBtn      = dialogLayout.findViewById(R.id.btn_edit_credit_unlink);
 
-        ExpenseModel credit = creditList.get(position);
+        CreditModel credit = creditList.get(position);
         credUseET.setText(credit.getCost());
         credLimET.setText(credit.getCreditLimit());
+
+        // Source dropdown — same options as showAddCreditDialog()'s Source section,
+        // minus any credit-card entries (a card can't be paid off by another card).
+        AutoCompleteTextView sourceInput = dialogLayout.findViewById(R.id.edit_credit_source_input);
+        ArrayList<String> sourceNames = new ArrayList<>();
+        ArrayList<String> sourceTypes = new ArrayList<>();
+        ArrayList<String> sourceIds   = new ArrayList<>();
+        ArrayList<String> sourceDisplayNames = new ArrayList<>();
+        sourceNames.add("Current Balance"); sourceTypes.add("BALANCE"); sourceIds.add(null); sourceDisplayNames.add("Current Balance");
+        ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> sourceManualAccounts = loadManualAccounts();
+        for (io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel a : sourceManualAccounts) {
+            sourceNames.add(a.getName()); sourceTypes.add("MANUAL_ACCOUNT");
+            sourceIds.add(a.getId()); sourceDisplayNames.add(a.getName());
+        }
+        final String CREDIT_LINKED_TRIGGER = "Linked Bank/Credit Account…";
+        sourceNames.add(CREDIT_LINKED_TRIGGER);
+        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(this, R.layout.expense_dropdown_item, sourceNames);
+        sourceInput.setAdapter(sourceAdapter);
+        final String[] selSource        = {credit.getSource()};
+        final String[] selSourceId      = {credit.getSourceId()};
+        final String[] selSourceDisplay = {credit.getSourceDisplayName()};
+        final String[] lastSourceText   = {sourceNames.get(0)};
+        int existingIdx = -1;
+        if (!"LINKED_ACCOUNT".equals(selSource[0])) {
+            for (int i = 0; i < sourceTypes.size(); i++) {
+                if (sourceTypes.get(i).equals(selSource[0])
+                        && java.util.Objects.equals(sourceIds.get(i), selSourceId[0])) {
+                    existingIdx = i;
+                    break;
+                }
+            }
+        }
+        if ("LINKED_ACCOUNT".equals(selSource[0])) {
+            String text = selSourceDisplay[0] != null ? selSourceDisplay[0] : "Linked Account";
+            lastSourceText[0] = text;
+            sourceInput.setText(text, false);
+        } else if (existingIdx >= 0) {
+            lastSourceText[0] = sourceNames.get(existingIdx);
+            sourceInput.setText(sourceNames.get(existingIdx), false);
+        } else {
+            // The previously-selected manual account no longer exists (deleted since this card's
+            // Source was set) -- warn rather than silently falling back, since saving now would
+            // permanently overwrite the stored reference with "BALANCE".
+            if (selSource[0] != null && !"BALANCE".equals(selSource[0])) {
+                Toast.makeText(this, "This card's funding source is no longer available; reset to Current Balance.", Toast.LENGTH_LONG).show();
+            }
+            selSource[0] = "BALANCE"; selSourceId[0] = null; selSourceDisplay[0] = null;
+            sourceInput.setText(sourceNames.get(0), false);
+        }
+        sourceInput.setOnItemClickListener((parent, v2, pos, id) -> {
+            String pickedName = sourceNames.get(pos);
+            if (CREDIT_LINKED_TRIGGER.equals(pickedName)) {
+                sourceInput.setText(lastSourceText[0], false);
+                showSourceAccountPicker(display -> {
+                    if (display == null) return;
+                    selSource[0] = "LINKED_ACCOUNT";
+                    lastSourceText[0] = display;
+                    sourceInput.setText(display, false);
+                }, selSourceId, selSourceDisplay);
+            } else {
+                selSource[0]        = sourceTypes.get(pos);
+                selSourceId[0]      = sourceIds.get(pos);
+                selSourceDisplay[0] = sourceDisplayNames.get(pos);
+                lastSourceText[0]   = pickedName;
+            }
+        });
 
         String[] linkedId      = {credit.getLinkedAccountId()};
         String storedToken     = credit.getLinkedAccountToken();
@@ -381,8 +495,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 .setPositiveButton("Save", (d, w) -> {
                     String newCost  = credUseET.getText().toString().trim();
                     String newLimit = credLimET.getText().toString().trim();
-                    credit.setCost(newCost.isEmpty() ? "0" : newCost);
-                    credit.setShownCost(credit.getCost());
+                    credit.setBalance(newCost.isEmpty() ? "0" : newCost);
                     credit.setCreditLimit(newLimit.isEmpty() ? "0" : newLimit);
 
                     if (linkedId[0] != null) {
@@ -392,12 +505,19 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                         credit.clearLinkedAccount();
                     }
 
+                    credit.setSource(selSource[0]);
+                    credit.setSourceId(selSourceId[0]);
+                    credit.setSourceDisplayName(selSourceDisplay[0]);
+
                     int expPos = creditPosList.get(position);
                     if (expPos >= 0) {
                         changedList.add(expPos);
                         howChangedList.add(ADD);
                         changedCredUseList.add(credit.getCost());
                         changedCredLimList.add(credit.getCreditLimit());
+                        changedCredSourceList.add(credit.getSource());
+                        changedCredSourceIdList.add(credit.getSourceId());
+                        changedCredSourceDisplayList.add(credit.getSourceDisplayName());
                     }
                     dataChanged = true;
                     creditAdapter.notifyItemChanged(position);
@@ -419,6 +539,9 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                                 howChangedList.add(DEL);
                                 changedCredUseList.add(credit.getCost());
                                 changedCredLimList.add(credit.getCreditLimit());
+                                changedCredSourceList.add(credit.getSource());
+                                changedCredSourceIdList.add(credit.getSourceId());
+                                changedCredSourceDisplayList.add(credit.getSourceDisplayName());
                             } else {
                                 newCreditModels.remove(credit);
                             }
@@ -426,8 +549,6 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                             creditPosList.remove(position);
                             creditAdapter.notifyItemRemoved(position);
                             updateTotalUtilization();
-                            notCreditList.add(credit);
-                            notCreditPosList.add(expPos >= 0 ? expPos : expenseModelsList.size());
                             dataChanged = true;
                             editDialog.dismiss();
                         })
@@ -465,7 +586,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
         // Collect account IDs already linked to other credit cards so they can be excluded.
         Set<String> alreadyLinked = new HashSet<>();
-        for (ExpenseModel e : creditList) {
+        for (CreditModel e : creditList) {
             if (e.isLinkedToBank()) {
                 String id = e.getLinkedAccountId();
                 if (id != null && !id.equals(currentLinkedId)) {
@@ -556,13 +677,82 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         });
     }
 
+    // Lets the user pick any linked Plaid/Teller account (all types, not just credit/loan) as a
+    // credit card's funding Source. Unlike showConnectedCreditPicker(), this never touches the
+    // name/balance/limit fields — picking a Source only marks the card as "already handled by
+    // this account's own sync," it doesn't attach the account's balance to the card itself.
+    // onPicked is called with the chosen display name, or null if the user cancelled.
+    private void showSourceAccountPicker(java.util.function.Consumer<String> onPicked,
+                                          String[] sourceId, String[] sourceDisplay) {
+        Set<String> tokens = loadBankTokens();
+        if (tokens.isEmpty()) {
+            Toast.makeText(this, "No banks connected — add one in Banking.", Toast.LENGTH_SHORT).show();
+            onPicked.accept(null);
+            return;
+        }
+
+        AlertDialog loadingDialog = new AlertDialog.Builder(this)
+                .setTitle("Loading accounts…")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .create();
+        loadingDialog.show();
+
+        executor.execute(() -> {
+            String idToken = getFirebaseIdToken();
+            String appCheckToken = getAppCheckToken();
+            List<BankAccountModel> all = new ArrayList<>();
+            for (String token : tokens) {
+                try {
+                    BankingApiClient client = BankingProviderConfig.createClient(this, token, idToken, appCheckToken);
+                    for (BankAccountModel m : client.fetchAccounts()) {
+                        m.setToken(token);
+                        all.add(m);
+                    }
+                } catch (Exception e) {
+                    Log.e("SourcePicker", "fetch failed: " + e.getMessage());
+                }
+            }
+            mainHandler.post(() -> {
+                loadingDialog.dismiss();
+                if (all.isEmpty()) {
+                    Toast.makeText(this, "No linked accounts found.", Toast.LENGTH_SHORT).show();
+                    onPicked.accept(null);
+                    return;
+                }
+                String[] labels = new String[all.size()];
+                for (int i = 0; i < all.size(); i++) {
+                    BankAccountModel m = all.get(i);
+                    labels[i] = m.getInstitutionName()
+                            + " – " + m.getDisplayType()
+                            + " (…" + m.getLastFour() + ")"
+                            + "  $" + CurrencyFormat.display(this, parseFloatSafe(m.getLedgerBalance()));
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Select Linked Account")
+                        .setItems(labels, (d, idx) -> {
+                            BankAccountModel selected = all.get(idx);
+                            String display = selected.getInstitutionName()
+                                    + " " + selected.getDisplayType()
+                                    + " …" + selected.getLastFour();
+                            sourceId[0]      = selected.getId();
+                            sourceDisplay[0] = display;
+                            onPicked.accept(display);
+                        })
+                        .setOnCancelListener(d -> onPicked.accept(null))
+                        .setNegativeButton("Cancel", (d, w) -> onPicked.accept(null))
+                        .show();
+            });
+        });
+    }
+
     // Pull-to-refresh sync for linked credit entries.
     // Uses fetchAccounts() (Plaid's /accounts/get, cached data) rather than
     // fetchAccountBalancePair() (/accounts/balance/get, real-time and billed per call).
     // One fetchAccounts() call per unique token covers all accounts for that institution.
     private void syncLinkedCredits() {
         boolean hasLinked = false;
-        for (ExpenseModel e : creditList) {
+        for (CreditModel e : creditList) {
             if (e.isLinkedToBank()) { hasLinked = true; break; }
         }
         if (!hasLinked) {
@@ -575,7 +765,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             String appCheckToken = getAppCheckToken();
 
             Set<String> tokens = new HashSet<>();
-            for (ExpenseModel credit : creditList) {
+            for (CreditModel credit : creditList) {
                 if (!credit.isLinkedToBank()) continue;
                 String tok = credit.getLinkedAccountToken();
                 if (tok == null) tok = BankingProviderConfig.getTokenForAccount(this, credit.getLinkedAccountId());
@@ -596,7 +786,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
 
             boolean updated = false;
             for (int i = 0; i < creditList.size(); i++) {
-                ExpenseModel credit = creditList.get(i);
+                CreditModel credit = creditList.get(i);
                 if (!credit.isLinkedToBank()) continue;
                 BankAccountModel acct = accountMap.get(credit.getLinkedAccountId());
                 if (acct == null) continue;
@@ -605,8 +795,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 float avail  = parseFloatSafe(acct.getAvailableBalance());
                 String rawLimit = acct.getCreditLimit();
                 String debt = String.format(Locale.US, "%.2f", ledger);
-                credit.setCost(debt);
-                credit.setShownCost(debt);
+                credit.setBalance(debt);
                 // Only overwrite the stored credit limit when the provider gives reliable data.
                 // If both limit and available are absent/null (e.g. charge cards), leave the
                 // stored limit intact rather than corrupting it to ledger + 0.
@@ -623,6 +812,11 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                     howChangedList.add(ADD);
                     changedCredUseList.add(debt);
                     changedCredLimList.add(credit.getCreditLimit());
+                    // A balance sync never touches Source — carry the existing value through
+                    // unchanged, just to keep these parallel lists index-aligned with the two above.
+                    changedCredSourceList.add(credit.getSource());
+                    changedCredSourceIdList.add(credit.getSourceId());
+                    changedCredSourceDisplayList.add(credit.getSourceDisplayName());
                 }
                 updated = true;
             }
@@ -649,6 +843,9 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         returnIntent.putStringArrayListExtra("howChangedList",      howChangedList);
         returnIntent.putStringArrayListExtra("changedCredUseList",  changedCredUseList);
         returnIntent.putStringArrayListExtra("changedCredLimList",  changedCredLimList);
+        returnIntent.putStringArrayListExtra("changedCredSourceList",        changedCredSourceList);
+        returnIntent.putStringArrayListExtra("changedCredSourceIdList",      changedCredSourceIdList);
+        returnIntent.putStringArrayListExtra("changedCredSourceDisplayList", changedCredSourceDisplayList);
         if (!newCreditModels.isEmpty()) {
             returnIntent.putExtra("newCreditList", newCreditModels);
         }
@@ -700,7 +897,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     private void updateTotalUtilization() {
         float totalDebt  = 0f;
         float totalLimit = 0f;
-        for (ExpenseModel e : creditList) {
+        for (CreditModel e : creditList) {
             try { totalDebt  += Float.parseFloat(e.getCost()); }        catch (NumberFormatException ignored) {}
             try { totalLimit += Float.parseFloat(e.getCreditLimit()); } catch (NumberFormatException ignored) {}
         }
@@ -724,8 +921,21 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
     // Shows a "pull down to sync" hint if any card is linked to a bank, else a placeholder dash.
     private void updateSyncLabel() {
         boolean anyLinked = false;
-        for (ExpenseModel e : creditList) { if (e.isLinkedToBank()) { anyLinked = true; break; } }
+        for (CreditModel e : creditList) { if (e.isLinkedToBank()) { anyLinked = true; break; } }
         syncLabel.setText(anyLinked ? "Pull down to sync balances" : "—");
+    }
+
+    // This screen doesn't keep a live StorageHolder like ExpenseActivity does, so the Source
+    // dropdown's manual-account options are loaded fresh on demand — same on-demand pattern
+    // persistChanges() below already uses to reach StorageHolder.
+    private ArrayList<io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel> loadManualAccounts() {
+        try {
+            StorageManager manager = new StorageManager(getApplicationContext());
+            return manager.getStorageHolder().getManualAccountList();
+        } catch (Exception e) {
+            Log.e("CreditUtil", "loadManualAccounts failed: " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
     // Persist to storage
@@ -737,7 +947,7 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
             StorageHolder holder = manager.getStorageHolder();
-            ArrayList<ExpenseModel> list = holder.getExpenseList();
+            ArrayList<ExpenseItem> list = holder.getExpenseList();
 
             ArrayList<Integer> delPositions = new ArrayList<>();
             for (int i = 0; i < changedList.size(); i++) {
@@ -746,12 +956,13 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
                 String how = howChangedList.get(i);
                 if (DEL.equals(how)) {
                     delPositions.add(pos);
-                } else {
-                    ExpenseModel e = list.get(pos);
-                    e.setIsCredit(true);
-                    e.setCost(changedCredUseList.get(i));
-                    e.setShownCost(changedCredUseList.get(i));
+                } else if (list.get(pos) instanceof CreditModel) {
+                    CreditModel e = (CreditModel) list.get(pos);
+                    e.setBalance(changedCredUseList.get(i));
                     e.setCreditLimit(changedCredLimList.get(i));
+                    e.setSource(changedCredSourceList.get(i));
+                    e.setSourceId(changedCredSourceIdList.get(i));
+                    e.setSourceDisplayName(changedCredSourceDisplayList.get(i));
                 }
             }
             Collections.sort(delPositions, Collections.reverseOrder());
@@ -808,6 +1019,9 @@ public class CreditUtilActivity extends AppCompatActivity implements Serializabl
             intent.putStringArrayListExtra("howChangedList",      howChangedList);
             intent.putStringArrayListExtra("changedCredUseList",  changedCredUseList);
             intent.putStringArrayListExtra("changedCredLimList",  changedCredLimList);
+            intent.putStringArrayListExtra("changedCredSourceList",        changedCredSourceList);
+            intent.putStringArrayListExtra("changedCredSourceIdList",      changedCredSourceIdList);
+            intent.putStringArrayListExtra("changedCredSourceDisplayList", changedCredSourceDisplayList);
             if (!newCreditModels.isEmpty()) {
                 intent.putExtra("newCreditList", newCreditModels);
             }

@@ -239,10 +239,14 @@ public class CategoryManagerActivity extends AppCompatActivity {
                         .setPositiveButton("Remove", (d, w) -> {
                             categories.remove(pos);
                             notifyItemRemoved(pos);
-                            for (io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel e
+                            for (io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem item
                                     : storageHolder.getExpenseList()) {
-                                if (catName.equalsIgnoreCase(e.getCategory())) {
-                                    e.setCategory(CategoryManager.OTHER);
+                                if (item instanceof io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel) {
+                                    io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel e =
+                                            (io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel) item;
+                                    if (catName.equalsIgnoreCase(e.getCategory())) {
+                                        e.setCategory(CategoryManager.OTHER);
+                                    }
                                 }
                             }
                             saveNow();

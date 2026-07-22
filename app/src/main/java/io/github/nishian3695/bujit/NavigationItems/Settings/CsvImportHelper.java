@@ -2,6 +2,7 @@ package io.github.nishian3695.bujit.NavigationItems.Settings;
 
 import android.content.Context;
 import android.net.Uri;
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
@@ -153,11 +154,9 @@ public class CsvImportHelper {
         if (limit <= 0) throw new IllegalArgumentException("credit_limit must be > 0");
         LocalDate date  = parseDate(p[4]);
 
-        ExpenseModel c = new ExpenseModel(
+        CreditModel c = new CreditModel(
                 name, String.format(Locale.US, "%.2f", bal),
-                date, 1, ChronoUnit.MONTHS, false);
-        c.setIsCredit(true);
-        c.setCreditLimit(String.format(Locale.US, "%.2f", limit));
+                date, String.format(Locale.US, "%.2f", limit));
         h.getExpenseList().add(c);
         r.creditsAdded++;
     }

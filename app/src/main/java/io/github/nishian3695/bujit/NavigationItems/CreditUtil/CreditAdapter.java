@@ -9,7 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
 import io.github.nishian3695.bujit.Interfaces.ClickListener;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
@@ -24,11 +24,11 @@ Long-press opens the edit dialog via the supplied ClickListener.
 public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
 
     Context context;
-    ArrayList<ExpenseModel> creditList;
+    ArrayList<CreditModel> creditList;
     private ClickListener clickListener;
 
     // Wires the adapter to the list of credit-card expenses and the click callback.
-    public CreditAdapter(Context context, ArrayList<ExpenseModel> creditList, ClickListener clickListener) {
+    public CreditAdapter(Context context, ArrayList<CreditModel> creditList, ClickListener clickListener) {
         this.context = context;
         this.creditList = creditList;
         this.clickListener = clickListener;
@@ -42,11 +42,11 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
         return new CreditViewHolder(creditView, clickListener);
     }
 
-    // Populates one row's views from its ExpenseModel: name, debt, limit, and a color-coded
+    // Populates one row's views from its CreditModel: name, debt, limit, and a color-coded
     // utilization percentage/progress bar.
     @Override
     public void onBindViewHolder(@NonNull CreditViewHolder holder, int position) {
-        ExpenseModel credit = creditList.get(position);
+        CreditModel credit = creditList.get(position);
 
         holder.creditLinkedIndicator.setVisibility(
                 credit.isLinkedToBank() ? View.VISIBLE : View.GONE);
@@ -80,7 +80,7 @@ public class CreditAdapter extends RecyclerView.Adapter<CreditViewHolder> {
     }
 
     // Returns the expense model backing the row at the given adapter position.
-    public ExpenseModel getItem(int position) {
+    public CreditModel getItem(int position) {
         return creditList.get(position);
     }
 

@@ -27,7 +27,7 @@ import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import io.github.nishian3695.bujit.BuildConfig;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyEditTextWatcher;
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import io.github.nishian3695.bujit.StorageManagement.StorageManager;
@@ -163,13 +163,15 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         findViewById(R.id.btn_add_manual_account).setOnClickListener(
                 v -> showManualAccountDialog(null, -1));
 
-        connectBtn.setOnClickListener(v -> {
-            if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
-                launchPlaidLink();
-            } else {
-                launchTellerConnect();
-            }
-        });
+        // Plaid linking is temporarily disabled ("Plaid Coming Soon" -- see activity_banking.xml).
+        // Re-enable by uncommenting below once the feature is ready to ship.
+        // connectBtn.setOnClickListener(v -> {
+        //     if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+        //         launchPlaidLink();
+        //     } else {
+        //         launchTellerConnect();
+        //     }
+        // });
         disconnectBtn.setOnClickListener(v -> confirmDisconnect());
 
         mAuth = FirebaseAuth.getInstance();
@@ -410,12 +412,13 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                 if (accounts.isEmpty()) showEmptyState();
                 else showAccountList();
                 if (showRelink) {
+                    // Bank (re)linking is temporarily disabled ("Plaid Coming Soon"), so there's
+                    // no "Reconnect" action to offer right now -- just inform the user.
                     new AlertDialog.Builder(this)
                             .setTitle("Bank Connection Expired")
                             .setMessage("One or more bank connections have been revoked or expired. " +
-                                    "Tap \"Reconnect\" to re-link your account.")
-                            .setPositiveButton("Reconnect", (d, w) -> connectBtn.performClick())
-                            .setNegativeButton("Dismiss", null)
+                                    "Reconnecting is temporarily unavailable while bank linking is coming soon.")
+                            .setPositiveButton("Dismiss", null)
                             .show();
                 }
             });
@@ -540,8 +543,11 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.VISIBLE);
         accountList.setVisibility(View.GONE);
-        connectBtn.setEnabled(true);
-        connectBtn.setText("Connect Bank");
+        // Plaid linking is temporarily disabled -- see activity_banking.xml / the commented-out
+        // click listener above. Leave the button disabled with its "Plaid Coming Soon" text
+        // rather than re-enabling it here. Restore the two lines below once re-enabled:
+        // connectBtn.setEnabled(true);
+        // connectBtn.setText("Connect Bank");
         connectBtn.setVisibility(View.VISIBLE);
         disconnectBtn.setVisibility(View.GONE);
     }
@@ -551,8 +557,10 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.GONE);
         accountList.setVisibility(View.VISIBLE);
-        connectBtn.setEnabled(true);
-        connectBtn.setText("Add Account");
+        // Plaid linking is temporarily disabled -- see showEmptyState() above. Restore once
+        // re-enabled:
+        // connectBtn.setEnabled(true);
+        // connectBtn.setText("Add Account");
         disconnectBtn.setVisibility(View.VISIBLE);
     }
 
@@ -618,7 +626,7 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
             StorageHolder holder = manager.getStorageHolder();
-            ArrayList<ExpenseModel> list = holder.getExpenseList();
+            ArrayList<ExpenseItem> list = holder.getExpenseList();
             int before = list.size();
             list.removeIf(e -> {
                 if (!e.isLinkedToBank()) return false;
@@ -649,9 +657,9 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         try {
             StorageManager manager = new StorageManager(getApplicationContext());
             StorageHolder holder = manager.getStorageHolder();
-            ArrayList<ExpenseModel> list = holder.getExpenseList();
+            ArrayList<ExpenseItem> list = holder.getExpenseList();
             int before = list.size();
-            list.removeIf(ExpenseModel::isLinkedToBank);
+            list.removeIf(ExpenseItem::isLinkedToBank);
             if (list.size() != before) {
                 holder.setExpenseList(list);
                 manager.writeData(holder);

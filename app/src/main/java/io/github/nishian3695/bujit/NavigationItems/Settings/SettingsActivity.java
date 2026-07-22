@@ -1077,7 +1077,8 @@ public class SettingsActivity extends AppCompatActivity {
         );
         billingClient.queryProductDetailsAsync(
                 QueryProductDetailsParams.newBuilder().setProductList(products).build(),
-                (billingResult, detailsList) -> {
+                (billingResult, result) -> {
+                    List<ProductDetails> detailsList = result.getProductDetailsList();
                     Log.d(BILLING_TAG, "queryProductDetails: code=" + billingResult.getResponseCode()
                             + " count=" + detailsList.size()
                             + " msg=" + billingResult.getDebugMessage());

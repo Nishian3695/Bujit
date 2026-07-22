@@ -210,6 +210,76 @@ public class CreditModelTest {
     }
 
     @Test
+    public void applyCharge_positiveDelta_whenDisplayBalanceUnset_addsToBothCostAndDisplay() {
+        CreditModel card = new CreditModel("Card", "500.00", LocalDate.now().plusMonths(1), "2000.00");
+
+        card.applyCharge(50f);
+
+        assertEquals("550.00", card.getCost());
+        assertEquals("550.00", card.getShownCost());
+        assertEquals("550.00", card.getDisplayBalance());
+    }
+
+    @Test
+    public void applyCharge_whenDisplayBalanceHasAlreadyDiverged_offsetsItsOwnPriorValue() {
+        // Regression test for a bug caught while writing this test: applyCharge() must read
+        // getDisplayBalance()'s CURRENT value before touching cost, since getDisplayBalance()
+        // falls back to getCost() when unset -- reading it after setCost() would silently pick
+        // up the already-updated cost and double-count delta.
+        LocalDate today = LocalDate.now();
+        LocalDate dueDate = today.plusDays(15);
+        CreditModel card = new CreditModel("Card", "500.00", dueDate, "2000.00");
+        ExpenseModel charge = new ExpenseModel("Groceries", "40.00", dueDate.plusDays(7), 200, ChronoUnit.DAYS, false);
+        charge.setSource("CREDIT_CARD");
+        charge.setSourceId(card.getName());
+        List<ExpenseItem> all = new ArrayList<>();
+        all.add(card);
+        all.add(charge);
+        // Paging to just after the due date sets displayBalance ("40.00") without touching the
+        // real cost ("500.00") at all -- establishing a genuine divergence between the two.
+        card.getNextCheckPayments(dueDate.plusDays(5), dueDate.plusDays(10), all);
+        assertEquals("500.00", card.getCost());
+        assertEquals("40.00", card.getDisplayBalance());
+
+        card.applyCharge(10f);
+
+        assertEquals("510.00", card.getCost());
+        assertEquals("50.00", card.getDisplayBalance());
+    }
+
+    @Test
+    public void applyCharge_negativeDelta_clampsAtZero() {
+        CreditModel card = new CreditModel("Card", "30.00", LocalDate.now().plusMonths(1), "2000.00");
+
+        card.applyCharge(-100f);
+
+        assertEquals("0.00", card.getCost());
+        assertEquals("0.00", card.getShownCost());
+        assertEquals("0.00", card.getDisplayBalance());
+    }
+
+    @Test
+    public void setBalance_overridesCostShownCostAndDisplayBalance_ignoringPriorDivergence() {
+        LocalDate today = LocalDate.now();
+        LocalDate dueDate = today.plusDays(15);
+        CreditModel card = new CreditModel("Card", "500.00", dueDate, "2000.00");
+        ExpenseModel charge = new ExpenseModel("Groceries", "40.00", dueDate.plusDays(7), 200, ChronoUnit.DAYS, false);
+        charge.setSource("CREDIT_CARD");
+        charge.setSourceId(card.getName());
+        List<ExpenseItem> all = new ArrayList<>();
+        all.add(card);
+        all.add(charge);
+        card.getNextCheckPayments(dueDate.plusDays(5), dueDate.plusDays(10), all);
+        assertEquals("40.00", card.getDisplayBalance()); // diverged from cost, as in the test above
+
+        card.setBalance("200.00");
+
+        assertEquals("200.00", card.getCost());
+        assertEquals("200.00", card.getShownCost());
+        assertEquals("200.00", card.getDisplayBalance());
+    }
+
+    @Test
     public void isCredit_isTrue() {
         CreditModel card = new CreditModel("Card", "500.00", LocalDate.now(), "2000.00");
         assertEquals(true, card.isCredit());

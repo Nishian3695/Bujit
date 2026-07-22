@@ -47,6 +47,7 @@ import com.google.android.material.tabs.TabLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyFormat;
 import io.github.nishian3695.bujit.DisplayPrefs;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseActivity;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.StorageManagement.CategoryManager;
 import io.github.nishian3695.bujit.NavigationItems.IncomeStreams.IncomeStreamModel;
@@ -87,7 +88,7 @@ Categories tab — two PieCharts showing estimated per-check spending broken dow
 public class VisualsActivity extends AppCompatActivity {
 
 
-    private ArrayList<ExpenseModel>      expenseList;
+    private ArrayList<ExpenseItem>       expenseList;
     private ArrayList<IncomeStreamModel> incomeList;
     private ArrayList<PeriodSnapshot>    snapshotList;
     private ArrayList<String>            categoryList;
@@ -138,7 +139,7 @@ public class VisualsActivity extends AppCompatActivity {
         }
 
         //noinspection unchecked
-        expenseList = (ArrayList<ExpenseModel>) getIntent().getSerializableExtra("expenseList");
+        expenseList = (ArrayList<ExpenseItem>) getIntent().getSerializableExtra("expenseList");
         //noinspection unchecked
         incomeList = (ArrayList<IncomeStreamModel>) getIntent().getSerializableExtra("incomeList");
         //noinspection unchecked
@@ -307,7 +308,7 @@ public class VisualsActivity extends AppCompatActivity {
                 int occ = countIncomeOccurrencesInMonth(inc, periodStart, periodEnd);
                 if (occ > 0) incomeTotals[i] += occ * amt;
             }
-            for (ExpenseModel e : expenseList) {
+            for (ExpenseItem e : expenseList) {
                 float cost;
                 try { cost = Float.parseFloat(e.getCost()); }
                 catch (NumberFormatException ex) { continue; }
@@ -616,13 +617,13 @@ public class VisualsActivity extends AppCompatActivity {
         for (String cat : categoryList) amounts.put(cat, 0f);
         amounts.put(CategoryManager.CREDIT_CARDS, 0f);
         amounts.put(CategoryManager.OTHER, 0f);
-        for (ExpenseModel e : expenseList) {
-            if (excludeCredit && e.getIsCredit()) continue;
+        for (ExpenseItem e : expenseList) {
+            if (excludeCredit && e.isCredit()) continue;
             float pc = perCheckEquivalent(e, payPeriodDays);
             if (pc <= 0) continue;
-            String cat = e.getIsCredit()
+            String cat = e.isCredit()
                     ? CategoryManager.CREDIT_CARDS
-                    : e.getCategory();
+                    : ((ExpenseModel) e).getCategory();
             if (cat == null || cat.isEmpty()) cat = CategoryManager.OTHER;
             amounts.merge(cat, pc, Float::sum);
         }
@@ -820,11 +821,11 @@ public class VisualsActivity extends AppCompatActivity {
     }
 
     // Returns the number of times this expense falls within [start, end).
-    private int countOccurrencesInMonth(ExpenseModel e, LocalDate start, LocalDate end) {
+    private int countOccurrencesInMonth(ExpenseItem e, LocalDate start, LocalDate end) {
         LocalDate date = e.getDate();
         if (date == null) return 0;
 
-        if (e.getIsCredit()) {
+        if (e.isCredit()) {
             // Credit cards in this model are single upcoming payments: makeCurrent() advances
             // expenseDate to the next due date and zeroes the cost once paid. Only project
             // the one occurrence whose due date falls within this pay period.
@@ -870,7 +871,7 @@ public class VisualsActivity extends AppCompatActivity {
     }
 
     // Converts a recurring expense cost to its per-pay-period dollar amount.
-    private float perCheckEquivalent(ExpenseModel e, double payPeriodDays) {
+    private float perCheckEquivalent(ExpenseItem e, double payPeriodDays) {
         float cost;
         try { cost = Float.parseFloat(e.getCost()); }
         catch (NumberFormatException ex) { return 0f; }

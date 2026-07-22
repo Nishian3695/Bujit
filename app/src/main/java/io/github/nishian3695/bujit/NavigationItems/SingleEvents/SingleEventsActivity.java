@@ -21,7 +21,8 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputLayout;
 import io.github.nishian3695.bujit.CustomListeners.CurrencyEditTextWatcher;
-import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
+import io.github.nishian3695.bujit.ExpenseActivity.ExpenseItem;
 import io.github.nishian3695.bujit.NavigationItems.Banking.BankingActivity;
 import io.github.nishian3695.bujit.NavigationItems.Banking.ManualAccountModel;
 import io.github.nishian3695.bujit.R;
@@ -143,10 +144,10 @@ public class SingleEventsActivity extends AppCompatActivity {
                 options.add(new TargetOption(acct.getName(), "MANUAL_ACCOUNT", acct.getId()));
             }
         }
-        ArrayList<ExpenseModel> expenses = storageHolder.getExpenseList();
+        ArrayList<ExpenseItem> expenses = storageHolder.getExpenseList();
         if (expenses != null) {
-            for (ExpenseModel e : expenses) {
-                if (e.getIsCredit() && !e.isLinkedToBank()) {
+            for (ExpenseItem e : expenses) {
+                if (e.isCredit() && !e.isLinkedToBank()) {
                     options.add(new TargetOption(e.getName() + " (card)", "CREDIT_CARD", e.getName()));
                 }
             }
@@ -174,14 +175,11 @@ public class SingleEventsActivity extends AppCompatActivity {
             ManualAccountModel acct = findManualAccount(targetId);
             if (acct != null) acct.setBalance(acct.getBalance() + delta);
         } else if ("CREDIT_CARD".equals(targetType)) {
-            ExpenseModel card = findCreditCard(targetId);
+            CreditModel card = findCreditCard(targetId);
             if (card != null) {
-                try {
-                    // Debit event → delta is negative → subtracting negative increases debt.
-                    // Credit event → delta is positive → subtracting positive decreases debt.
-                    float cost = Math.max(0f, Float.parseFloat(card.getCost()) - delta);
-                    card.setCost(String.format(Locale.US, "%.2f", cost));
-                } catch (NumberFormatException ignored) {}
+                // Debit event → delta is negative → subtracting negative increases debt.
+                // Credit event → delta is positive → subtracting positive decreases debt.
+                card.applyCharge(-delta);
             }
         }
     }
@@ -197,11 +195,11 @@ public class SingleEventsActivity extends AppCompatActivity {
     }
 
     // Finds an unlinked credit-card expense by name.
-    private ExpenseModel findCreditCard(String name) {
-        ArrayList<ExpenseModel> expenses = storageHolder.getExpenseList();
+    private CreditModel findCreditCard(String name) {
+        ArrayList<ExpenseItem> expenses = storageHolder.getExpenseList();
         if (expenses == null || name == null) return null;
-        for (ExpenseModel e : expenses) {
-            if (e.getIsCredit() && name.equals(e.getName())) return e;
+        for (ExpenseItem e : expenses) {
+            if (e instanceof CreditModel && name.equals(e.getName())) return (CreditModel) e;
         }
         return null;
     }
