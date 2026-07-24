@@ -172,6 +172,12 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         });
         disconnectBtn.setOnClickListener(v -> confirmDisconnect());
 
+        // Anonymous sign-in below is async -- disable the connect button until it (and the
+        // subsequent account load) resolves, so a tap in that window can't race ahead of having
+        // a valid Firebase user and silently fail with a null ID token. loadAccountsIfAny() below
+        // re-enables it via showEmptyState()/showAccountList() once ready, in both branches.
+        showLoading();
+
         mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
             // Sign in anonymously. Silent, no prompt. Gives the Cloud Function
