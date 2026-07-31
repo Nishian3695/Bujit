@@ -187,6 +187,7 @@ jobs:
               'closedbeta':   ['closed_0.1.0'],      # custom closed track
               'closed': ['alpha', 'closed_0.1.0'],  # every closed track at once
               'open':      ['beta'],              # only open testing track Play Console allows
+              'all':       ['alpha', 'closed_0.1.0', 'beta'],  # every track at once
           }
           # ───────────────────────────────────────────────────────────────────
 
