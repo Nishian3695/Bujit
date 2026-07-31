@@ -580,59 +580,27 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 curBalance = storageHolder.getCurrentBalance();
                 manualBalanceAddition = storageHolder.getManualBalanceAddition();
                 manualAccountsTotal = computeManualAccountsTotal(storageHolder);
-                averageCheck = storageHolder.getAverageCheck();
-                checkFrequency = storageHolder.getCheckFrequency();
-                checkFrequencyTag = storageHolder.getCheckFrequencyTag();
-                if (checkFrequencyTag == null) checkFrequencyTag = ChronoUnit.WEEKS;
-                if (checkFrequency <= 0) checkFrequency = 1;
-                curCheckDate = storageHolder.getCurCheckDate();
-                nextCheckDate = storageHolder.getNextCheckDate();
-                if (curCheckDate == null) curCheckDate = LocalDate.now();
-                if (nextCheckDate == null) nextCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
                 lastOpened = storageHolder.getLastOpenedDate();
                 if (lastOpened == null) lastOpened = LocalDate.now();
                 periodSnapshots = storageHolder.getPeriodSnapshots();
                 if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
                 singleEventList = storageHolder.getSingleEventList();
-                // Load income streams; migrate from legacy single-stream fields on first open
-                incomeStreamList = storageHolder.getIncomeStreamList();
-                if (incomeStreamList == null || incomeStreamList.isEmpty()) {
-                    incomeStreamList = new ArrayList<>();
-                    if (averageCheck > 0) {
-                        int legacyTag = WEEK_INT;
-                        if (checkFrequencyTag == DAY)   legacyTag = DAY_INT;
-                        else if (checkFrequencyTag == MONTH) legacyTag = MONTH_INT;
-                        else if (checkFrequencyTag == YEAR)  legacyTag = YEAR_INT;
-                        IncomeStreamModel legacy = new IncomeStreamModel(
-                                "Primary Income",
-                                String.format(Locale.US, "%.2f", averageCheck),
-                                calendarToString(curCheckDate, STORE_FORMAT),
-                                checkFrequency,
-                                legacyTag);
-                        legacy.setSelected(true);
-                        incomeStreamList.add(legacy);
-                    }
-                }
-                // Guarantee exactly one stream is marked selected
-                boolean anySelected = false;
-                for (IncomeStreamModel s : incomeStreamList) {
-                    if (s.isSelected()) { anySelected = true; break; }
-                }
-                if (!anySelected && !incomeStreamList.isEmpty()) {
-                    incomeStreamList.get(0).setSelected(true);
-                }
-                // Apply selected stream's values to drive check calculations
-                for (IncomeStreamModel s : incomeStreamList) {
-                    if (s.isSelected()) {
-                        averageCheck = s.getAmountFloat();
-                        checkFrequency = s.getFrequency();
-                        ChronoUnit resolvedTag = intFreqTagToChronoUnit(s.getFrequencyTag());
-                        checkFrequencyTag = resolvedTag != null ? resolvedTag : ChronoUnit.WEEKS;
-                        curCheckDate = stringToCalendar(s.getCheckDate());
-                        nextCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
-                        break;
-                    }
-                }
+
+                // Loads income streams (migrating legacy single-stream fields on first open),
+                // guarantees exactly one is selected, and syncs averageCheck/checkFrequency/
+                // checkFrequencyTag from it -- see FinancialCalc.resolveIncomeState() for why
+                // curCheckDate/nextCheckDate are resolved from persisted storage there rather than
+                // from the selected stream's static anchor date (that was the pre-fix bug that
+                // re-credited income on every app open).
+                io.github.nishian3695.bujit.StorageManagement.FinancialCalc.ResolvedIncomeState resolved =
+                        io.github.nishian3695.bujit.StorageManagement.FinancialCalc.resolveIncomeState(storageHolder);
+                incomeStreamList = resolved.incomeStreamList;
+                averageCheck = resolved.averageCheck;
+                checkFrequency = resolved.checkFrequency;
+                checkFrequencyTag = resolved.checkFrequencyTag;
+                curCheckDate = resolved.curCheckDate;
+                nextCheckDate = resolved.nextCheckDate;
+
                 // Set variables dependent on main data
                 begCheckDate = curCheckDate;
                 endCheckDate = nextCheckDate;
@@ -666,13 +634,15 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     */
     public void checkForNextCheck() {
         mToday = LocalDate.now();
-        while (mToday.equals(this.nextCheckDate) || mToday.isAfter(this.nextCheckDate)) {
-            // Snapshot the period that is about to roll into history, then advance.
-            recordPeriodSnapshot(curCheckDate, nextCheckDate);
-            curCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
-            nextCheckDate = nextCheckDate.plus(checkFrequency, checkFrequencyTag);
-            curBalance += averageCheck;
+        io.github.nishian3695.bujit.StorageManagement.FinancialCalc.CheckRollResult result =
+                io.github.nishian3695.bujit.StorageManagement.FinancialCalc.rollCheckDateForward(
+                        mToday, curCheckDate, nextCheckDate, checkFrequency, checkFrequencyTag, averageCheck);
+        for (LocalDate[] period : result.rolledPeriods) {
+            recordPeriodSnapshot(period[0], period[1]);
         }
+        curCheckDate = result.curCheckDate;
+        nextCheckDate = result.nextCheckDate;
+        curBalance += result.creditedIncome;
         begCheckDate = curCheckDate;
         endCheckDate = nextCheckDate;
     }

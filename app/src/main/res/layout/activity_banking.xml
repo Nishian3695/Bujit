@@ -117,7 +117,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="No bank account connected yet.\nBank linking via Plaid is coming soon."
+                    android:text="No bank account connected yet."
                     android:textSize="14sp"
                     android:textColor="?android:attr/textColorSecondary" />
             </LinearLayout>
@@ -148,8 +148,7 @@
             android:id="@+id/btn_connect_bank"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:enabled="false"
-            android:text="Plaid Coming Soon" />
+            android:text="Connect Bank" />
 
         <Button
             android:id="@+id/btn_disconnect_bank"

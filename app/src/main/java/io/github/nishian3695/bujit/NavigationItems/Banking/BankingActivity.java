@@ -163,16 +163,20 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         findViewById(R.id.btn_add_manual_account).setOnClickListener(
                 v -> showManualAccountDialog(null, -1));
 
-        // Plaid linking is temporarily disabled ("Plaid Coming Soon" -- see activity_banking.xml).
-        // Re-enable by uncommenting below once the feature is ready to ship.
-        // connectBtn.setOnClickListener(v -> {
-        //     if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
-        //         launchPlaidLink();
-        //     } else {
-        //         launchTellerConnect();
-        //     }
-        // });
+        connectBtn.setOnClickListener(v -> {
+            if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+                launchPlaidLink();
+            } else {
+                launchTellerConnect();
+            }
+        });
         disconnectBtn.setOnClickListener(v -> confirmDisconnect());
+
+        // Anonymous sign-in below is async -- disable the connect button until it (and the
+        // subsequent account load) resolves, so a tap in that window can't race ahead of having
+        // a valid Firebase user and silently fail with a null ID token. loadAccountsIfAny() below
+        // re-enables it via showEmptyState()/showAccountList() once ready, in both branches.
+        showLoading();
 
         mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
@@ -412,13 +416,18 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
                 if (accounts.isEmpty()) showEmptyState();
                 else showAccountList();
                 if (showRelink) {
-                    // Bank (re)linking is temporarily disabled ("Plaid Coming Soon"), so there's
-                    // no "Reconnect" action to offer right now -- just inform the user.
                     new AlertDialog.Builder(this)
                             .setTitle("Bank Connection Expired")
                             .setMessage("One or more bank connections have been revoked or expired. " +
-                                    "Reconnecting is temporarily unavailable while bank linking is coming soon.")
-                            .setPositiveButton("Dismiss", null)
+                                    "Reconnect to keep syncing that account's balance.")
+                            .setPositiveButton("Reconnect", (d, w) -> {
+                                if (BankingProviderConfig.ACTIVE_PROVIDER == BankingProviderConfig.Provider.PLAID) {
+                                    launchPlaidLink();
+                                } else {
+                                    launchTellerConnect();
+                                }
+                            })
+                            .setNegativeButton("Dismiss", null)
                             .show();
                 }
             });
@@ -543,11 +552,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.VISIBLE);
         accountList.setVisibility(View.GONE);
-        // Plaid linking is temporarily disabled -- see activity_banking.xml / the commented-out
-        // click listener above. Leave the button disabled with its "Plaid Coming Soon" text
-        // rather than re-enabling it here. Restore the two lines below once re-enabled:
-        // connectBtn.setEnabled(true);
-        // connectBtn.setText("Connect Bank");
+        connectBtn.setEnabled(true);
+        connectBtn.setText("Connect Bank");
         connectBtn.setVisibility(View.VISIBLE);
         disconnectBtn.setVisibility(View.GONE);
     }
@@ -557,10 +563,8 @@ public class BankingActivity extends AppCompatActivity implements ConnectListene
         progressBar.setVisibility(View.GONE);
         emptyState.setVisibility(View.GONE);
         accountList.setVisibility(View.VISIBLE);
-        // Plaid linking is temporarily disabled -- see showEmptyState() above. Restore once
-        // re-enabled:
-        // connectBtn.setEnabled(true);
-        // connectBtn.setText("Add Account");
+        connectBtn.setEnabled(true);
+        connectBtn.setText("Add Account");
         disconnectBtn.setVisibility(View.VISIBLE);
     }
 
