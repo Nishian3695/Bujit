@@ -313,7 +313,8 @@ public class VisualsActivity extends AppCompatActivity {
                 try { cost = Float.parseFloat(e.getCost()); }
                 catch (NumberFormatException ex) { continue; }
                 if (cost <= 0) continue;
-                int occ = countOccurrencesInMonth(e, periodStart, periodEnd);
+                int occ = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                        .countExpenseOccurrences(e, periodStart, periodEnd);
                 if (occ > 0) expenseTotals[i] += occ * cost;
             }
         }
@@ -619,6 +620,7 @@ public class VisualsActivity extends AppCompatActivity {
         amounts.put(CategoryManager.OTHER, 0f);
         for (ExpenseItem e : expenseList) {
             if (excludeCredit && e.isCredit()) continue;
+            if (e.hasEnded()) continue;
             float pc = perCheckEquivalent(e, payPeriodDays);
             if (pc <= 0) continue;
             String cat = e.isCredit()
@@ -818,38 +820,6 @@ public class VisualsActivity extends AppCompatActivity {
             case 3:  return ChronoUnit.YEARS;
             default: return ChronoUnit.MONTHS;
         }
-    }
-
-    // Returns the number of times this expense falls within [start, end).
-    private int countOccurrencesInMonth(ExpenseItem e, LocalDate start, LocalDate end) {
-        LocalDate date = e.getDate();
-        if (date == null) return 0;
-
-        if (e.isCredit()) {
-            // Credit cards in this model are single upcoming payments: makeCurrent() advances
-            // expenseDate to the next due date and zeroes the cost once paid. Only project
-            // the one occurrence whose due date falls within this pay period.
-            return (!date.isBefore(start) && date.isBefore(end)) ? 1 : 0;
-        }
-
-        int freq = e.getFrequency();
-        ChronoUnit tag = e.getFrequencyTag();
-        if (freq <= 0 || tag == null) return 0;
-
-        // Step backward until date is strictly before start
-        int safety = 0;
-        while (!date.isBefore(start) && safety++ < 3650) {
-            date = date.minus(freq, tag);
-        }
-
-        // Count occurrences in [start, end)
-        int count = 0;
-        safety = 0;
-        while (date.isBefore(end) && safety++ < 3650) {
-            if (!date.isBefore(start)) count++;
-            date = date.plus(freq, tag);
-        }
-        return count;
     }
 
     // Returns the selected income stream's pay-period length in days (defaults to 30.44 if none set).

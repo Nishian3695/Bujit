@@ -1150,6 +1150,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         EditText expenseFrequency = dialogLayout.findViewById(R.id.expense_frequency_input);
         AutoCompleteTextView expenseFreqMagnitude = dialogLayout.findViewById(R.id.expense_frequency_magnitude_input);
         Button addExpenseStartDate = dialogLayout.findViewById(R.id.expense_start_date_input_button);
+        Button addExpenseEndDate   = dialogLayout.findViewById(R.id.expense_end_date_input_button);
+        Button clearEndDateBtn     = dialogLayout.findViewById(R.id.btn_clear_end_date);
+        TextView endDateError      = dialogLayout.findViewById(R.id.tv_end_date_error);
+        final LocalDate[] selEndDate = {null};
+        // {date, endDate} as loaded when editing, so an untouched ended expense can still be saved
+        // even though its next-due date is now past its end date.
+        final LocalDate[] originalDates = {null, null};
         Button fromConnectedBtn    = dialogLayout.findViewById(R.id.btn_from_connected);
         View linkedBanner          = dialogLayout.findViewById(R.id.linked_account_banner);
         TextView linkedLabel       = dialogLayout.findViewById(R.id.linked_account_label);
@@ -1308,6 +1315,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             month = expenseDate.getMonth().getValue();
             day = expenseDate.getDayOfMonth();
             addExpenseStartDate.setText(calendarToString(expenseDate, VIEW_FORMAT));
+            selEndDate[0] = expenseModel.getEndDate();
+            originalDates[0] = expenseDate;
+            originalDates[1] = expenseModel.getEndDate();
             if (expenseModel.isLinkedToBank()) {
                 linkedId[0]      = expenseModel.getLinkedAccountId();
                 linkedToken[0]   = expenseModel.getLinkedAccountToken();
@@ -1379,6 +1389,27 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             }
         });
 
+        // Optional end date: "Never" until one is picked; Clear resets it to Never.
+        Runnable refreshEndDate = () -> {
+            addExpenseEndDate.setText(selEndDate[0] == null ? "Never"
+                    : calendarToString(selEndDate[0], VIEW_FORMAT));
+            clearEndDateBtn.setVisibility(selEndDate[0] == null ? View.GONE : View.VISIBLE);
+            endDateError.setVisibility(View.GONE);
+        };
+        refreshEndDate.run();
+        addExpenseEndDate.setOnClickListener(view -> {
+            LocalDate initial = selEndDate[0] != null ? selEndDate[0] : testDate[0];
+            // DatePickerDialog months are 0-based
+            new DatePickerDialog(ExpenseActivity.this, (picker, y, m, d) -> {
+                selEndDate[0] = LocalDate.of(y, m + 1, d);
+                refreshEndDate.run();
+            }, initial.getYear(), initial.getMonthValue() - 1, initial.getDayOfMonth()).show();
+        });
+        clearEndDateBtn.setOnClickListener(view -> {
+            selEndDate[0] = null;
+            refreshEndDate.run();
+        });
+
         fromConnectedBtn.setOnClickListener(v -> showConnectedAccountPicker(
                 expenseName, expenseCost, linkedId, linkedToken, linkedDisplay, linkedBanner, linkedLabel));
         unlinkBtn.setOnClickListener(v -> {
@@ -1448,9 +1479,18 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 } else {
                     freqLayout.setErrorEnabled(false);
                 }
+                LocalDate finalDate = testDate[0];
+                boolean datesUntouched = method.equals(EDIT)
+                        && finalDate.equals(originalDates[0])
+                        && java.util.Objects.equals(selEndDate[0], originalDates[1]);
+                if (selEndDate[0] != null && selEndDate[0].isBefore(finalDate) && !datesUntouched) {
+                    endDateError.setVisibility(View.VISIBLE);
+                    valid = false;
+                } else {
+                    endDateError.setVisibility(View.GONE);
+                }
                 if (!valid) return;
 
-                LocalDate finalDate = testDate[0];
                 int eFreqNum = Integer.parseInt(eFreqStr);
                 int freqTagIndex = Arrays.asList(freqUnits).indexOf(expenseFreqMagnitude.getText().toString());
                 ChronoUnit eFreqTag = null;
@@ -1462,6 +1502,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 switch (method) {
                     case ADD: {
                         ExpenseModel newExpense = new ExpenseModel(eName, eCost, finalDate, eFreqNum, eFreqTag, false);
+                        newExpense.setStartDate(finalDate);
+                        newExpense.setEndDate(selEndDate[0]);
                         newExpense.setCategory(eCategory);
                         newExpense.setSource(selSource[0]);
                         newExpense.setSourceId(selSourceId[0]);
@@ -1496,6 +1538,16 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         expenseModel.setFrequency(eFreqNum);
                         expenseModel.setFrequencyTag(eFreqTag);
                         expenseModel.setDate(finalDate);
+                        // The date field shows the next due date, not the original start, so only
+                        // move startDate if the expense hasn't begun yet or the new date is earlier.
+                        // Otherwise an ordinary edit would hide occurrences already paid this period
+                        // from the history chart.
+                        LocalDate oldStart = expenseModel.getStartDate();
+                        if (oldStart != null && (oldStart.isAfter(LocalDate.now())
+                                || finalDate.isBefore(oldStart))) {
+                            expenseModel.setStartDate(finalDate);
+                        }
+                        expenseModel.setEndDate(selEndDate[0]);
                         expenseModel.setCategory(eCategory);
                         expenseModel.setSource(selSource[0]);
                         expenseModel.setSourceId(selSourceId[0]);

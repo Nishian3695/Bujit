@@ -48,6 +48,40 @@ public class FinancialCalcTest {
     }
 
     @Test
+    public void countExpenseOccurrences_endDate_stopsCountingAfterIt() {
+        LocalDate today = LocalDate.now();
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", today, 7, ChronoUnit.DAYS, false);
+        e.setEndDate(today.plusDays(14)); // today, +7, +14 (inclusive)
+
+        int occ = FinancialCalc.countExpenseOccurrences(e, today, today.plusDays(28));
+
+        assertEquals(3, occ);
+    }
+
+    @Test
+    public void countExpenseOccurrences_futureStartDate_doesNotCountEarlierPeriods() {
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.plusDays(14);
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", start, 7, ChronoUnit.DAYS, false);
+        e.setStartDate(start);
+
+        // Without startDate this rewinds to count -14, -7, 0, +7 as well.
+        int occ = FinancialCalc.countExpenseOccurrences(e, today.minusDays(14), today.plusDays(28));
+
+        assertEquals(2, occ); // +14, +21
+    }
+
+    @Test
+    public void countExpenseOccurrences_noStartDate_keepsLegacyRewindBehavior() {
+        LocalDate today = LocalDate.now();
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", today.plusDays(14), 7, ChronoUnit.DAYS, false);
+
+        int occ = FinancialCalc.countExpenseOccurrences(e, today.minusDays(14), today.plusDays(28));
+
+        assertEquals(6, occ);
+    }
+
+    @Test
     public void countExpenseOccurrences_creditCard_countsAtMostOneDueDateInWindow() {
         LocalDate today = LocalDate.now();
         CreditModel card = new CreditModel("Card", "500.00", today.plusDays(10), "2000.00");

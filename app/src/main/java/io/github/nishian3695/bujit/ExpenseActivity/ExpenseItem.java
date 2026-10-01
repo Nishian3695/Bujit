@@ -29,6 +29,13 @@ public abstract class ExpenseItem implements Serializable {
     protected float eDaysBtwn;   // days between occurrences, computed by setPerPay()
     protected float ePerPay;
 
+    // Optional bounds on the recurrence (null = unbounded). expenseDate above advances to the next
+    // due date as occurrences pass, so startDate separately remembers the first occurrence — it
+    // keeps history math (FinancialCalc) from extrapolating occurrences before the expense began.
+    // endDate is inclusive: an occurrence falling on it still counts.
+    protected LocalDate startDate = null;
+    protected LocalDate endDate = null;
+
     // Display fields for the currently viewed check period
     protected LocalDate shownDate;
     protected String shownCost;
@@ -120,6 +127,21 @@ public abstract class ExpenseItem implements Serializable {
         return this.expenseName;
     }
 
+    // Recurrence bounds
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+    // True when the next due date is past the end date, i.e. no occurrences remain.
+    public boolean hasEnded() {
+        return endDate != null && expenseDate != null && expenseDate.isAfter(endDate);
+    }
+    // True when an occurrence on this date falls within [startDate, endDate] (either bound may be null).
+    public boolean isWithinBounds(LocalDate date) {
+        return (startDate == null || !date.isBefore(startDate))
+                && (endDate == null || !date.isAfter(endDate));
+    }
+
     // Linked account
     public boolean isLinkedToBank() {
         return linkedAccountId != null && !linkedAccountId.isEmpty();
@@ -198,9 +220,11 @@ public abstract class ExpenseItem implements Serializable {
     curCheck=false compares against checkStart (used when projecting future checks).
     For high-frequency expenses (ePerPay > 1), the count is derived from the number
     of full recurrence intervals that fit in the remaining days of the check period.
+    Occurrences after endDate are never counted.
     */
     public Integer getOccurrences(LocalDate checkStart, LocalDate nextCheck,
                                   Boolean curCheck) {
+        if (endDate != null && shownDate.isAfter(endDate)) return 0;
         LocalDate compCal = LocalDate.now();
         if (!curCheck) {
             compCal = checkStart;
@@ -215,6 +239,11 @@ public abstract class ExpenseItem implements Serializable {
             int daysLeft = (int) ChronoUnit.DAYS.between(this.shownDate, nextCheck);
             // +1 counts the first occurrence on shownDate itself
             occurrences = (int) (Math.floor(daysLeft / this.eDaysBtwn) + 1);
+            if (endDate != null) {
+                // Occurrences from shownDate through endDate inclusive
+                int daysToEnd = (int) ChronoUnit.DAYS.between(this.shownDate, endDate);
+                occurrences = Math.min(occurrences, (int) (Math.floor(daysToEnd / this.eDaysBtwn) + 1));
+            }
         }
         return occurrences;
     }

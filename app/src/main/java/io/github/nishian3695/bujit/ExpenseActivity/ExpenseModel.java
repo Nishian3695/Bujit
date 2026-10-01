@@ -120,12 +120,13 @@ public class ExpenseModel extends ExpenseItem {
     /*
     Advances the expense's base date forward until it is in the future (today or later),
     and resets shownDate to match. Returns the total amount of past occurrences that have
-    already been paid (so the caller can deduct that from its funding Source).
+    already been paid (so the caller can deduct that from its funding Source). Stops at the first
+    date past endDate, so occurrences after the expense ended are never paid.
     */
     @Override
     public float makeCurrent(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
         int passedExpenses = 0;
-        while (LocalDate.now().isAfter(this.expenseDate)) {
+        while (LocalDate.now().isAfter(this.expenseDate) && !hasEnded()) {
             this.expenseDate = this.expenseDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
             passedExpenses++;
         }

@@ -42,7 +42,8 @@ public final class FinancialCalc {
         return count;
     }
 
-    // Returns how many times this expense falls within [start, end).
+    // Returns how many times this expense falls within [start, end), ignoring any occurrence
+    // outside the expense's own start/end dates.
     public static int countExpenseOccurrences(ExpenseItem e, LocalDate start, LocalDate end) {
         LocalDate date = e.getDate();
         if (date == null) return 0;
@@ -56,7 +57,7 @@ public final class FinancialCalc {
         while (!date.isBefore(start) && safety++ < 3650) date = date.minus(freq, tag);
         int count = 0; safety = 0;
         while (date.isBefore(end) && safety++ < 3650) {
-            if (!date.isBefore(start)) count++;
+            if (!date.isBefore(start) && e.isWithinBounds(date)) count++;
             date = date.plus(freq, tag);
         }
         return count;
