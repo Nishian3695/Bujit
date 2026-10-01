@@ -17,8 +17,8 @@ class IncomeStreamModelRows extends Table {
   TextColumn get name => text().withLength(min: 1, max: 200)();
   RealColumn get amount => real()();
   DateTimeColumn get startDate => dateTime()();
-  // Most recent pay date as of the last check-in (IncomeStreamModel.currentDate).
-  DateTimeColumn get currentDate => dateTime().nullable()();
+  // (No per-stream "credited through" date: income is credited through one
+  // date for every stream, AppMetaRows.lastUpdated -- see BalanceModel.makeRecent.)
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
   BoolColumn get isActive => boolean().withDefault(const Constant(false))();

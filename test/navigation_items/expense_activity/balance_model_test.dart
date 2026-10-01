@@ -233,17 +233,16 @@ void main() {
             expect(balance.makeRecent(today: today), closeTo(-300.0, 1e-9));
         });
 
-        // Confirmed against the previous code, which only credited the active stream ($0 here).
+        // Confirmed against earlier code, which only credited the active stream.
         test("credits every stream's arrived paychecks, not only the active one's", () {
-            final balance = _balance(); // job: payday today, already in the balance
-            // Side job: paydays -35 and -5; credited through -35, so the -5 paycheck is new.
-            final side = IncomeStreamModel(
-                name: "Side", amount: 250.0, startDate: day(-35),
-                frequency: 30, frequencyUnits: FrequencyUnit.daily,
-            );
-            balance.incomeStreams.add(side);
+            // Last opened 14 days ago, on the job's previous payday; the job pays again today
+            // and the side job (paydays -35, -5) paid 5 days ago.
+            final balance = BalanceModel(currentBalance: 0.0, lastUpdated: day(-14));
+            final job = _income(start: day(-14));
+            balance.incomeStreams.addAll([job, _income(amount: 250.0, start: day(-35), frequency: 30)]);
+            balance.activeIncome = job;
 
-            expect(balance.makeRecent(today: today), closeTo(250.0, 1e-9));
+            expect(balance.makeRecent(today: today), closeTo(1250.0, 1e-9));
         });
 
         // Guards against the double subtraction found in the Java app (not present here).
@@ -259,15 +258,39 @@ void main() {
             expect(balance.check(0, today: today).endBalance, closeTo(700.0, 1e-9));
         });
 
-        test("a stream starting in the future credits nothing yet", () {
-            final balance = _balance();
+        // Streams are added and edited while the app is open, after makeRecent ran for
+        // today -- so lastUpdated == today below is "the moment the stream was entered".
+
+        test("a future starting date credits its first paycheck when it arrives", () {
+            final balance = _balance(); // lastUpdated today; the job's next payday is day 14
             balance.incomeStreams.add(_income(amount: 250.0, start: day(10), frequency: 30));
 
+            expect(balance.makeRecent(today: day(9)), 0.0);
+            expect(balance.makeRecent(today: day(10)), closeTo(250.0, 1e-9));
+        });
+
+        test("a past starting date entered today is already in the balance", () {
+            final balance = _balance();
+            balance.incomeStreams.add(_income(amount: 250.0, start: day(-3), frequency: 30));
+
             expect(balance.makeRecent(today: today), 0.0);
+            // Its next payday (day 27) is credited as usual, along with the job's day-14 one.
+            expect(balance.makeRecent(today: day(27)), closeTo(1250.0, 1e-9));
+        });
+
+        test("editing a stream only affects future paydays, never retroactively", () {
+            final balance = _balance();
+            final job = balance.activeIncome!;
+            // Edited today to start long ago and pay more (paydays ..., -13, +1).
+            job.startDate = day(-97);
+            job.amount = 1500.0;
+
+            expect(balance.makeRecent(today: today), 0.0);
+            expect(balance.makeRecent(today: day(1)), closeTo(1500.0, 1e-9));
         });
 
         test("opening again on the same day changes nothing", () {
-            final balance = BalanceModel(currentBalance: 1000.0);
+            final balance = BalanceModel(currentBalance: 1000.0, lastUpdated: day(-20));
             final job = _income(start: day(-28));
             balance.incomeStreams.add(job);
             balance.activeIncome = job;

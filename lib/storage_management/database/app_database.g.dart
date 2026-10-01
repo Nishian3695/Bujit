@@ -624,17 +624,6 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _currentDateMeta = const VerificationMeta(
-    'currentDate',
-  );
-  @override
-  late final GeneratedColumn<DateTime> currentDate = GeneratedColumn<DateTime>(
-    'current_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _frequencyMeta = const VerificationMeta(
     'frequency',
   );
@@ -679,7 +668,6 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     name,
     amount,
     startDate,
-    currentDate,
     frequency,
     frequencyUnits,
     isActive,
@@ -723,15 +711,6 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     } else if (isInserting) {
       context.missing(_startDateMeta);
     }
-    if (data.containsKey('current_date')) {
-      context.handle(
-        _currentDateMeta,
-        currentDate.isAcceptableOrUnknown(
-          data['current_date']!,
-          _currentDateMeta,
-        ),
-      );
-    }
     if (data.containsKey('frequency')) {
       context.handle(
         _frequencyMeta,
@@ -771,10 +750,6 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_date'],
       )!,
-      currentDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}current_date'],
-      ),
       frequency: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}frequency'],
@@ -810,7 +785,6 @@ class IncomeStreamModelRow extends DataClass
   final String name;
   final double amount;
   final DateTime startDate;
-  final DateTime? currentDate;
   final int frequency;
   final FrequencyUnit frequencyUnits;
   final bool isActive;
@@ -819,7 +793,6 @@ class IncomeStreamModelRow extends DataClass
     required this.name,
     required this.amount,
     required this.startDate,
-    this.currentDate,
     required this.frequency,
     required this.frequencyUnits,
     required this.isActive,
@@ -831,9 +804,6 @@ class IncomeStreamModelRow extends DataClass
     map['name'] = Variable<String>(name);
     map['amount'] = Variable<double>(amount);
     map['start_date'] = Variable<DateTime>(startDate);
-    if (!nullToAbsent || currentDate != null) {
-      map['current_date'] = Variable<DateTime>(currentDate);
-    }
     map['frequency'] = Variable<int>(frequency);
     {
       map['frequency_units'] = Variable<String>(
@@ -852,9 +822,6 @@ class IncomeStreamModelRow extends DataClass
       name: Value(name),
       amount: Value(amount),
       startDate: Value(startDate),
-      currentDate: currentDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(currentDate),
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
       isActive: Value(isActive),
@@ -871,7 +838,6 @@ class IncomeStreamModelRow extends DataClass
       name: serializer.fromJson<String>(json['name']),
       amount: serializer.fromJson<double>(json['amount']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
-      currentDate: serializer.fromJson<DateTime?>(json['currentDate']),
       frequency: serializer.fromJson<int>(json['frequency']),
       frequencyUnits: $IncomeStreamModelRowsTable.$converterfrequencyUnits
           .fromJson(serializer.fromJson<String>(json['frequencyUnits'])),
@@ -886,7 +852,6 @@ class IncomeStreamModelRow extends DataClass
       'name': serializer.toJson<String>(name),
       'amount': serializer.toJson<double>(amount),
       'startDate': serializer.toJson<DateTime>(startDate),
-      'currentDate': serializer.toJson<DateTime?>(currentDate),
       'frequency': serializer.toJson<int>(frequency),
       'frequencyUnits': serializer.toJson<String>(
         $IncomeStreamModelRowsTable.$converterfrequencyUnits.toJson(
@@ -902,7 +867,6 @@ class IncomeStreamModelRow extends DataClass
     String? name,
     double? amount,
     DateTime? startDate,
-    Value<DateTime?> currentDate = const Value.absent(),
     int? frequency,
     FrequencyUnit? frequencyUnits,
     bool? isActive,
@@ -911,7 +875,6 @@ class IncomeStreamModelRow extends DataClass
     name: name ?? this.name,
     amount: amount ?? this.amount,
     startDate: startDate ?? this.startDate,
-    currentDate: currentDate.present ? currentDate.value : this.currentDate,
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     isActive: isActive ?? this.isActive,
@@ -922,9 +885,6 @@ class IncomeStreamModelRow extends DataClass
       name: data.name.present ? data.name.value : this.name,
       amount: data.amount.present ? data.amount.value : this.amount,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
-      currentDate: data.currentDate.present
-          ? data.currentDate.value
-          : this.currentDate,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
       frequencyUnits: data.frequencyUnits.present
           ? data.frequencyUnits.value
@@ -940,7 +900,6 @@ class IncomeStreamModelRow extends DataClass
           ..write('name: $name, ')
           ..write('amount: $amount, ')
           ..write('startDate: $startDate, ')
-          ..write('currentDate: $currentDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('isActive: $isActive')
@@ -954,7 +913,6 @@ class IncomeStreamModelRow extends DataClass
     name,
     amount,
     startDate,
-    currentDate,
     frequency,
     frequencyUnits,
     isActive,
@@ -967,7 +925,6 @@ class IncomeStreamModelRow extends DataClass
           other.name == this.name &&
           other.amount == this.amount &&
           other.startDate == this.startDate &&
-          other.currentDate == this.currentDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
           other.isActive == this.isActive);
@@ -979,7 +936,6 @@ class IncomeStreamModelRowsCompanion
   final Value<String> name;
   final Value<double> amount;
   final Value<DateTime> startDate;
-  final Value<DateTime?> currentDate;
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
   final Value<bool> isActive;
@@ -988,7 +944,6 @@ class IncomeStreamModelRowsCompanion
     this.name = const Value.absent(),
     this.amount = const Value.absent(),
     this.startDate = const Value.absent(),
-    this.currentDate = const Value.absent(),
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -998,7 +953,6 @@ class IncomeStreamModelRowsCompanion
     required String name,
     required double amount,
     required DateTime startDate,
-    this.currentDate = const Value.absent(),
     required int frequency,
     required FrequencyUnit frequencyUnits,
     this.isActive = const Value.absent(),
@@ -1012,7 +966,6 @@ class IncomeStreamModelRowsCompanion
     Expression<String>? name,
     Expression<double>? amount,
     Expression<DateTime>? startDate,
-    Expression<DateTime>? currentDate,
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
     Expression<bool>? isActive,
@@ -1022,7 +975,6 @@ class IncomeStreamModelRowsCompanion
       if (name != null) 'name': name,
       if (amount != null) 'amount': amount,
       if (startDate != null) 'start_date': startDate,
-      if (currentDate != null) 'current_date': currentDate,
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (isActive != null) 'is_active': isActive,
@@ -1034,7 +986,6 @@ class IncomeStreamModelRowsCompanion
     Value<String>? name,
     Value<double>? amount,
     Value<DateTime>? startDate,
-    Value<DateTime?>? currentDate,
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
     Value<bool>? isActive,
@@ -1044,7 +995,6 @@ class IncomeStreamModelRowsCompanion
       name: name ?? this.name,
       amount: amount ?? this.amount,
       startDate: startDate ?? this.startDate,
-      currentDate: currentDate ?? this.currentDate,
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       isActive: isActive ?? this.isActive,
@@ -1065,9 +1015,6 @@ class IncomeStreamModelRowsCompanion
     }
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
-    }
-    if (currentDate.present) {
-      map['current_date'] = Variable<DateTime>(currentDate.value);
     }
     if (frequency.present) {
       map['frequency'] = Variable<int>(frequency.value);
@@ -1092,7 +1039,6 @@ class IncomeStreamModelRowsCompanion
           ..write('name: $name, ')
           ..write('amount: $amount, ')
           ..write('startDate: $startDate, ')
-          ..write('currentDate: $currentDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('isActive: $isActive')
@@ -1864,7 +1810,6 @@ typedef $$IncomeStreamModelRowsTableCreateCompanionBuilder =
       required String name,
       required double amount,
       required DateTime startDate,
-      Value<DateTime?> currentDate,
       required int frequency,
       required FrequencyUnit frequencyUnits,
       Value<bool> isActive,
@@ -1875,7 +1820,6 @@ typedef $$IncomeStreamModelRowsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<double> amount,
       Value<DateTime> startDate,
-      Value<DateTime?> currentDate,
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
       Value<bool> isActive,
@@ -1907,11 +1851,6 @@ class $$IncomeStreamModelRowsTableFilterComposer
 
   ColumnFilters<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get currentDate => $composableBuilder(
-    column: $table.currentDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1961,11 +1900,6 @@ class $$IncomeStreamModelRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get currentDate => $composableBuilder(
-    column: $table.currentDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get frequency => $composableBuilder(
     column: $table.frequency,
     builder: (column) => ColumnOrderings(column),
@@ -2002,11 +1936,6 @@ class $$IncomeStreamModelRowsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get currentDate => $composableBuilder(
-    column: $table.currentDate,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<int> get frequency =>
       $composableBuilder(column: $table.frequency, builder: (column) => column);
@@ -2071,7 +2000,6 @@ class $$IncomeStreamModelRowsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
-                Value<DateTime?> currentDate = const Value.absent(),
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -2080,7 +2008,6 @@ class $$IncomeStreamModelRowsTableTableManager
                 name: name,
                 amount: amount,
                 startDate: startDate,
-                currentDate: currentDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 isActive: isActive,
@@ -2091,7 +2018,6 @@ class $$IncomeStreamModelRowsTableTableManager
                 required String name,
                 required double amount,
                 required DateTime startDate,
-                Value<DateTime?> currentDate = const Value.absent(),
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
                 Value<bool> isActive = const Value.absent(),
@@ -2100,7 +2026,6 @@ class $$IncomeStreamModelRowsTableTableManager
                 name: name,
                 amount: amount,
                 startDate: startDate,
-                currentDate: currentDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 isActive: isActive,

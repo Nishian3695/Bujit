@@ -46,6 +46,8 @@ class BalanceModel {
     static const int fallbackCheckDays = 7;
 
     double currentBalance;
+    // Last day everything was brought up to (see makeRecent); in particular, every
+    // stream's paychecks through this day are already in currentBalance.
     DateTime lastUpdated;
     final List<ExpenseItem> expenses = []; // Expenses and credit cards
     final List<IncomeStreamModel> incomeStreams = [];
@@ -60,19 +62,31 @@ class BalanceModel {
 
     // Brings everything up to [today] (default: now): pays expenses that came due
     // before today, pays off credit cards whose due date passed, and credits every
-    // income stream's paychecks through today -- not only the active stream's,
-    // which just sets the pay periods. Returns the net change applied to currentBalance.
+    // income stream's paychecks after lastUpdated through today -- not only the
+    // active stream's, which just sets the pay periods. A paycheck landing today
+    // counts, matching the Java app's pay period rolling over on payday. Returns
+    // the net change applied to currentBalance; calling it twice on the same day
+    // changes nothing the second time.
+    //
+    // Nothing before a stream's starting date counts, and the starting date's own
+    // paycheck counts only if it's after lastUpdated. Streams are added and edited
+    // while the app is open, after this has run for today, so that means: a
+    // starting date entered in the future is credited when it arrives, a past or
+    // current one is already in the balance, and editing a stream only ever
+    // affects future paydays. Same rule as the Java app's incomeArrivedSince.
     double makeRecent({DateTime? today}) {
         final DateTime day = dateOnly(today ?? todayDate());
         double change = 0.00;
         for (final ExpenseItem expense in expenses) {
             change -= expense.makeRecent(today: day);
         }
-        for (final IncomeStreamModel income in incomeStreams) {
-            change += income.makeRecent(today: day);
+        if (day.isAfter(lastUpdated)) {
+            for (final IncomeStreamModel income in incomeStreams) {
+                change += income.amountBetween(addDays(lastUpdated, 1), day);
+            }
+            lastUpdated = day;
         }
         currentBalance += change;
-        lastUpdated = day;
         return change;
     }
 

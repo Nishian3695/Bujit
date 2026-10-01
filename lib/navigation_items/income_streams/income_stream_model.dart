@@ -9,10 +9,8 @@ class IncomeStreamModel {
     double amount; // Amount of the income stream
     // First payday. Also anchors the schedule's day of month (a paycheck on
     // the 31st lands on the 28th/29th in February, then back on the 31st).
+    // Crediting paychecks to the balance is BalanceModel's job (see makeRecent).
     DateTime startDate;
-    // Most recent payday already credited to the balance (startDate until the
-    // first catch-up). Paychecks after it are still to come.
-    DateTime currentDate;
     int frequency; // Frequency
     FrequencyUnit frequencyUnits; // Tag to track frequency
     bool isActive; // Whether this stream sets the pay periods (see BalanceModel)
@@ -26,9 +24,7 @@ class IncomeStreamModel {
         required this.frequency,
         required this.frequencyUnits,
         this.isActive = false, // Default to inactive
-        DateTime? currentDate,
-    }) : startDate = dateOnly(startDate),
-         currentDate = dateOnly(currentDate ?? startDate);
+    }) : startDate = dateOnly(startDate);
 
     // Built on demand so it always reflects the current startDate/frequency.
     // Occurrence 0 is startDate itself.
@@ -70,26 +66,14 @@ class IncomeStreamModel {
     // Total paid in the half-open period [start, end)
     double amountInPeriod(DateTime start, DateTime end) => amount * numOccurrencesInPeriod(start, end);
 
+    // Total paid from [from] through [to], both inclusive.
+    double amountBetween(DateTime from, DateTime to) => amount * occurrencesBetween(from, to);
+
     // Most recent payday on or before [date], or null if the stream hasn't started by then.
     DateTime? paydayOnOrBefore(DateTime date) => _projector.lastOnOrBefore(date);
 
     // First payday strictly after [date].
     DateTime paydayAfter(DateTime date) => _projector.firstOnOrAfter(addDays(date, 1));
-
-    // The next payday after the last credited one.
-    DateTime get nextDate => paydayAfter(currentDate);
-
-    // Credits every paycheck after currentDate through [today] (default: now), so
-    // a paycheck landing today counts as arrived -- matching the Java app, which
-    // rolls the pay period over on payday. Returns the total credited; calling it
-    // twice on the same day credits nothing the second time.
-    double makeRecent({DateTime? today}) {
-        final DateTime day = dateOnly(today ?? todayDate());
-        final double credited = amount * occurrencesBetween(addDays(currentDate, 1), day);
-        final DateTime? latest = paydayOnOrBefore(day);
-        if (latest != null && latest.isAfter(currentDate)) currentDate = latest;
-        return credited;
-    }
 
     // Advance a single period and return [start, end) dates
     (DateTime, DateTime) advancePeriod(DateTime fromDate) {
