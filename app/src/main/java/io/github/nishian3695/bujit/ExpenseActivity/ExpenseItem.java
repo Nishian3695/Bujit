@@ -152,6 +152,21 @@ public abstract class ExpenseItem implements Serializable {
                 date, (long) steps * expenseFrequency, expenseFrequencyTag, getAnchorDay());
     }
 
+    /*
+    Moves the next due date forward to `today` or later WITHOUT paying anything, for items entered
+    with a past date (CSV import) whose earlier occurrences already happened outside the app.
+    Unlike makeCurrent(), no amount is returned for deduction and a credit card keeps its balance.
+    Stops once past endDate, leaving an already-finished expense marked as ended.
+    */
+    public void skipToNextDueDate(LocalDate today) {
+        int safety = 0;
+        while (expenseDate.isBefore(today) && !hasEnded() && expenseFrequency > 0
+                && safety++ < 100000) {
+            expenseDate = stepOccurrence(expenseDate, 1);
+        }
+        shownDate = expenseDate;
+    }
+
     // Recurrence bounds
     public LocalDate getStartDate() { return startDate; }
     public void setStartDate(LocalDate startDate) { this.startDate = startDate; }

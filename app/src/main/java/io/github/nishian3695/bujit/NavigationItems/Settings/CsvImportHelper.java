@@ -150,13 +150,17 @@ public class CsvImportHelper {
         // projections never count occurrences before it (e.g. a subscription starting next month).
         e.setStartDate(date);
         e.setEndDate(endDate);
+        // A past due_date means earlier payments already happened outside the app: move to the
+        // next upcoming one instead of letting the next app open deduct every missed occurrence.
+        e.skipToNextDueDate(LocalDate.now());
         h.getExpenseList().add(e);
         r.expensesAdded++;
     }
 
     // credit,<name>,<balance>,<credit_limit>,<due_date>
     // Parses one credit row and appends a new credit-card ExpenseModel (monthly recurrence).
-    private static void parseCredit(String[] p, StorageHolder h, ImportResult r) {
+    // Package-private for unit tests.
+    static void parseCredit(String[] p, StorageHolder h, ImportResult r) {
         require(p, 5, "credit,<name>,<balance>,<credit_limit>,<due_date>");
         String    name  = nonEmpty(p[1], "name");
         float     bal   = parseAmount(p[2]);
@@ -167,6 +171,9 @@ public class CsvImportHelper {
         CreditModel c = new CreditModel(
                 name, String.format(Locale.US, "%.2f", bal),
                 date, String.format(Locale.US, "%.2f", limit));
+        // A past due date moves to the next upcoming one; the imported balance is what's owed
+        // now, so it must not be treated as paid off (which makeCurrent() would do on next open).
+        c.skipToNextDueDate(LocalDate.now());
         h.getExpenseList().add(c);
         r.creditsAdded++;
     }

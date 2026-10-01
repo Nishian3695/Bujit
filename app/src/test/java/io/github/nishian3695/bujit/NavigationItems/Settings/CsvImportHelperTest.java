@@ -1,15 +1,18 @@
 package io.github.nishian3695.bujit.NavigationItems.Settings;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.github.nishian3695.bujit.ExpenseActivity.CreditModel;
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
 import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import org.junit.Test;
 
 /*
@@ -34,7 +37,7 @@ public class CsvImportHelperTest {
 
         assertEquals("Rent", e.getName());
         assertEquals("2200.00", e.getCost());
-        assertEquals(LocalDate.of(2024, 1, 1), e.getDate());
+        assertEquals(LocalDate.of(2024, 1, 1), e.getStartDate()); // date moves forward; see below
         assertEquals(1, e.getFrequency());
         assertEquals(ChronoUnit.MONTHS, e.getFrequencyTag());
         assertEquals("Other", e.getCategory());
@@ -109,6 +112,63 @@ public class CsvImportHelperTest {
         // Without a start date, stepping back from the due date would put phantom charges here.
         assertEquals(0, FinancialCalc.countExpenseOccurrences(e, start.minusMonths(2), start));
         assertEquals(1, FinancialCalc.countExpenseOccurrences(e, start, start.plusMonths(1)));
+    }
+
+    // --- Past due dates: earlier payments happened outside the app, so the import moves to the
+    // next upcoming due date and the next app open deducts nothing ---
+
+    @Test
+    public void pastDueDate_movesToNextUpcomingDateWithoutDeducting() {
+        LocalDate today = LocalDate.now();
+        ExpenseModel e = importExpense("expense,Rent,2200,2024-01-01,1,month,Housing");
+
+        assertFalse(e.getDate().isBefore(today));
+        assertTrue(e.getDate().isBefore(today.plusMonths(1).plusDays(1)));
+        assertEquals(1, e.getDate().getDayOfMonth());
+        assertEquals(e.getDate(), e.getShownDate());
+        // What the home screen does when it next loads: nothing has passed, so nothing is paid.
+        assertEquals(0f, e.makeCurrent(today, today.plusDays(14), Collections.emptyList()), 0.001f);
+    }
+
+    @Test
+    public void pastDueDateOn31st_keepsMonthEndDay() {
+        ExpenseModel e = importExpense("expense,Rent,2200,2024-01-31,1,month");
+
+        LocalDate next = e.getDate();
+        assertEquals(Math.min(31, next.lengthOfMonth()), next.getDayOfMonth());
+    }
+
+    @Test
+    public void pastDueDate_alreadyEnded_importsAsEndedAndNeverDeducts() {
+        ExpenseModel e = importExpense("expense,Old Gym,40,2024-01-05,1,month,Health,2024-06-05");
+
+        assertTrue(e.hasEnded());
+        LocalDate today = LocalDate.now();
+        assertEquals(0f, e.makeCurrent(today, today.plusDays(14), Collections.emptyList()), 0.001f);
+    }
+
+    @Test
+    public void futureDueDate_isLeftAsIs() {
+        LocalDate future = LocalDate.now().plusDays(20);
+        ExpenseModel e = importExpense("expense,Insurance,90," + future + ",6,month");
+
+        assertEquals(future, e.getDate());
+    }
+
+    @Test
+    public void pastCreditDueDate_movesForwardAndKeepsBalance() {
+        StorageHolder h = new StorageHolder();
+        CsvImportHelper.ImportResult r = new CsvImportHelper.ImportResult();
+        CsvImportHelper.parseCredit(
+                CsvImportHelper.splitCsvLine("credit,Card Name,156,1000,2024-01-15"), h, r);
+        CreditModel c = (CreditModel) h.getExpenseList().get(0);
+        LocalDate today = LocalDate.now();
+
+        assertFalse(c.getDate().isBefore(today));
+        assertEquals(15, c.getDate().getDayOfMonth());
+        // Previously the next app open treated the card as paid off: deducted $156 and zeroed it.
+        assertEquals(0f, c.makeCurrent(today, today.plusDays(14), Collections.emptyList()), 0.001f);
+        assertEquals("156.00", c.getCost());
     }
 
     @Test

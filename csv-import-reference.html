@@ -374,7 +374,7 @@
         <div class="field-row">
           <span class="field-name">&lt;due_date&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">Next due date: <code>YYYY-MM-DD</code>. Tracking starts here, so the expense isn't counted in any period before this date</span>
+          <span class="field-desc">Next due date: <code>YYYY-MM-DD</code>. Tracking starts here, so the expense isn't counted in any period before this date. A past date is fine: earlier payments are treated as already made, so nothing is deducted and it moves to the next upcoming due date</span>
         </div>
         <div class="field-row">
           <span class="field-name">&lt;frequency&gt;</span>
@@ -429,7 +429,7 @@
         <div class="field-row">
           <span class="field-name">&lt;due_date&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">Next payment due date: <code>YYYY-MM-DD</code></span>
+          <span class="field-desc">Next payment due date: <code>YYYY-MM-DD</code>. A past date moves to the next upcoming due date; the balance is kept as what's currently owed</span>
         </div>
       </div>
     </div>
@@ -524,7 +524,7 @@
         </tr>
         <tr>
           <td class="field-mono">&lt;due_date&gt;</td>
-          <td class="field-desc">Next due date for an expense. Format: <code>YYYY-MM-DD</code></td>
+          <td class="field-desc">Next due date for an expense or credit card. Format: <code>YYYY-MM-DD</code>. Past dates are allowed: earlier payments are treated as already made, and the date moves to the next upcoming one without deducting anything.</td>
         </tr>
         <tr>
           <td class="field-mono">&lt;start_date&gt;</td>
