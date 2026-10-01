@@ -358,7 +358,7 @@
     </div>
     <div class="tag-entry-body">
       <div class="syntax">
-        <span class="s-tag">expense</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;amount&gt;<span class="s-comma">,</span>&lt;due_date&gt;<span class="s-comma">,</span>&lt;frequency&gt;<span class="s-comma">,</span>&lt;unit&gt;<span class="s-comma">,</span><span class="s-opt">&lt;_category&gt;</span>
+        <span class="s-tag">expense</span><span class="s-comma">,</span>&lt;name&gt;<span class="s-comma">,</span>&lt;amount&gt;<span class="s-comma">,</span>&lt;due_date&gt;<span class="s-comma">,</span>&lt;frequency&gt;<span class="s-comma">,</span>&lt;unit&gt;<span class="s-comma">,</span><span class="s-opt">&lt;_category&gt;</span><span class="s-comma">,</span><span class="s-opt">&lt;_end_date&gt;</span>
       </div>
       <div class="field-rows">
         <div class="field-row">
@@ -390,6 +390,11 @@
           <span class="field-name">&lt;_category&gt;</span>
           <span class="badge badge-opt">optional</span>
           <span class="field-desc">Spending category: e.g. Housing, Food, Entertainment. Defaults to Other if omitted</span>
+        </div>
+        <div class="field-row">
+          <span class="field-name">&lt;_end_date&gt;</span>
+          <span class="badge badge-opt">optional</span>
+          <span class="field-desc">Last date the expense can occur: <code>YYYY-MM-DD</code>. A payment on this date still counts. Omit for an expense with no end. To set it without a category, leave the category blank: <code>...,month,,2028-12-10</code></span>
         </div>
       </div>
     </div>
@@ -480,6 +485,8 @@
 
 <span class="e-tag">manual_account</span><span class="e-comma">,</span>My Savings<span class="e-comma">,</span>Savings<span class="e-comma">,</span>0
 <span class="e-tag">expense</span><span class="e-comma">,</span>Rent<span class="e-comma">,</span>2200<span class="e-comma">,</span>2024-01-01<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span><span class="e-opt">Housing</span>
+<span class="e-comment"># Optional last field: an end date, after which the expense stops (inclusive)</span>
+<span class="e-tag">expense</span><span class="e-comma">,</span>Car Payment<span class="e-comma">,</span>350<span class="e-comma">,</span>2024-01-10<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span><span class="e-opt">Transportation</span><span class="e-comma">,</span><span class="e-opt">2028-12-10</span>
 <span class="e-tag">credit</span><span class="e-comma">,</span>Card Name<span class="e-comma">,</span>156<span class="e-comma">,</span>1000<span class="e-comma">,</span>2024-01-15
 <span class="e-tag">income_stream</span><span class="e-comma">,</span>Hardware Store<span class="e-comma">,</span>2500.56<span class="e-comma">,</span>2022-03-15<span class="e-comma">,</span>2<span class="e-comma">,</span>week</pre>
   </div>
@@ -544,6 +551,10 @@
         <tr>
           <td class="field-mono">&lt;_category&gt;</td>
           <td class="field-desc">Optional spending category for an expense. Omit the field entirely, or leave it blank. Defaults to Other.</td>
+        </tr>
+        <tr>
+          <td class="field-mono">&lt;_end_date&gt;</td>
+          <td class="field-desc">Optional last date an expense can occur, inclusive. Format: <code>YYYY-MM-DD</code>, on or after <code>&lt;due_date&gt;</code>. Omit the field entirely, or leave it blank, for no end date.</td>
         </tr>
       </tbody>
     </table>

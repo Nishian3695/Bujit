@@ -21,7 +21,7 @@ Imports budgeting data from a fixed-schema CSV file.
 
 Supported row types (first field is the type; _ prefix = optional):
   manual_account,<name>,<type>,<balance>
-  expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>
+  expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>
   credit,<name>,<balance>,<credit_limit>,<due_date>
   income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>
 
@@ -125,21 +125,28 @@ public class CsvImportHelper {
         r.accountsAdded++;
     }
 
-    // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>
-    // Parses one expense row and appends a new (non-credit) ExpenseModel.
-    private static void parseExpense(String[] p, StorageHolder h, ImportResult r) {
-        require(p, 6, "expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>");
+    // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>
+    // Parses one expense row and appends a new (non-credit) ExpenseModel. Both trailing fields are
+    // optional and may be omitted or left blank, so 6- and 7-field rows from before end dates
+    // existed import unchanged; a blank category with an end date is written as ",,<end_date>".
+    // Package-private for unit tests.
+    static void parseExpense(String[] p, StorageHolder h, ImportResult r) {
+        require(p, 6, "expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>");
         String     name     = nonEmpty(p[1], "name");
         float      amount   = parseAmount(p[2]);
         LocalDate  date     = parseDate(p[3]);
         int        freq     = parseFreq(p[4]);
         ChronoUnit unit     = parseUnit(p[5]);
         String     category = (p.length > 6 && !p[6].trim().isEmpty()) ? p[6].trim() : "Other";
+        LocalDate  endDate  = (p.length > 7 && !p[7].trim().isEmpty()) ? parseDate(p[7]) : null;
+        if (endDate != null && endDate.isBefore(date))
+            throw new IllegalArgumentException("end_date " + endDate + " is before due_date " + date);
 
         ExpenseModel e = new ExpenseModel(
                 name, String.format(Locale.US, "%.2f", amount),
                 date, freq, unit, false);
         e.setCategory(category);
+        e.setEndDate(endDate);
         h.getExpenseList().add(e);
         r.expensesAdded++;
     }
@@ -261,8 +268,8 @@ public class CsvImportHelper {
     }
 
     // Splits one CSV line on commas, honoring double-quoted fields so a quoted value can itself
-    // contain a comma without being split.
-    private static String[] splitCsvLine(String line) {
+    // contain a comma without being split. Package-private for unit tests.
+    static String[] splitCsvLine(String line) {
         ArrayList<String> fields = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         boolean inQuotes = false;
@@ -290,6 +297,8 @@ public class CsvImportHelper {
         + "# Example\n"
         + "manual_account,My Savings,Savings,0\n"
         + "expense,Rent,2200,2024-01-01,1,month,Housing\n"
+        + "# Optional last field: an end date, after which the expense stops (inclusive)\n"
+        + "expense,Car Payment,350,2024-01-10,1,month,Transportation,2028-12-10\n"
         + "credit,Card Name,156,1000,2024-01-15\n"
         + "income_stream,Hardware Store,2500.56,2022-03-15,2,week\n";
 }
