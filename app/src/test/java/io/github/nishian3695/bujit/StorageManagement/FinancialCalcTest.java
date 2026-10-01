@@ -285,13 +285,40 @@ public class FinancialCalcTest {
         assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(60), today), 0.001f);
     }
 
-    @Test
-    public void incomeArrivedSince_startingDatesOwnPaycheck_isAlreadyInTheBalance() {
-        // Same as the selected stream always worked: its pay period starts on the starting date.
-        LocalDate today = LocalDate.now();
-        List<IncomeStreamModel> streams = biweeklyJob(today, "1000");
+    // Streams are added and edited while the app is open, i.e. after opening credited through
+    // today -- so creditedThrough = today below is "the moment the stream was entered".
 
-        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(5), today), 0.001f);
+    @Test
+    public void incomeArrivedSince_futureStartingDate_creditsTheFirstPaycheckWhenItArrives() {
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.plusDays(3), "1000");
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today, today.plusDays(2)), 0.001f);
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(streams, today, today.plusDays(3)), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_pastOrCurrentStartingDate_isAlreadyInTheBalance() {
+        LocalDate today = LocalDate.now();
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(
+                biweeklyJob(today, "1000"), today, today.plusDays(13)), 0.001f);
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(
+                biweeklyJob(today.minusDays(3), "1000"), today, today.plusDays(10)), 0.001f);
+        // Its next payday is credited as usual.
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(
+                biweeklyJob(today.minusDays(3), "1000"), today, today.plusDays(11)), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_editingAStream_onlyAffectsFuturePaydays() {
+        // A stream edited today to start months ago (or with a new amount): nothing from before
+        // the edit is credited; future paydays use the edited schedule and amount.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> edited = biweeklyJob(today.minusDays(97), "1500"); // paydays ..., -13, +1
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(edited, today, today), 0.001f);
+        assertEquals(1500f, FinancialCalc.incomeArrivedSince(edited, today, today.plusDays(1)), 0.001f);
     }
 
     @Test
@@ -301,7 +328,22 @@ public class FinancialCalcTest {
         streams.get(0).setSelected(true);
 
         assertEquals(today.minusDays(14), FinancialCalc.initialIncomeCreditedThrough(
-                streams, today.minusDays(14), today));
+                streams, today.minusDays(14), today, today));
+    }
+
+    @Test
+    public void initialIncomeCreditedThrough_futureFirstPayday_creditsItWhenItArrives() {
+        // The selected stream was just set up with a future first payday, so its stored pay
+        // period starts there and nothing of it has been credited.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.plusDays(5), "1000");
+        streams.get(0).setSelected(true);
+
+        LocalDate start = FinancialCalc.initialIncomeCreditedThrough(
+                streams, today.plusDays(5), today.plusDays(19), today);
+
+        assertEquals(today, start);
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(streams, start, today.plusDays(5)), 0.001f);
     }
 
     @Test
@@ -315,7 +357,7 @@ public class FinancialCalcTest {
         streams.add(job);
 
         LocalDate start = FinancialCalc.initialIncomeCreditedThrough(
-                streams, LocalDate.of(2027, 3, 28), LocalDate.of(2027, 4, 28));
+                streams, LocalDate.of(2027, 3, 28), LocalDate.of(2027, 4, 28), LocalDate.of(2027, 3, 29));
 
         assertEquals(LocalDate.of(2027, 3, 31), start);
         assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, start, LocalDate.of(2027, 4, 29)), 0.001f);
@@ -440,7 +482,7 @@ public class FinancialCalcTest {
             LocalDate creditedThrough = holder.getIncomeCreditedThrough() != null
                     ? holder.getIncomeCreditedThrough()
                     : FinancialCalc.initialIncomeCreditedThrough(
-                            resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate);
+                            resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate, today);
             balance += FinancialCalc.incomeArrivedSince(resolved.incomeStreamList, creditedThrough, today);
             FinancialCalc.CheckRollResult roll = FinancialCalc.rollCheckDateForward(
                     today, resolved.curCheckDate, resolved.nextCheckDate,
@@ -488,7 +530,7 @@ public class FinancialCalcTest {
         LocalDate creditedThrough = holder.getIncomeCreditedThrough() != null
                 ? holder.getIncomeCreditedThrough()
                 : FinancialCalc.initialIncomeCreditedThrough(
-                        resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate);
+                        resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate, today);
 
         assertEquals(1250f, FinancialCalc.incomeArrivedSince(
                 resolved.incomeStreamList, creditedThrough, today), 0.001f);

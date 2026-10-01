@@ -149,10 +149,13 @@ public final class FinancialCalc {
     // the pay period rolling over on payday. 0 if today isn't after creditedThrough, so calling
     // again on the same day with creditedThrough = today credits nothing.
     //
-    // Only paychecks after each stream's starting date count. countIncomeOccurrences extrapolates
-    // a schedule backward past its anchor, which is fine for projections but would credit money
-    // from a job that hasn't started yet. The starting date's own paycheck is treated as already
-    // in the balance, as the selected stream's has always been (its pay period starts there).
+    // Nothing before a stream's starting date counts: countIncomeOccurrences extrapolates a
+    // schedule backward past its anchor, which is fine for projections but would credit money
+    // from a job that hasn't started yet. The starting date's own paycheck counts only if it's
+    // after creditedThrough. Streams are added and edited while the app is open, after opening
+    // credited through today, so that means: a starting date entered in the future is credited
+    // when it arrives, while a past or current one is already in the balance -- and editing a
+    // stream only ever affects future paydays, never retroactively.
     public static float incomeArrivedSince(List<IncomeStreamModel> streams,
             LocalDate creditedThrough, LocalDate today) {
         if (streams == null || !today.isAfter(creditedThrough)) return 0f;
@@ -165,7 +168,7 @@ public final class FinancialCalc {
             LocalDate anchor = incomeAnchorDate(inc);
             if (anchor == null) continue;
             LocalDate from = creditedThrough.plusDays(1);
-            if (!from.isAfter(anchor)) from = anchor.plusDays(1);
+            if (from.isBefore(anchor)) from = anchor;
             if (from.isAfter(today)) continue;
             total += countIncomeOccurrences(inc, from, today.plusDays(1)) * amt;
         }
@@ -178,8 +181,12 @@ public final class FinancialCalc {
     // there's no selected stream. Normally that's curCheckDate itself; it differs only when the
     // stored dates drifted from the stream's schedule under older builds (e.g. the 28th instead of
     // the 31st), where using curCheckDate would credit that month's paycheck a second time.
+    // A curCheckDate after today means the selected stream was just set up with a future first
+    // payday (its period starts there) and nothing of it is credited yet: start from today so that
+    // first paycheck is credited when it arrives.
     public static LocalDate initialIncomeCreditedThrough(List<IncomeStreamModel> streams,
-            LocalDate curCheckDate, LocalDate nextCheckDate) {
+            LocalDate curCheckDate, LocalDate nextCheckDate, LocalDate today) {
+        if (curCheckDate.isAfter(today)) return today;
         if (streams == null) return curCheckDate;
         for (IncomeStreamModel inc : streams) {
             if (!inc.isSelected()) continue;

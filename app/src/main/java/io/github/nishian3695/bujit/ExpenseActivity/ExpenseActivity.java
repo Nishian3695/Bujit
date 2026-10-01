@@ -639,12 +639,14 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     FinancialCalc.initialIncomeCreditedThrough), which credits the selected stream exactly as
     before plus any other stream's paychecks since then. Crediting is bounded by that date rather
     than the pay period, so editing or re-selecting a stream (which resets curCheckDate to the
-    stream's anchor date) can't re-credit paychecks from before it.
+    stream's anchor date) only affects future paydays and can't retroactively credit income.
+    A stream's starting-date paycheck is credited only when that date was in the future when the
+    stream was entered (see FinancialCalc.incomeArrivedSince).
     */
     public void checkForNextCheck() {
         mToday = LocalDate.now();
         LocalDate creditedThrough = incomeCreditedThrough != null ? incomeCreditedThrough
-                : FinancialCalc.initialIncomeCreditedThrough(incomeStreamList, curCheckDate, nextCheckDate);
+                : FinancialCalc.initialIncomeCreditedThrough(incomeStreamList, curCheckDate, nextCheckDate, mToday);
         curBalance += FinancialCalc.incomeArrivedSince(incomeStreamList, creditedThrough, mToday);
         incomeCreditedThrough = mToday.isAfter(creditedThrough) ? mToday : creditedThrough;
 
