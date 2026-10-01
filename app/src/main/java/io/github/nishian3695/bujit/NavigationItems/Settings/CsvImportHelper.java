@@ -146,6 +146,9 @@ public class CsvImportHelper {
                 name, String.format(Locale.US, "%.2f", amount),
                 date, freq, unit, false);
         e.setCategory(category);
+        // Like the add-expense dialog, treat due_date as where tracking starts, so history and
+        // projections never count occurrences before it (e.g. a subscription starting next month).
+        e.setStartDate(date);
         e.setEndDate(endDate);
         h.getExpenseList().add(e);
         r.expensesAdded++;

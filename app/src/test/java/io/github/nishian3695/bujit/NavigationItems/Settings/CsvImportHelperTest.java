@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.github.nishian3695.bujit.ExpenseActivity.ExpenseModel;
+import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
 import io.github.nishian3695.bujit.StorageManagement.StorageHolder;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -91,6 +92,23 @@ public class CsvImportHelperTest {
         ExpenseModel e = importExpense("expense,One-off,99,2026-11-01,1,month,,2026-11-01");
 
         assertEquals(LocalDate.of(2026, 11, 1), e.getEndDate());
+    }
+
+    @Test
+    public void dueDate_isSavedAsStartDate() {
+        ExpenseModel e = importExpense("expense,Rent,2200,2024-01-01,1,month,Housing");
+
+        assertEquals(LocalDate.of(2024, 1, 1), e.getStartDate());
+    }
+
+    @Test
+    public void futureDueDate_notCountedInPeriodsBeforeItStarts() {
+        LocalDate start = LocalDate.now().plusMonths(3).withDayOfMonth(1);
+        ExpenseModel e = importExpense("expense,Streaming,15," + start + ",1,month");
+
+        // Without a start date, stepping back from the due date would put phantom charges here.
+        assertEquals(0, FinancialCalc.countExpenseOccurrences(e, start.minusMonths(2), start));
+        assertEquals(1, FinancialCalc.countExpenseOccurrences(e, start, start.plusMonths(1)));
     }
 
     @Test
