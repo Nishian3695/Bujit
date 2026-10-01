@@ -322,6 +322,11 @@ public class SettingsActivity extends AppCompatActivity {
         switchCommaSeparators.setOnCheckedChangeListener((buttonView, isChecked) ->
                 DisplayPrefs.setUseCommaSeparators(this, isChecked));
 
+        SwitchMaterial switchIncludeNextCheck = findViewById(R.id.switch_include_next_check);
+        switchIncludeNextCheck.setChecked(DisplayPrefs.includeNextCheck(this));
+        switchIncludeNextCheck.setOnCheckedChangeListener((buttonView, isChecked) ->
+                DisplayPrefs.setIncludeNextCheck(this, isChecked));
+
         findViewById(R.id.row_categories).setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, CategoryManagerActivity.class)));
         findViewById(R.id.row_help_suggestions).setOnClickListener(v -> openHelpEmail());

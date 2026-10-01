@@ -175,6 +175,7 @@
                         android:paddingEnd="12dp">
 
                         <TextView
+                            android:id="@+id/final_balance_label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:alpha="0.5"
