@@ -36,6 +36,8 @@ class ExpenseItemRows extends Table {
   // from drifting), currentDueDate is the next occurrence as of the last check-in.
   DateTimeColumn get startDate => dateTime()();
   DateTimeColumn get currentDueDate => dateTime()();
+  // Last date an occurrence may fall on (inclusive); null = never ends.
+  DateTimeColumn get endDate => dateTime().nullable()();
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
   TextColumn get category => text().withDefault(const Constant(otherCategory))();

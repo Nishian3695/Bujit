@@ -67,6 +67,17 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         type: DriftSqlType.dateTime,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _frequencyMeta = const VerificationMeta(
     'frequency',
   );
@@ -109,6 +120,7 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     amount,
     startDate,
     currentDueDate,
+    endDate,
     frequency,
     frequencyUnits,
     category,
@@ -163,6 +175,12 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     } else if (isInserting) {
       context.missing(_currentDueDateMeta);
     }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
     if (data.containsKey('frequency')) {
       context.handle(
         _frequencyMeta,
@@ -206,6 +224,10 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}current_due_date'],
       )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
       frequency: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}frequency'],
@@ -240,6 +262,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final double amount;
   final DateTime startDate;
   final DateTime currentDueDate;
+  final DateTime? endDate;
   final int frequency;
   final FrequencyUnit frequencyUnits;
   final String category;
@@ -249,6 +272,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     required this.amount,
     required this.startDate,
     required this.currentDueDate,
+    this.endDate,
     required this.frequency,
     required this.frequencyUnits,
     required this.category,
@@ -261,6 +285,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     map['amount'] = Variable<double>(amount);
     map['start_date'] = Variable<DateTime>(startDate);
     map['current_due_date'] = Variable<DateTime>(currentDueDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
     map['frequency'] = Variable<int>(frequency);
     {
       map['frequency_units'] = Variable<String>(
@@ -278,6 +305,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       amount: Value(amount),
       startDate: Value(startDate),
       currentDueDate: Value(currentDueDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
       category: Value(category),
@@ -295,6 +325,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       amount: serializer.fromJson<double>(json['amount']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       currentDueDate: serializer.fromJson<DateTime>(json['currentDueDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
       frequency: serializer.fromJson<int>(json['frequency']),
       frequencyUnits: $ExpenseItemRowsTable.$converterfrequencyUnits.fromJson(
         serializer.fromJson<String>(json['frequencyUnits']),
@@ -311,6 +342,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       'amount': serializer.toJson<double>(amount),
       'startDate': serializer.toJson<DateTime>(startDate),
       'currentDueDate': serializer.toJson<DateTime>(currentDueDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
       'frequency': serializer.toJson<int>(frequency),
       'frequencyUnits': serializer.toJson<String>(
         $ExpenseItemRowsTable.$converterfrequencyUnits.toJson(frequencyUnits),
@@ -325,6 +357,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     double? amount,
     DateTime? startDate,
     DateTime? currentDueDate,
+    Value<DateTime?> endDate = const Value.absent(),
     int? frequency,
     FrequencyUnit? frequencyUnits,
     String? category,
@@ -334,6 +367,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     amount: amount ?? this.amount,
     startDate: startDate ?? this.startDate,
     currentDueDate: currentDueDate ?? this.currentDueDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     category: category ?? this.category,
@@ -347,6 +381,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       currentDueDate: data.currentDueDate.present
           ? data.currentDueDate.value
           : this.currentDueDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
       frequencyUnits: data.frequencyUnits.present
           ? data.frequencyUnits.value
@@ -363,6 +398,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('amount: $amount, ')
           ..write('startDate: $startDate, ')
           ..write('currentDueDate: $currentDueDate, ')
+          ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('category: $category')
@@ -377,6 +413,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     amount,
     startDate,
     currentDueDate,
+    endDate,
     frequency,
     frequencyUnits,
     category,
@@ -390,6 +427,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.amount == this.amount &&
           other.startDate == this.startDate &&
           other.currentDueDate == this.currentDueDate &&
+          other.endDate == this.endDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
           other.category == this.category);
@@ -401,6 +439,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<double> amount;
   final Value<DateTime> startDate;
   final Value<DateTime> currentDueDate;
+  final Value<DateTime?> endDate;
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
   final Value<String> category;
@@ -410,6 +449,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.amount = const Value.absent(),
     this.startDate = const Value.absent(),
     this.currentDueDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
     this.category = const Value.absent(),
@@ -420,6 +460,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     required double amount,
     required DateTime startDate,
     required DateTime currentDueDate,
+    this.endDate = const Value.absent(),
     required int frequency,
     required FrequencyUnit frequencyUnits,
     this.category = const Value.absent(),
@@ -435,6 +476,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<double>? amount,
     Expression<DateTime>? startDate,
     Expression<DateTime>? currentDueDate,
+    Expression<DateTime>? endDate,
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
     Expression<String>? category,
@@ -445,6 +487,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (amount != null) 'amount': amount,
       if (startDate != null) 'start_date': startDate,
       if (currentDueDate != null) 'current_due_date': currentDueDate,
+      if (endDate != null) 'end_date': endDate,
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (category != null) 'category': category,
@@ -457,6 +500,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<double>? amount,
     Value<DateTime>? startDate,
     Value<DateTime>? currentDueDate,
+    Value<DateTime?>? endDate,
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
     Value<String>? category,
@@ -467,6 +511,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       amount: amount ?? this.amount,
       startDate: startDate ?? this.startDate,
       currentDueDate: currentDueDate ?? this.currentDueDate,
+      endDate: endDate ?? this.endDate,
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       category: category ?? this.category,
@@ -490,6 +535,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     }
     if (currentDueDate.present) {
       map['current_due_date'] = Variable<DateTime>(currentDueDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
     }
     if (frequency.present) {
       map['frequency'] = Variable<int>(frequency.value);
@@ -515,6 +563,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('amount: $amount, ')
           ..write('startDate: $startDate, ')
           ..write('currentDueDate: $currentDueDate, ')
+          ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('category: $category')
@@ -1534,6 +1583,7 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       required double amount,
       required DateTime startDate,
       required DateTime currentDueDate,
+      Value<DateTime?> endDate,
       required int frequency,
       required FrequencyUnit frequencyUnits,
       Value<String> category,
@@ -1545,6 +1595,7 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<double> amount,
       Value<DateTime> startDate,
       Value<DateTime> currentDueDate,
+      Value<DateTime?> endDate,
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
       Value<String> category,
@@ -1581,6 +1632,11 @@ class $$ExpenseItemRowsTableFilterComposer
 
   ColumnFilters<DateTime> get currentDueDate => $composableBuilder(
     column: $table.currentDueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1635,6 +1691,11 @@ class $$ExpenseItemRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get frequency => $composableBuilder(
     column: $table.frequency,
     builder: (column) => ColumnOrderings(column),
@@ -1676,6 +1737,9 @@ class $$ExpenseItemRowsTableAnnotationComposer
     column: $table.currentDueDate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
 
   GeneratedColumn<int> get frequency =>
       $composableBuilder(column: $table.frequency, builder: (column) => column);
@@ -1732,6 +1796,7 @@ class $$ExpenseItemRowsTableTableManager
                 Value<double> amount = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime> currentDueDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
                 Value<String> category = const Value.absent(),
@@ -1741,6 +1806,7 @@ class $$ExpenseItemRowsTableTableManager
                 amount: amount,
                 startDate: startDate,
                 currentDueDate: currentDueDate,
+                endDate: endDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 category: category,
@@ -1752,6 +1818,7 @@ class $$ExpenseItemRowsTableTableManager
                 required double amount,
                 required DateTime startDate,
                 required DateTime currentDueDate,
+                Value<DateTime?> endDate = const Value.absent(),
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
                 Value<String> category = const Value.absent(),
@@ -1761,6 +1828,7 @@ class $$ExpenseItemRowsTableTableManager
                 amount: amount,
                 startDate: startDate,
                 currentDueDate: currentDueDate,
+                endDate: endDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 category: category,

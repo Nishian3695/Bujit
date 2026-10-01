@@ -15,20 +15,8 @@ class ExpenseModel extends ExpenseItem {
         required super.frequencyUnits,
         super.category = otherCategory,
         super.currentDueDate,
+        super.endDate,
     });
-
-    // Methods
-
-    // Update shown quantities when going to a new period
-    @override
-    void toPeriod(DateTime start, DateTime end) {
-        final result = projectToPeriod(start, end);
-        shownDate = result.date;
-        catchUpAmount = amount * result.priorOccurrences;
-        // Show amount only if due date is this period
-        periodAmount = (result.periodOccurrences > 0) ? amount * result.periodOccurrences : 0.00;
-    }
-
 
     // Getters
     bool get isCreditCard => false;

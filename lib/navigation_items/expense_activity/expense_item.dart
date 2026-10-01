@@ -1,7 +1,9 @@
 // Data model for expense entries (e.g., recurring expenses and credit cards)
+import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:bujit/utils/projector.dart';
 import 'package:bujit/utils/category_manager.dart';
+import 'check_window.dart';
 
 class ExpenseItem {
     // Persistent fields
@@ -9,69 +11,111 @@ class ExpenseItem {
     String name; // Name of the expense
     int frequency; // Frequency in units of frequencyUnits
     FrequencyUnit frequencyUnits; // Tag to track frequency
-    double amount; // Amount due
-    DateTime startDate; // Start date
-    DateTime currentDueDate; // Current due date
+    double amount; // Amount due each occurrence (a credit card's current balance)
+    // First occurrence. Also anchors the schedule: its day of month is what a
+    // monthly expense returns to after a short month (Jan 31 -> Feb 28 -> Mar 31),
+    // and no occurrence ever falls before it.
+    DateTime startDate;
+    // Next occurrence that hasn't been paid yet. Everything before it is paid.
+    DateTime currentDueDate;
+    // Last date an occurrence may fall on, inclusive; null = never ends.
+    DateTime? endDate;
     String category = otherCategory; // Category of the expense
 
-    // Accumulated amount from projections
-    double catchUpAmount = 0.00;
-
-    // Displayed date and cost
+    // Displayed date and cost for the check currently on screen (see toCheck)
     late DateTime shownDate;
-    double periodAmount = 0.00; // Amount for the current period
-
-    // Projector for handling date projections
-    late Projector _projector;
+    double periodAmount = 0.00; // Amount due in the check currently on screen
 
     ExpenseItem({
         this.id,
         required this.name,
         required this.amount,
-        required this.startDate,
+        required DateTime startDate,
         required this.frequency,
         required this.frequencyUnits,
         this.category = otherCategory,
         DateTime? currentDueDate,
-        }) : currentDueDate = currentDueDate ?? startDate {
-            shownDate = startDate;
-            periodAmount = amount;
-            _projector = Projector(
-                baseDate: this.currentDueDate,
-                originDate: startDate,
-                frequency: frequency,
-                frequencyUnits: frequencyUnits,
-        );
-        makeRecent();
+        DateTime? endDate,
+    }) : startDate = dateOnly(startDate),
+         currentDueDate = dateOnly(currentDueDate ?? startDate),
+         endDate = endDate == null ? null : dateOnly(endDate) {
+        shownDate = this.currentDueDate;
+        periodAmount = amount;
     }
+
+    // Built on demand so it always reflects the current startDate/frequency.
+    // Occurrence 0 is startDate itself.
+    Projector get _projector => Projector(
+        baseDate: startDate,
+        originDate: startDate,
+        frequency: frequency,
+        frequencyUnits: frequencyUnits,
+    );
+
+    // True once no occurrences remain: the next due date is past the end date.
+    bool get hasEnded => endDate != null && currentDueDate.isAfter(endDate!);
 
     // Methods
 
-    // Make recent
-    void makeRecent() {
-        final DateTime today = _projector.today;
-        final DateTime oldDueDate = currentDueDate;
-        // Get the catchUpAmount based on occurrences newly due since the last check-in
-        // (open start so oldDueDate itself, already accounted for last time, isn't recounted;
-        // closed end so an occurrence landing exactly on today is included)
-        catchUpAmount = amount * _projector.numOccurrencesInPeriod(
-            oldDueDate, today, startClosed: false, endClosed: true,
-        );
-        // Update the currentDueDate to the next occurrence on or after today
-        final int occurrencesPassed = _projector.numOccurrencesBefore(today);
-        currentDueDate = _projector.occurrenceDate(occurrencesPassed);
+    // Number of unpaid occurrences from [from] through [to], both inclusive.
+    // Never counts anything before startDate, before currentDueDate (already
+    // paid) or after endDate.
+    int occurrencesBetween(DateTime from, DateTime to) {
+        final DateTime lo = maxDate(maxDate(dateOnly(from), startDate), currentDueDate);
+        final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
+        if (lo.isAfter(hi)) return 0;
+        return _projector.countBetween(lo, hi);
     }
 
-    // Get number of occurrences in a period
+    // Get number of occurrences in the half-open period [start, end)
     int numOccurrencesInPeriod(DateTime start, DateTime end) {
-        return _projector.numOccurrencesInPeriod(start, end);
+        return occurrencesBetween(start, addDays(end, -1));
     }
 
-    // Get occurrences and projected date in a period
-    ({int priorOccurrences, int periodOccurrences, DateTime date}) projectToPeriod(DateTime start, DateTime end) {
-        return _projector.projectToPeriod(start, end);
+    // Total due from [from] through [to], both inclusive. CreditModel overrides
+    // this, since a card's balance is due once rather than per occurrence.
+    double amountDueBetween(DateTime from, DateTime to) => amount * occurrencesBetween(from, to);
+
+    // Total due in a check (see CheckWindow for which days that covers).
+    double amountDueInCheck(CheckWindow check) => amountDueBetween(check.expensesFrom, check.expensesTo);
+
+    // Brings the item up to [today] (default: now), paying every occurrence that
+    // fell before it, and returns the total paid so the caller can deduct it
+    // from the balance. An occurrence due today is still unpaid. Stops at the
+    // end date, so an ended expense never pays again. Calling it twice on the
+    // same day pays nothing the second time.
+    double makeRecent({DateTime? today}) {
+        final DateTime day = dateOnly(today ?? todayDate());
+        final double paid = amountDueBetween(currentDueDate, addDays(day, -1));
+        _advanceTo(day);
+        return paid;
     }
 
-    // Child methods to be filled
-    void toPeriod(DateTime start, DateTime end) {}
+    // Moves the next due date to [today] or later WITHOUT paying anything, for an
+    // item entered with a past date whose earlier occurrences already happened
+    // outside the app (the add-expense dialog, CSV import). Mirrors the Java
+    // app's skipToNextDueDate.
+    void skipToNextDueDate({DateTime? today}) {
+        _advanceTo(dateOnly(today ?? todayDate()));
+    }
+
+    // Sets currentDueDate to the first occurrence on or after [day] (never moving
+    // it backward). Past the end date it stops at the first occurrence after the
+    // end, which marks the item as ended.
+    void _advanceTo(DateTime day) {
+        DateTime next = _projector.firstOnOrAfter(maxDate(day, currentDueDate));
+        if (endDate != null && next.isAfter(endDate!)) {
+            next = maxDate(currentDueDate, _projector.firstOnOrAfter(addDays(endDate!, 1)));
+        }
+        currentDueDate = next;
+        shownDate = next;
+    }
+
+    // Updates the displayed date and amount for a check: the amount due in it,
+    // and the first unpaid occurrence from the check's first day on.
+    void toCheck(CheckWindow check) {
+        periodAmount = amountDueInCheck(check);
+        final DateTime from = maxDate(check.expensesFrom, currentDueDate);
+        shownDate = _projector.firstOnOrAfter(maxDate(from, startDate));
+    }
 }

@@ -1,9 +1,12 @@
 // Mirrors ExpenseActivity/ExpenseActivity.java in the original Java app.
+//
+// All balance and schedule math lives in BalanceModel; this screen only asks
+// it for the check being viewed (index 0 = current, 1+ = projected) and
+// displays the result. The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
 import '../../dialogs/recurring_expenses.dart';
-import '../../utils/frequency_unit.dart';
-import '../income_streams/income_stream_model.dart';
-import 'expense_model.dart';
+import 'balance_model.dart';
+import 'expense_item.dart';
 
 enum StorageAction { read, write }
 enum DialogOption { add, edit, delete }
@@ -15,13 +18,7 @@ enum ExpenseDateFormat {
     const ExpenseDateFormat(this.format);
     final String format;
 }
-// TextField(
-//   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-//   inputFormatters: [
-//     FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-//   ],
-//   decoration: const InputDecoration(prefixText: '\$'),
-// )
+
 // StatefulWidget subclass. Resets state when rebuilt
 class ExpenseActivity extends StatefulWidget {
     const ExpenseActivity({super.key});
@@ -31,103 +28,84 @@ class ExpenseActivity extends StatefulWidget {
 }
 
 class ExpenseActivityState extends State<ExpenseActivity> {
-    // region variables
-    // final CurrencyFormat currencyFormat = CurrencyFormat();
-    // Constants -- moved to enums
-    // Keeping track of things
-    bool _onHomeScreen = true;
-    bool _speedDialOpen = false;
-    bool _skipNextOnPauseToWrite = false;
-    // Expenses
-    // TODO: Get expenses to populate this from storage
-    List<ExpenseModel> _expenses = []; // Placeholder for expense data
-    // TODO: List<SingleEventModel> _singleEvents = []; // Placeholder for single event data
-    List<IncomeStreamModel> _incomeStreams = []; // Placeholder for income stream data
-    // Balance information
-    double _currentBalance = 0.00, _shownBalance = 0.00, _afterPeriodBalance = 0.00;
-    int _projectFrequency = 14; // Default to 14 days for projection
-    FrequencyUnit _projectFrequencyUnits = FrequencyUnit.daily; // Default to daily for projection
-    DateTime _currentPeriodStart = DateTime.now(), _currentPeriodEnd = DateTime.now().add(Duration(days: 14));
-    int _forwardPeriods = 0; // Number of periods we have projected forward
-    // Data storage
-    // TODO: Implement data storage logic
+    // TODO: Load from StorageManager, then call _balance.makeRecent() and persist the result
+    final BalanceModel _balance = BalanceModel(currentBalance: 0.00);
+    // Which check is on screen: 0 = current, 1+ = projected
+    int _checkIndex = 0;
+    late CheckSummary _summary = _balance.showCheck(_checkIndex);
 
-    
+    bool get _onHomeScreen => _checkIndex == 0;
+
+    // Recomputes the check on screen and rebuilds.
+    void _refresh() {
+        setState(() => _summary = _balance.showCheck(_checkIndex));
+    }
+
+    // Projection paging, like swiping between checks in the Java app.
+    void _nextCheck() {
+        _checkIndex++;
+        _refresh();
+    }
+
+    void _previousCheck() {
+        if (_onHomeScreen) return;
+        _checkIndex--;
+        _refresh();
+    }
+
+    // Opens the add-expense dialog and adds the result. A date in the past is
+    // rolled forward to the next due date without charging anything, like the
+    // Java app's dialog: those earlier payments happened outside the app.
+    Future<void> _addExpense() async {
+        final ExpenseItem? expense = await showRecurringExpenseDialog(context);
+        if (expense == null) return;
+        expense.skipToNextDueDate();
+        _balance.expenses.add(expense);
+        // TODO: Persist via StorageManager
+        _refresh();
+    }
+
+    static String _money(double value) => "\$${value.toStringAsFixed(2)}";
+    static String _date(DateTime date) => date.toString().split(' ')[0];
+
     // Balance summary Card
     Card get balanceSummary => Card(
         child: IntrinsicHeight(
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                    Text("CURRENT BALANCE"),
-                    Text("$_shownBalance"), // Placeholder for current balance
-                    VerticalDivider(),
-                    Text("AFTER THIS CHECK"),
-                    Text("$_afterPeriodBalance"), // Placeholder for after this check
+                    const Text("CURRENT BALANCE"),
+                    Text(_money(_summary.startBalance)),
+                    const VerticalDivider(),
+                    // TODO: Show "NEXT CHECK" and endBalanceWithNextCheck when that setting is on
+                    const Text("AFTER THIS CHECK"),
+                    Text(_money(_summary.endBalance)),
                 ],
             ),
         ),
     );
 
-    // Get expenses for the current period
-    double sumExpensesForPeriod(DateTime start, DateTime end) {
-        double total = 0.0;
-        for (var expense in _expenses) {
-            // Get num occurrences and multiply by amount
-            int numOccurrences = expense.numOccurrencesInPeriod(start, end);
-            total += numOccurrences * expense.amount;
-        }
-        return total;
-    }
-
-    // Update shown balance
-    void updateBalances({DateTime? start, DateTime? end}) {
-        // Assert that start and end are not null if one of them is provided
-        if (start != null || end != null) {
-            assert(start != null && end != null, "Both start and end dates must be provided together.");
-        }
-        // Get current balance from storage or calculation
-        // TODO: Implement logic to retrieve current balance from storage or calculate it
-        _currentBalance = double.parse(_currentBalance.toStringAsFixed(2)); // Placeholder for current balance
-        // If on home screen, update the shown balance based on the current expenses
-        if (_onHomeScreen) {
-            _shownBalance = double.parse(_currentBalance.toStringAsFixed(2));
-            _currentPeriodStart = DateTime.now();
-            // TODO: This logic isn't right; fix later. For now, just set the end date to 14 days from now.
-            _currentPeriodEnd = DateTime.now().add(Duration(days: _projectFrequency));
-        } else { // Otherwise, do projection 
-            // Add income strems for _forwardPeriods for each income stream
-            // Need to take into account the frequency of each individual income stream
-            double increaseBalanceAmount = 0.00; // Placeholder for increase in balance from income streams
-            for (var incomeStream in _incomeStreams) {
-                // TODO: Implement logic to calculate increase in balance from each income stream
-                increaseBalanceAmount += incomeStream.amount * incomeStream.numOccurrencesInPeriod(_currentPeriodStart, _currentPeriodEnd);
-            }
-            // Add to shown balance
-            _shownBalance = double.parse((_currentBalance + increaseBalanceAmount).toStringAsFixed(2));
-            // If start and end are provided, update the current period start and end
-            if (start != null && end != null) {
-                _currentPeriodStart = start;
-                _currentPeriodEnd = end;
-            }
-        }
-        // Decrease the shown balance by the sum of expenses for the current period
-        _afterPeriodBalance = double.parse(_shownBalance.toStringAsFixed(2)) - sumExpensesForPeriod(_currentPeriodStart, _currentPeriodEnd);
-        // Update UI by rebuilding the widget tree
-        setState(() {});
-    }
-
     // Define the appBar and its actions
     AppBar get appBar => AppBar(
-        title: const Text("Bujit"),
+        title: Text(_onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}"),
+        actions: [
+            IconButton(
+                onPressed: _onHomeScreen ? null : _previousCheck,
+                icon: const Icon(Icons.chevron_left),
+                tooltip: "Previous check",
+            ),
+            IconButton(
+                onPressed: _nextCheck,
+                icon: const Icon(Icons.chevron_right),
+                tooltip: "Next check",
+            ),
+        ],
     );
-    //     actions: [
 
-    
     // Expense list header
-    Row expenseListHeader = Row(
+    final Row expenseListHeader = const Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: const [
+        children: [
             Text("EXPENSE"),
             Text("DUE DATE"),
             Text("RATE"),
@@ -135,53 +113,48 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // Expense list -- Late initialization to avoid null issues
-    late RefreshIndicator expenseList = RefreshIndicator(
+    // Expense list for the check on screen
+    Widget get expenseList => RefreshIndicator(
         onRefresh: () async {
-            // TODO: Implement refresh logic
-            await Future.delayed(const Duration(seconds: 1));
+            // TODO: Refresh linked bank balances
+            _refresh();
         },
         child: ListView.builder(
-            itemCount: _expenses.length,
+            itemCount: _balance.expenses.length,
             itemBuilder: (context, index) {
+                final ExpenseItem expense = _balance.expenses[index];
                 return ListTile(
-                    title: Text("Expense $index"), // Placeholder for expense title
-                    subtitle: Text("Due Date: TBD"), // Placeholder for due date
-                    trailing: Text("\$0.00"), // Placeholder for amount
+                    title: Text(expense.name),
+                    subtitle: Text(expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}"),
+                    trailing: Text(_money(expense.periodAmount)),
                 );
             },
         ),
     );
 
-    // Floating action button for adding expenses
-    FloatingActionButton get addExpenseButton => FloatingActionButton(
-        onPressed: () {
-            showRecurringExpenseDialog(context);
-            // TODO: Update final balance and refresh the expense list after adding an expense
-        }
-    );
-    
     // Main activity
     Widget get mainActivity => Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
             balanceSummary,
             expenseListHeader,
-            Divider(), // Divider between header and list
+            const Divider(), // Divider between header and list
             // Expanded gives the ListView a bounded height; a scrollable list
             // directly inside a Column fails at runtime with "unbounded height".
             Expanded(child: expenseList),
         ],
     );
-    
+
     @override
     Widget build(BuildContext context) {
-        // Build the screen UI here. This is a placeholder for now.
         return Scaffold(
-            appBar: appBar, // AppBar defined above
-            body: Center(
-                child: mainActivity,
+            appBar: appBar,
+            body: mainActivity,
+            floatingActionButton: FloatingActionButton(
+                onPressed: _addExpense,
+                tooltip: "Add expense",
+                child: const Icon(Icons.add),
             ),
-        ); 
+        );
     }
 }

@@ -1,175 +1,254 @@
 // Run with flutter test test/navigation_items/expense_activity/balance_model_test.dart
+//
+// Ported from the Java app's home-screen behaviour: After This Check, the
+// Next Check setting, projected checks, and catching up on app open.
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
+import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
+import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _anchor = DateTime(2026, 1, 1);
-DateTime d(int offsetDays) => _anchor.add(Duration(days: offsetDays));
-
-BalanceModel _makeBalance({
-    double currentBalance = 1000.0,
-    DateTime? currentPeriodStart,
-    DateTime? currentPeriodEnd,
-}) {
-    return BalanceModel(
-        currentBalance: currentBalance,
-        lastUpdated: d(0),
-        currentPeriodStart: currentPeriodStart ?? d(0),
-        currentPeriodEnd: currentPeriodEnd ?? d(30),
-        projectFrequency: 14,
-        projectFrequencyUnits: FrequencyUnit.daily,
-    );
-}
+final DateTime today = DateTime(2026, 10, 1);
+DateTime day(int offset) => addDays(today, offset);
 
 IncomeStreamModel _income({
-    required DateTime startDate,
-    double amount = 100.0,
-    int frequency = 10,
+    double amount = 1000.0,
+    required DateTime start,
+    int frequency = 14,
+    FrequencyUnit unit = FrequencyUnit.daily,
 }) {
     return IncomeStreamModel(
-        name: "Test Income",
+        name: "Job",
         amount: amount,
-        startDate: startDate,
+        startDate: start,
         frequency: frequency,
-        frequencyUnits: FrequencyUnit.daily,
+        frequencyUnits: unit,
     );
 }
 
 ExpenseModel _expense({
-    required DateTime startDate,
-    double amount = 50.0,
-    int frequency = 10,
+    required double amount,
+    required DateTime start,
+    int frequency = 1,
+    FrequencyUnit unit = FrequencyUnit.daily,
 }) {
     return ExpenseModel(
-        name: "Test Expense",
+        name: "Expense",
         amount: amount,
-        startDate: startDate,
+        startDate: start,
         frequency: frequency,
-        frequencyUnits: FrequencyUnit.daily,
+        frequencyUnits: unit,
     );
 }
 
+// $1000 balance, paid $1000 every 14 days with payday today.
+BalanceModel _balance({double currentBalance = 1000.0}) {
+    final balance = BalanceModel(currentBalance: currentBalance, lastUpdated: today);
+    final job = _income(start: today);
+    balance.incomeStreams.add(job);
+    balance.activeIncome = job;
+    return balance;
+}
+
 void main() {
-    group("projectToPeriod boundary semantics", () {
-        test("income landing exactly on period start is caught up into shownBalance, not the period effect", () {
-            final balance = _makeBalance(currentBalance: 1000.0);
-            balance.incomeStreams.add(_income(startDate: d(0), amount: 100.0));
+    group("checks follow the active stream's paydays", () {
+        test("the current check runs from the latest payday to the next", () {
+            final balance = _balance();
 
-            balance.projectToPeriod(d(20), d(25));
-
-            // Occurrences at d0, d10, d20 are all <= start (d20) -- 3 * 100
-            expect(balance.shownBalance, closeTo(1300.0, 1e-9));
-            // No occurrence strictly between d20 and d25
-            expect(balance.afterBalance, closeTo(1300.0, 1e-9));
+            final current = balance.window(0, today: today);
+            expect(current.start, today);
+            expect(current.end, day(14));
+            final next = balance.window(1, today: today);
+            expect(next.start, day(14));
+            expect(next.end, day(28));
         });
 
-        test("expense landing exactly on period start is excluded from catch-up but included in the period effect", () {
-            final balance = _makeBalance(currentBalance: 1000.0);
-            balance.expenses.add(_expense(startDate: d(0), amount: 50.0));
+        test("between paydays the current check started on the last payday", () {
+            final balance = BalanceModel(currentBalance: 0.0);
+            final job = _income(start: day(-5));
+            balance.incomeStreams.add(job);
+            balance.activeIncome = job;
 
-            balance.projectToPeriod(d(20), d(25));
-
-            // d0 and d10 are strictly before start (d20) -- the expense due exactly
-            // on d20 itself hasn't "passed" yet, so it's not in catch-up.
-            expect(balance.shownBalance, closeTo(900.0, 1e-9));
-            // But it does fall in [d20, d25), so it hits the period effect.
-            expect(balance.afterBalance, closeTo(850.0, 1e-9));
+            expect(balance.window(0, today: today).start, day(-5));
+            expect(balance.window(0, today: today).end, day(9));
         });
 
-        test("income landing exactly on period end is deferred to the next period, not double counted", () {
-            final balance = _makeBalance(currentBalance: 1000.0);
-            balance.incomeStreams.add(_income(startDate: d(0), amount: 100.0));
+        test("monthly paydays on the 31st don't drift", () {
+            final balance = BalanceModel(currentBalance: 0.0);
+            final job = _income(start: DateTime(2026, 1, 31), frequency: 1, unit: FrequencyUnit.monthly);
+            balance.incomeStreams.add(job);
+            balance.activeIncome = job;
+            final DateTime march = DateTime(2026, 3, 5);
 
-            // start (d5) isn't an occurrence; end (d10) is.
-            balance.projectToPeriod(d(5), d(10));
-
-            // Only d0 is caught up as of d5.
-            expect(balance.shownBalance, closeTo(1100.0, 1e-9));
-            // d10 is excluded (open end), so it doesn't show up in this period's effect.
-            expect(balance.afterBalance, closeTo(1100.0, 1e-9));
+            expect(balance.payday(0, today: march), DateTime(2026, 2, 28));
+            expect(balance.payday(1, today: march), DateTime(2026, 3, 31));
+            expect(balance.payday(2, today: march), DateTime(2026, 4, 30));
         });
 
-        test("expense landing exactly on period end is also deferred to the next period", () {
-            final balance = _makeBalance(currentBalance: 1000.0);
-            balance.expenses.add(_expense(startDate: d(0), amount: 50.0));
+        test("with no active stream, checks are a week long", () {
+            final balance = BalanceModel(currentBalance: 0.0);
 
-            balance.projectToPeriod(d(5), d(10));
-
-            expect(balance.shownBalance, closeTo(950.0, 1e-9));
-            expect(balance.afterBalance, closeTo(950.0, 1e-9));
+            expect(balance.window(0, today: today).end, day(7));
+            expect(balance.window(2, today: today).start, day(14));
         });
 
-        test("multiple income streams and expenses all contribute, not just the last one processed", () {
-            final balance = _makeBalance(currentBalance: 1000.0);
-            // Lands exactly on start -- caught up into shownBalance.
-            balance.incomeStreams.add(_income(startDate: d(20), amount: 100.0, frequency: 100));
-            // Lands inside (start, end) -- part of the period effect.
-            balance.incomeStreams.add(_income(startDate: d(25), amount: 20.0, frequency: 100));
-            // Lands exactly on start -- part of the period effect (closed start for expenses).
-            balance.expenses.add(_expense(startDate: d(20), amount: 30.0, frequency: 100));
-            // Lands inside (start, end) -- part of the period effect.
-            balance.expenses.add(_expense(startDate: d(26), amount: 5.0, frequency: 100));
+        test("a stream starting in the future: the current check runs to its first payday", () {
+            final balance = BalanceModel(currentBalance: 0.0);
+            final job = _income(start: day(10));
+            balance.incomeStreams.add(job);
+            balance.activeIncome = job;
 
-            balance.projectToPeriod(d(20), d(30));
-
-            // shownBalance: +100 (income1 catch-up), everything else is 0 catch-up.
-            expect(balance.shownBalance, closeTo(1100.0, 1e-9));
-            // afterBalance: shownBalance + income2 (20) - expense1 (30) - expense2 (5) = 1085.
-            expect(balance.afterBalance, closeTo(1085.0, 1e-9));
+            expect(balance.window(0, today: today).start, today);
+            expect(balance.window(0, today: today).end, day(10));
         });
     });
 
-    group("makeRecent", () {
-        test("projects from currentBalance using today as the start", () {
-            final today = DateTime.now();
-            final todayMidnight = DateTime(today.year, today.month, today.day);
-            final balance = _makeBalance(
-                currentBalance: 500.0,
-                currentPeriodEnd: todayMidnight.add(const Duration(days: 30)),
-            );
-            balance.incomeStreams.add(_income(
-                startDate: todayMidnight.subtract(const Duration(days: 10)),
-                amount: 100.0,
+    group("After This Check", () {
+        test("is the balance minus expenses due through the next payday, inclusive", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 5.0, start: today)); // daily: days 0..14
+
+            final summary = balance.check(0, today: today);
+            expect(summary.startBalance, closeTo(1000.0, 1e-9));
+            expect(summary.expensesDue, closeTo(75.0, 1e-9));
+            expect(summary.endBalance, closeTo(925.0, 1e-9));
+        });
+
+        test("Next Check adds the next paycheck", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 5.0, start: today));
+
+            expect(balance.check(0, today: today).endBalanceWithNextCheck, closeTo(1925.0, 1e-9));
+        });
+
+        test("credit cards count, once, on their next due date", () {
+            final balance = _balance();
+            balance.expenses.add(CreditModel(
+                name: "Card", amount: 300.0, startDate: day(10),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0,
             ));
 
-            balance.makeRecent();
-
-            // Occurrences at (today - 10) and today itself are both caught up.
-            expect(balance.shownBalance, closeTo(700.0, 1e-9));
+            expect(balance.check(0, today: today).endBalance, closeTo(700.0, 1e-9));
+            // Its next due date (Nov 11) owes nothing new.
+            expect(balance.check(3, today: today).expensesDue, 0.0);
         });
     });
 
-    group("projectForward", () {
-        test("does nothing when there's no active income stream", () {
-            final balance = _makeBalance(currentBalance: 1000.0, currentPeriodStart: d(20));
-            balance.projectToPeriod(d(20), d(30));
-            final balanceBefore = balance.shownBalance;
-            final periodBefore = balance.shownPeriod;
+    group("projected checks", () {
+        test("start from the previous check's end plus this check's paycheck", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 5.0, start: today));
 
-            balance.projectForward();
-
-            expect(balance.shownBalance, balanceBefore);
-            expect(balance.shownPeriod, periodBefore);
+            final next = balance.check(1, today: today);
+            expect(next.startBalance, closeTo(1925.0, 1e-9)); // 1000 - 75 + 1000
+            expect(next.income, closeTo(1000.0, 1e-9));
+            expect(next.expensesDue, closeTo(70.0, 1e-9)); // days 15..28
+            expect(next.endBalance, closeTo(1855.0, 1e-9));
         });
 
-        test("calling it twice does not double-count catch-up from the first call", () {
-            final balance = _makeBalance(currentBalance: 1000.0, currentPeriodStart: d(20));
-            final income = _income(startDate: d(0), amount: 10.0);
-            balance.incomeStreams.add(income);
-            balance.activeIncome = income;
+        test("rent due on payday is counted once, in the check that payday closes", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 1200.0, start: day(14), frequency: 1, unit: FrequencyUnit.monthly));
 
-            balance.projectForward();
-            // shownPeriod advances d20 -> d30; catch-up as of d30 is d0,10,20,30 = 4 occurrences.
-            expect(balance.shownPeriod, d(30));
-            expect(balance.shownBalance, closeTo(1040.0, 1e-9));
+            expect(balance.check(0, today: today).expensesDue, closeTo(1200.0, 1e-9));
+            expect(balance.check(1, today: today).expensesDue, 0.0);
+        });
 
-            balance.projectForward();
-            // shownPeriod advances d30 -> d40; catch-up as of d40 is d0,10,20,30,40 = 5 occurrences.
-            // If this were chained on top of the previous call it would be 1040 + 50 = 1090.
-            expect(balance.shownPeriod, d(40));
-            expect(balance.shownBalance, closeTo(1050.0, 1e-9));
+        test("nothing is double counted across many checks", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 5.0, start: today)); // every day
+            balance.expenses.add(_expense(amount: 40.0, start: today, frequency: 7)); // every payday and between
+
+            double total = 0.0;
+            for (int i = 0; i < 6; i++) {
+                total += balance.check(i, today: today).expensesDue;
+            }
+            // Days 0..84 inclusive: 85 daily occurrences and 13 weekly ones.
+            expect(total, closeTo(85 * 5.0 + 13 * 40.0, 1e-9));
+        });
+
+        test("computing a check directly matches stepping through the Java app's way", () {
+            final balance = _balance();
+            balance.expenses.add(_expense(amount: 5.0, start: today));
+            balance.expenses.add(_expense(amount: 900.0, start: day(3), frequency: 1, unit: FrequencyUnit.monthly));
+            balance.incomeStreams.add(_income(amount: 250.0, start: day(5), frequency: 30));
+
+            // The Java app: shown -= this check's expenses; shown += next check's income.
+            double shown = balance.currentBalance;
+            for (int i = 0; i < 4; i++) {
+                shown -= balance.check(i, today: today).expensesDue;
+                shown += balance.check(i + 1, today: today).income;
+                expect(balance.check(i + 1, today: today).startBalance, closeTo(shown, 1e-9));
+            }
+        });
+
+        test("every stream's paychecks count toward a projected check's income", () {
+            final balance = _balance();
+            balance.incomeStreams.add(_income(amount: 250.0, start: day(20), frequency: 30));
+
+            // Check 1 is [day 14, day 28): the job's day-14 paycheck and the side job's day 20.
+            expect(balance.check(1, today: today).income, closeTo(1250.0, 1e-9));
+        });
+
+        test("showCheck updates each row's amount and each card's balance", () {
+            final balance = _balance();
+            final daily = _expense(amount: 5.0, start: today);
+            final card = CreditModel(
+                name: "Card", amount: 300.0, startDate: day(10),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0,
+            );
+            balance.expenses.addAll([daily, card]);
+
+            balance.showCheck(1, today: today);
+            expect(daily.periodAmount, closeTo(70.0, 1e-9));
+            expect(daily.shownDate, day(15));
+            expect(card.periodAmount, 0.0);
+            expect(card.creditUtilization, 0.0); // paid off on day 10, before this check
+        });
+    });
+
+    group("makeRecent (catching up on app open)", () {
+        test("pays past expenses and credits the active stream's arrived paychecks", () {
+            final balance = BalanceModel(currentBalance: 1000.0, lastUpdated: day(-20));
+            final job = _income(start: day(-28)); // paydays -28, -14, 0
+            balance.incomeStreams.add(job);
+            balance.activeIncome = job;
+            balance.expenses.add(_expense(amount: 10.0, start: day(-20), frequency: 10)); // -20, -10 paid; 0 not yet
+
+            final change = balance.makeRecent(today: today);
+            expect(change, closeTo(2000.0 - 20.0, 1e-9));
+            expect(balance.currentBalance, closeTo(2980.0, 1e-9));
+            expect(balance.lastUpdated, today);
+        });
+
+        test("doesn't credit streams other than the active one, like the Java app", () {
+            final balance = _balance();
+            balance.incomeStreams.add(_income(amount: 250.0, start: day(-10), frequency: 30));
+
+            expect(balance.makeRecent(today: today), 0.0);
+        });
+
+        test("pays a credit card whose due date passed", () {
+            final balance = _balance();
+            balance.expenses.add(CreditModel(
+                name: "Card", amount: 300.0, startDate: day(-3),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0,
+            ));
+
+            expect(balance.makeRecent(today: today), closeTo(-300.0, 1e-9));
+        });
+
+        test("opening again on the same day changes nothing", () {
+            final balance = BalanceModel(currentBalance: 1000.0);
+            final job = _income(start: day(-28));
+            balance.incomeStreams.add(job);
+            balance.activeIncome = job;
+            balance.expenses.add(_expense(amount: 10.0, start: day(-20), frequency: 10));
+            balance.makeRecent(today: today);
+
+            expect(balance.makeRecent(today: today), 0.0);
         });
     });
 }

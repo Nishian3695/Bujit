@@ -9,14 +9,15 @@ import '../../../navigation_items/expense_activity/expense_model.dart';
 
 extension ExpenseRowMapper on ExpenseItemRow {
   // Turns a row freshly read out of the database into a "real" domain
-  // object, restoring its projector/periodAmount/shownDate machinery
-  // (handled by ExpenseModel's own constructor).
+  // object. Loading doesn't pay anything: call BalanceModel.makeRecent()
+  // afterwards to bring loaded items up to today.
   ExpenseModel toDomain() => ExpenseModel(
         id: id,
         name: name,
         amount: amount,
         startDate: startDate,
         currentDueDate: currentDueDate,
+        endDate: endDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         category: category,
@@ -27,7 +28,7 @@ extension ExpenseModelMapper on ExpenseModel {
   // For inserting a *new* expense (no id yet). ExpenseItemRowsCompanion.insert(...)
   // is a special named constructor that only requires columns without a
   // database-side default (so id can be omitted -- SQLite assigns it),
-  // while category still needs the Value(...) wrapper because the
+  // while category and endDate still need the Value(...) wrapper because the
   // regular (non-.insert) companion fields are all Value<T> under the
   // hood -- Value.absent() (the implicit default) means "don't touch
   // this column", Value(x) means "set it to x". .insert() pre-fills the
@@ -37,6 +38,7 @@ extension ExpenseModelMapper on ExpenseModel {
         amount: amount,
         startDate: startDate,
         currentDueDate: currentDueDate,
+        endDate: Value(endDate),
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         category: Value(category),
@@ -52,6 +54,7 @@ extension ExpenseModelMapper on ExpenseModel {
         amount: amount,
         startDate: startDate,
         currentDueDate: currentDueDate,
+        endDate: endDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         category: category,

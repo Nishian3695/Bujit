@@ -1,169 +1,126 @@
 // Run with flutter test test/navigation_items/income_streams/income_stream_model_test.dart
+//
+// Ported from the Java app's pay-period roll-over tests (FinancialCalcTest's
+// rollCheckDateForward): each paycheck is credited exactly once, on or after
+// its payday, and monthly paydays don't drift.
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
+import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-DateTime _today() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-}
+final DateTime today = DateTime(2026, 10, 1);
+DateTime day(int offset) => addDays(today, offset);
 
-IncomeStreamModel _makeIncomeStream({
-    String name = "Test Income",
+IncomeStreamModel _stream({
     double amount = 100.0,
-    required DateTime startDate,
-    required int frequency,
-    required FrequencyUnit frequencyUnits,
+    required DateTime start,
+    int frequency = 10,
+    FrequencyUnit unit = FrequencyUnit.daily,
     DateTime? currentDate,
-    bool isActive = false,
 }) {
     return IncomeStreamModel(
-        name: name,
+        name: "Test Income",
         amount: amount,
-        startDate: startDate,
+        startDate: start,
         frequency: frequency,
-        frequencyUnits: frequencyUnits,
+        frequencyUnits: unit,
         currentDate: currentDate,
-        isActive: isActive,
     );
 }
 
 void main() {
-    final today = _today();
+    group("makeRecent (crediting paychecks)", () {
+        test("a stream starting today credits nothing: that paycheck is already in the balance", () {
+            final stream = _stream(start: today);
 
-    group("makeRecent on construction", () {
-        test("stream starting exactly today has no catch up and projects to the next period", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
+            expect(stream.makeRecent(today: today), 0.0);
             expect(stream.currentDate, today);
-            expect(stream.catchUpAmount, 0.0);
-            expect(stream.nextDate, today.add(const Duration(days: 10)));
-            // No occurrence strictly between today and today + 10 every 10 days
-            expect(stream.periodAmount, 0.0);
+            expect(stream.nextDate, day(10));
         });
 
-        test("stream that started exactly one period ago credits that check immediately", () {
-            final stream = _makeIncomeStream(
-                startDate: today.subtract(const Duration(days: 10)),
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            // 1 occurrence
-            expect(stream.catchUpAmount, closeTo(100.0, 1e-9));
+        test("a paycheck landing today is credited", () {
+            final stream = _stream(start: day(-10));
+
+            expect(stream.makeRecent(today: today), closeTo(100.0, 1e-9));
             expect(stream.currentDate, today);
-            expect(stream.nextDate, today.add(const Duration(days: 10)));
+            expect(stream.nextDate, day(10));
         });
 
-        test("reopening between paydays snaps currentDate to the most recent past check", () {
-            // Occurrences relative to startDate (today - 25): -25, -15, -5, +5, ...
-            final stream = _makeIncomeStream(
-                startDate: today.subtract(const Duration(days: 25)),
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            // Most recent check on/before today is today - 5; next is today + 5
-            expect(stream.currentDate, today.subtract(const Duration(days: 5)));
-            expect(stream.nextDate, today.add(const Duration(days: 5)));
-            // Catch up window (today - 25, today] contains today - 15 and today - 5, so 2 checks
-            expect(stream.catchUpAmount, closeTo(200.0, 1e-9));
+        test("between paydays it credits what arrived and points at the latest payday", () {
+            // Paydays -25, -15, -5, +5
+            final stream = _stream(start: day(-25));
+
+            expect(stream.makeRecent(today: today), closeTo(200.0, 1e-9));
+            expect(stream.currentDate, day(-5));
+            expect(stream.nextDate, day(5));
         });
 
-        test("reopening after multiple missed periods credits every missed check", () {
-            final stream = _makeIncomeStream(
-                startDate: today.subtract(const Duration(days: 40)),
-                currentDate: today.subtract(const Duration(days: 30)),
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            // Occurrences in (today - 30, today]: today - 20, today - 10, today, so 3 checks.
-            expect(stream.catchUpAmount, closeTo(300.0, 1e-9));
+        test("reopening after several missed paydays credits each one once", () {
+            final stream = _stream(start: day(-40), currentDate: day(-30));
+
+            expect(stream.makeRecent(today: today), closeTo(300.0, 1e-9)); // -20, -10, 0
             expect(stream.currentDate, today);
-            expect(stream.nextDate, today.add(const Duration(days: 10)));
         });
 
-        test("stream starting in the future has no catch up", () {
-            final stream = _makeIncomeStream(
-                startDate: today.add(const Duration(days: 10)),
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            expect(stream.catchUpAmount, 0.0);
+        test("calling it again on the same day credits nothing more", () {
+            final stream = _stream(start: day(-40), currentDate: day(-30));
+            stream.makeRecent(today: today);
+
+            expect(stream.makeRecent(today: today), 0.0);
+        });
+
+        test("a stream starting in the future credits nothing", () {
+            final stream = _stream(start: day(10));
+
+            expect(stream.makeRecent(today: today), 0.0);
+            expect(stream.currentDate, day(10));
+        });
+
+        test("monthly paydays on the 31st land on month-ends", () {
+            final stream = _stream(start: DateTime(2026, 1, 31), frequency: 1, unit: FrequencyUnit.monthly);
+
+            // Feb 28, Mar 31, Apr 30
+            expect(stream.makeRecent(today: DateTime(2026, 5, 1)), closeTo(300.0, 1e-9));
+            expect(stream.currentDate, DateTime(2026, 4, 30));
+            expect(stream.nextDate, DateTime(2026, 5, 31));
         });
     });
 
-    group("makeRecent called again", () {
-        test("calling it twice without time passing produces no additional catch up", () {
-            final stream = _makeIncomeStream(
-                startDate: today.subtract(const Duration(days: 40)),
-                currentDate: today.subtract(const Duration(days: 30)),
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            expect(stream.catchUpAmount, closeTo(300.0, 1e-9));
+    group("paydays and amounts", () {
+        test("amountInPeriod counts paychecks in [start, end)", () {
+            final stream = _stream(start: today);
 
-            stream.makeRecent();
-
-            expect(stream.catchUpAmount, closeTo(0.0, 1e-9));
-            expect(stream.currentDate, today);
-        });
-    });
-
-    group("toPeriod", () {
-        test("periodAmount reflects occurrences strictly within (start, end)", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            stream.toPeriod(today, today.add(const Duration(days: 30)));
-
-            expect(stream.periodAmount, closeTo(200.0, 1e-9));
+            expect(stream.amountInPeriod(today, day(30)), closeTo(300.0, 1e-9)); // 0, 10, 20
+            expect(stream.amountInPeriod(day(1), day(10)), 0.0);
         });
 
-        test("periodAmount is 0 when nothing falls inside the window", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 10,
-                frequencyUnits: FrequencyUnit.daily,
-            );
-            stream.toPeriod(today, today.add(const Duration(days: 10)));
+        test("paydayOnOrBefore and paydayAfter find the neighbouring paydays", () {
+            final stream = _stream(start: day(-25));
 
-            expect(stream.periodAmount, 0.0);
+            expect(stream.paydayOnOrBefore(today), day(-5));
+            expect(stream.paydayAfter(today), day(5));
+            expect(stream.paydayAfter(day(5)), day(15));
+            expect(stream.paydayOnOrBefore(day(-30)), isNull);
         });
     });
 
     group("advancePeriod", () {
         test("returns the [start, end) of the next period after the given date", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 7,
-                frequencyUnits: FrequencyUnit.daily,
-            );
+            final stream = _stream(start: today, frequency: 7);
             final (start, end) = stream.advancePeriod(today);
-            expect(start, today.add(const Duration(days: 7)));
-            expect(end, today.add(const Duration(days: 14)));
+            expect(start, day(7));
+            expect(end, day(14));
         });
     });
 
     group("displayString", () {
         test("describes the frequency in plain language", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 2,
-                frequencyUnits: FrequencyUnit.weekly,
-            );
+            final stream = _stream(start: today, frequency: 2, unit: FrequencyUnit.weekly);
             expect(stream.displayString(), "Every 2 weeks");
         });
 
         test("pluralizes only when the frequency count is greater than 1", () {
-            final stream = _makeIncomeStream(
-                startDate: today,
-                frequency: 1,
-                frequencyUnits: FrequencyUnit.weekly,
-            );
+            final stream = _stream(start: today, frequency: 1, unit: FrequencyUnit.weekly);
             expect(stream.displayString(), "Every 1 week");
         });
     });
