@@ -59,6 +59,7 @@ import io.github.nishian3695.bujit.NavigationItems.Settings.SettingsActivity;
 import io.github.nishian3695.bujit.Tutorial.TutorialManager;
 import io.github.nishian3695.bujit.Tutorial.TutorialOverlayLayout;
 import androidx.appcompat.widget.SwitchCompat;
+import io.github.nishian3695.bujit.DisplayPrefs;
 import io.github.nishian3695.bujit.R;
 import io.github.nishian3695.bujit.ThemeHelper;
 import io.github.nishian3695.bujit.StorageManagement.FinancialCalc;
@@ -142,7 +143,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private ActionBarDrawerToggle actionBarDrawerToggle;
     private FloatingActionButton addExpenseButton;
     private Button nextCheckButton, prevCheckButton;
-    private TextView currentBankBalance, finalBalance, checkName, syncLabel, checkBarSubtitle;
+    private TextView currentBankBalance, finalBalance, finalBalanceLabel, checkName, syncLabel, checkBarSubtitle;
+    // The "Include Next Check" setting value last used by setFinalBalance(), so onResume() can
+    // refresh the after-check balance only when the user toggled it in Settings.
+    private boolean appliedIncludeNextCheck;
     private SwipeRefreshLayout swipeRefreshLayout;
     private TutorialOverlayLayout tutorialOverlay;
     // ActivityResultLaunchers
@@ -245,6 +249,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         currentBankBalance = findViewById(R.id.current_balance_TV);
         ThemeHelper.tintPrimaryText(currentBankBalance, this);
         finalBalance = findViewById(R.id.final_balance);
+        finalBalanceLabel = findViewById(R.id.final_balance_label);
         checkName = findViewById(R.id.current_check);
         checkBarSubtitle = findViewById(R.id.check_bar_subtitle);
         syncLabel = findViewById(R.id.sync_label);
@@ -1626,6 +1631,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
 
     /*
     Recalculates and displays the projected end-of-period balance (shownBalance - expenses).
+    When the "Include Next Check" setting is on, the following period's projected income is added
+    too and the label reads "NEXT CHECK" instead of "AFTER THIS CHECK".
     Text is colored green when positive and red when negative.
     */
     public void setFinalBalance() {
@@ -1633,6 +1640,12 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             shownBalance = currencyFormat.formatToFloat(curBalance);
         }
         float finVal = shownBalance - getCheckExpenses();
+        appliedIncludeNextCheck = DisplayPrefs.includeNextCheck(this);
+        if (appliedIncludeNextCheck) {
+            finVal += computeProjectedIncome(endCheckDate,
+                    endCheckDate.plus(projFrequency, projFreqTag));
+        }
+        finalBalanceLabel.setText(appliedIncludeNextCheck ? "NEXT CHECK" : "AFTER THIS CHECK");
         finalBalance.setText("$" + CurrencyFormat.display(this, String.valueOf(finVal)));
         finalBalance.setTextColor(ContextCompat.getColor(this,
                 finVal >= 0 ? R.color.balance_positive : R.color.balance_negative));
@@ -3025,6 +3038,11 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                     io.github.nishian3695.bujit.NavigationItems.Settings.CategoryManagerActivity
                             .KEY_CATEGORIES_CHANGED).apply();
             reloadAfterCategoryChange();
+        }
+
+        // Refresh the after-check balance if "Include Next Check" was toggled in Settings.
+        if (DisplayPrefs.includeNextCheck(this) != appliedIncludeNextCheck) {
+            setFinalBalance();
         }
 
         SharedPreferences calPrefs = getSharedPreferences("bujit_calendar_prefs", MODE_PRIVATE);
