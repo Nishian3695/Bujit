@@ -27,6 +27,9 @@ public class StorageHolder implements Serializable {
     private LocalDate curCheckDate;
     private LocalDate nextCheckDate;
     private LocalDate lastOpenedDate;
+    // Last day whose paychecks (from every income stream) have been added to currentBalance.
+    // null in data saved before this existed -- see ExpenseActivity.checkForNextCheck.
+    private LocalDate incomeCreditedThrough;
     private ArrayList<IncomeStreamModel> incomeStreamList;
     private ArrayList<PeriodSnapshot> periodSnapshots;
     private ArrayList<String> categoryList;
@@ -77,6 +80,9 @@ public class StorageHolder implements Serializable {
     public LocalDate getLastOpenedDate() {
         return lastOpenedDate;
     }
+    public LocalDate getIncomeCreditedThrough() {
+        return incomeCreditedThrough;
+    }
     public ArrayList<IncomeStreamModel> getIncomeStreamList() {
         return incomeStreamList;
     }
@@ -122,6 +128,9 @@ public class StorageHolder implements Serializable {
     }
     public void setLastOpenedDate(LocalDate lastOpenedDate) {
         this.lastOpenedDate = lastOpenedDate;
+    }
+    public void setIncomeCreditedThrough(LocalDate incomeCreditedThrough) {
+        this.incomeCreditedThrough = incomeCreditedThrough;
     }
     public void setIncomeStreamList(ArrayList<IncomeStreamModel> incomeStreamList) {
         this.incomeStreamList = incomeStreamList;

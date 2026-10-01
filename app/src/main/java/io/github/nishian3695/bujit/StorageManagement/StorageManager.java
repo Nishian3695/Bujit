@@ -192,6 +192,7 @@ public class StorageManager {
         o.put("curCheckDate",   dateOrNull(h.getCurCheckDate()));
         o.put("nextCheckDate",  dateOrNull(h.getNextCheckDate()));
         o.put("lastOpenedDate", dateOrNull(h.getLastOpenedDate()));
+        o.put("incomeCreditedThrough", dateOrNull(h.getIncomeCreditedThrough()));
 
         JSONArray expenses = new JSONArray();
         if (h.getExpenseList() != null) {
@@ -245,6 +246,8 @@ public class StorageManager {
         h.setCurCheckDate(  parseDate(o.optString("curCheckDate",   null)));
         h.setNextCheckDate( parseDate(o.optString("nextCheckDate",  null)));
         h.setLastOpenedDate(parseDate(o.optString("lastOpenedDate", null)));
+        // Absent before income from every stream was credited; null -> see checkForNextCheck.
+        h.setIncomeCreditedThrough(parseDate(o.optString("incomeCreditedThrough", null)));
 
         JSONArray expenses = o.optJSONArray("expenseList");
         ArrayList<ExpenseItem> expList = new ArrayList<>();

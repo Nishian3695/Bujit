@@ -133,6 +133,13 @@ public abstract class ExpenseItem implements Serializable {
     public String getName() {
         return this.expenseName;
     }
+    // The part of shownCost not yet paid, which is what the check's balance should subtract.
+    // For a regular expense that's all of it (makeCurrent only ever shows unpaid occurrences);
+    // CreditModel overrides this for a payoff it keeps displaying after paying it.
+    public float getUnpaidShownCost() {
+        try { return Float.parseFloat(getShownCost()); }
+        catch (NumberFormatException e) { return 0f; }
+    }
 
     // Recurrence stepping
     public int getAnchorDay() {

@@ -103,6 +103,18 @@ public final class FinancialCalc {
         return count;
     }
 
+    // Sums what's still to be paid in the currently displayed check period -- what ExpenseActivity
+    // subtracts to get "After This Check". Uses getUnpaidShownCost rather than shownCost: a credit
+    // card paid off earlier in this check keeps showing the payoff, but that money already left
+    // curBalance, and subtracting it again counted the payment twice.
+    public static float checkExpensesTotal(List<ExpenseItem> expenses) {
+        float expenseSum = 0;
+        for (ExpenseItem anExpense : expenses) {
+            expenseSum += anExpense.getUnpaidShownCost();
+        }
+        return expenseSum;
+    }
+
     // Computes total income and total expenses for [start, end) from the live lists.
     // Returns float[]{incomeTotal, expenseTotal}.
     public static float[] computePeriodTotals(
@@ -131,44 +143,102 @@ public final class FinancialCalc {
         return new float[]{income, expenses};
     }
 
+    // Total of every income stream's paychecks after creditedThrough, through today inclusive --
+    // what's arrived since income was last added to the balance. Every stream counts, not just
+    // the selected one (which only sets the pay periods). A paycheck landing today counts, matching
+    // the pay period rolling over on payday. 0 if today isn't after creditedThrough, so calling
+    // again on the same day with creditedThrough = today credits nothing.
+    //
+    // Only paychecks after each stream's starting date count. countIncomeOccurrences extrapolates
+    // a schedule backward past its anchor, which is fine for projections but would credit money
+    // from a job that hasn't started yet. The starting date's own paycheck is treated as already
+    // in the balance, as the selected stream's has always been (its pay period starts there).
+    public static float incomeArrivedSince(List<IncomeStreamModel> streams,
+            LocalDate creditedThrough, LocalDate today) {
+        if (streams == null || !today.isAfter(creditedThrough)) return 0f;
+        float total = 0f;
+        for (IncomeStreamModel inc : streams) {
+            float amt;
+            try { amt = Float.parseFloat(inc.getAmount()); }
+            catch (NumberFormatException e) { continue; }
+            if (amt <= 0) continue;
+            LocalDate anchor = incomeAnchorDate(inc);
+            if (anchor == null) continue;
+            LocalDate from = creditedThrough.plusDays(1);
+            if (!from.isAfter(anchor)) from = anchor.plusDays(1);
+            if (from.isAfter(today)) continue;
+            total += countIncomeOccurrences(inc, from, today.plusDays(1)) * amt;
+        }
+        return total;
+    }
+
+    // Where income crediting starts for data saved before incomeCreditedThrough existed, when
+    // income was credited once per stored pay period: the selected stream's last payday before
+    // the stored nextCheckDate (the paycheck the last roll-over credited), or curCheckDate if
+    // there's no selected stream. Normally that's curCheckDate itself; it differs only when the
+    // stored dates drifted from the stream's schedule under older builds (e.g. the 28th instead of
+    // the 31st), where using curCheckDate would credit that month's paycheck a second time.
+    public static LocalDate initialIncomeCreditedThrough(List<IncomeStreamModel> streams,
+            LocalDate curCheckDate, LocalDate nextCheckDate) {
+        if (streams == null) return curCheckDate;
+        for (IncomeStreamModel inc : streams) {
+            if (!inc.isSelected()) continue;
+            LocalDate payday = lastIncomeOccurrenceBefore(inc, nextCheckDate);
+            return (payday != null && payday.isAfter(curCheckDate)) ? payday : curCheckDate;
+        }
+        return curCheckDate;
+    }
+
+    // The stream's latest payday strictly before [date] (null if it has no schedule).
+    private static LocalDate lastIncomeOccurrenceBefore(IncomeStreamModel inc, LocalDate date) {
+        LocalDate d = incomeAnchorDate(inc);
+        if (d == null || inc.getFrequency() <= 0) return null;
+        int anchorDay = d.getDayOfMonth();
+        int freq = inc.getFrequency();
+        ChronoUnit unit = incomeTag(inc.getFrequencyTag());
+        int safety = 0;
+        while (!d.isBefore(date) && safety++ < 3650) d = stepDate(d, -freq, unit, anchorDay);
+        safety = 0;
+        while (stepDate(d, freq, unit, anchorDay).isBefore(date) && safety++ < 3650) {
+            d = stepDate(d, freq, unit, anchorDay);
+        }
+        return d;
+    }
+
     // Result of rolling curCheckDate/nextCheckDate forward to the current pay period.
     public static final class CheckRollResult {
         public final LocalDate curCheckDate;
         public final LocalDate nextCheckDate;
-        public final float creditedIncome;
         // {periodStart, periodEnd} for each pay period that rolled into the past, in order.
         public final List<LocalDate[]> rolledPeriods;
 
         CheckRollResult(LocalDate curCheckDate, LocalDate nextCheckDate,
-                float creditedIncome, List<LocalDate[]> rolledPeriods) {
+                List<LocalDate[]> rolledPeriods) {
             this.curCheckDate = curCheckDate;
             this.nextCheckDate = nextCheckDate;
-            this.creditedIncome = creditedIncome;
             this.rolledPeriods = rolledPeriods;
         }
     }
 
     // Advances curCheckDate/nextCheckDate past any pay periods that have fully elapsed as of
-    // "today", crediting one averageCheck per period rolled. Callers must pass the *persisted*
-    // curCheckDate/nextCheckDate (i.e. wherever pay-period tracking last left off) rather than
-    // re-deriving them from an income stream's static anchor date -- doing the latter discards
-    // already-credited progress and causes periods to be re-credited on every call. Idempotent
-    // when called again with its own output and an unchanged "today": rolledPeriods is empty and
-    // creditedIncome is 0. payAnchorDay is the pay schedule's intended day of month (see
-    // stepDate), so monthly paydays on the 31st don't drift to the 28th after February.
+    // "today". Only moves the dates and reports the periods that ended (for history snapshots);
+    // income is credited separately by incomeArrivedSince, which covers every stream. Callers must
+    // pass the *persisted* curCheckDate/nextCheckDate (i.e. wherever pay-period tracking last left
+    // off) rather than re-deriving them from an income stream's static anchor date -- doing the
+    // latter re-reports already-recorded periods. Idempotent when called again with its own output
+    // and an unchanged "today": rolledPeriods is empty. payAnchorDay is the pay schedule's intended
+    // day of month (see stepDate), so monthly paydays on the 31st don't drift to the 28th.
     public static CheckRollResult rollCheckDateForward(
             LocalDate today, LocalDate curCheckDate, LocalDate nextCheckDate,
-            int checkFrequency, ChronoUnit checkFrequencyTag, float averageCheck, int payAnchorDay) {
+            int checkFrequency, ChronoUnit checkFrequencyTag, int payAnchorDay) {
         List<LocalDate[]> rolledPeriods = new ArrayList<>();
-        float credited = 0f;
         int safety = 0;
         while (!today.isBefore(nextCheckDate) && safety++ < 3650) {
             rolledPeriods.add(new LocalDate[]{curCheckDate, nextCheckDate});
             curCheckDate = stepDate(curCheckDate, checkFrequency, checkFrequencyTag, payAnchorDay);
             nextCheckDate = stepDate(nextCheckDate, checkFrequency, checkFrequencyTag, payAnchorDay);
-            credited += averageCheck;
         }
-        return new CheckRollResult(curCheckDate, nextCheckDate, credited, rolledPeriods);
+        return new CheckRollResult(curCheckDate, nextCheckDate, rolledPeriods);
     }
 
     // Resolved pay-period/income-stream state produced by resolveIncomeState().

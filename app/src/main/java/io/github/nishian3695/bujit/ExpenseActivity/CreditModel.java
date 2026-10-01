@@ -27,6 +27,10 @@ public class CreditModel extends ExpenseItem {
     // displayed (real or projected via paging), for the Rate label and utilization bar.
     // Deliberately separate from shownCost — see class comment above.
     private transient String displayBalance;
+    // In-memory/not persisted: true while shownCost is a payoff that already happened (makeCurrent
+    // keeps showing what was paid for the rest of that check -- see makeCurrent). That money has
+    // already left curBalance, so it must not be subtracted again; see getUnpaidShownCost().
+    private transient boolean shownCostAlreadyPaid = false;
 
     // Creates a new credit card with its current balance and limit; the billing cycle is always
     // monthly, anchored at the given date.
@@ -57,13 +61,30 @@ public class CreditModel extends ExpenseItem {
         this.displayBalance = currencyFormat.formatToString(balance);
     }
 
+    // The part of shownCost still to be paid: 0 while shownCost is a payoff that already left
+    // curBalance, otherwise all of it.
+    @Override
+    public float getUnpaidShownCost() {
+        return shownCostAlreadyPaid ? 0f : super.getUnpaidShownCost();
+    }
+
+    // Sets shownCost to an amount that's still owed (anything except makeCurrent's paid-off case).
+    private void setOwedShownCost(String cost) {
+        setShownCost(cost);
+        shownCostAlreadyPaid = false;
+    }
+    private void setOwedShownCost(float cost) {
+        setShownCost(cost);
+        shownCostAlreadyPaid = false;
+    }
+
     // Directly sets the current balance from a source of truth -- a manual edit, or a fresh sync
     // from a linked bank account -- resetting shownCost and displayBalance to match rather than
     // offsetting them by a delta. Unlike applyCharge(), this represents a full correction ("this
     // is the balance right now"), which should clear out any stale in-between projection.
     public void setBalance(String newCost) {
         setCost(newCost);
-        setShownCost(getCost());
+        setOwedShownCost(getCost());
         float cost;
         try { cost = Float.parseFloat(getCost()); } catch (NumberFormatException e) { cost = 0f; }
         setDisplayBalance(cost);
@@ -86,7 +107,7 @@ public class CreditModel extends ExpenseItem {
 
         String costStr = currencyFormat.formatToString(Math.max(0f, base + delta));
         setCost(costStr);
-        setShownCost(costStr);
+        setOwedShownCost(costStr);
         setDisplayBalance(Math.max(0f, displayBase + delta));
     }
 
@@ -100,7 +121,7 @@ public class CreditModel extends ExpenseItem {
         while (this.shownDate.isBefore(beg)) {
             this.shownDate = stepOccurrence(this.shownDate, 1);
         }
-        setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+        setOwedShownCost(creditAmountDueWithin(beg, end, allExpenses));
         setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
     }
 
@@ -114,7 +135,7 @@ public class CreditModel extends ExpenseItem {
         while (beg.isBefore(stepOccurrence(this.shownDate, -1))) {
             this.shownDate = stepOccurrence(this.shownDate, -1);
         }
-        setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+        setOwedShownCost(creditAmountDueWithin(beg, end, allExpenses));
         setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
     }
 
@@ -143,10 +164,13 @@ public class CreditModel extends ExpenseItem {
             this.expenseCost = "0.00";
             boolean dueThisCheck = !dueBeforeAdvance.isBefore(beg) && dueBeforeAdvance.isBefore(end);
             setShownCost(dueThisCheck ? paid : 0f);
+            // The row keeps showing what was paid, but it's already out of curBalance (the caller
+            // deducts the returned amount), so After This Check must not subtract it again.
+            shownCostAlreadyPaid = true;
             setDisplayBalance(dueThisCheck ? paid : 0f);
             return paid;
         }
-        setShownCost(creditAmountDueWithin(beg, end, allExpenses));
+        setOwedShownCost(creditAmountDueWithin(beg, end, allExpenses));
         setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
         return 0f;
     }

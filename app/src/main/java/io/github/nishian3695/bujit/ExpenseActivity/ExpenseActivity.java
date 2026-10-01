@@ -162,6 +162,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     private ArrayList<io.github.nishian3695.bujit.StorageManagement.PeriodSnapshot> periodSnapshots;
     private float curBalance, shownBalance, averageCheck, projAmount, manualBalanceAddition, manualAccountsTotal;
     private LocalDate curCheckDate, begCheckDate, nextCheckDate, endCheckDate, mToday, lastOpened;
+    // Last day whose paychecks (from every stream) are in curBalance; null until first credited.
+    private LocalDate incomeCreditedThrough;
     private int checkFrequency, projFrequency, projStepsForward;
     private ChronoUnit checkFrequencyTag, projFreqTag;
     private String projStreamName;
@@ -579,6 +581,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 manualAccountsTotal = computeManualAccountsTotal(storageHolder);
                 lastOpened = storageHolder.getLastOpenedDate();
                 if (lastOpened == null) lastOpened = LocalDate.now();
+                incomeCreditedThrough = storageHolder.getIncomeCreditedThrough();
                 periodSnapshots = storageHolder.getPeriodSnapshots();
                 if (periodSnapshots == null) periodSnapshots = new ArrayList<>();
                 singleEventList = storageHolder.getSingleEventList();
@@ -615,6 +618,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 storageHolder.setCurCheckDate(curCheckDate);
                 storageHolder.setNextCheckDate(nextCheckDate);
                 storageHolder.setLastOpenedDate(lastOpened);
+                storageHolder.setIncomeCreditedThrough(incomeCreditedThrough);
                 storageHolder.setIncomeStreamList(incomeStreamList);
                 storageHolder.setPeriodSnapshots(periodSnapshots);
                 if (singleEventList != null) storageHolder.setSingleEventList(singleEventList);
@@ -625,22 +629,34 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
     }
 
     /*
-    Advances curCheckDate and nextCheckDate to the current pay period if time has
-    elapsed since the last save. Also adds missed paychecks to curBalance.
-    Called on every app open so the home screen always reflects today's pay period.
+    Adds every income stream's paychecks that arrived since the last credit to curBalance, then
+    advances curCheckDate and nextCheckDate to the current pay period if time has elapsed since
+    the last save. Called on every app open so the home screen always reflects today's pay period.
+
+    Income used to be credited only as the selected stream's averageCheck per rolled pay period,
+    so other streams never reached the balance. It's now tracked by incomeCreditedThrough: data
+    saved before that existed starts from the selected stream's last credited payday (see
+    FinancialCalc.initialIncomeCreditedThrough), which credits the selected stream exactly as
+    before plus any other stream's paychecks since then. Crediting is bounded by that date rather
+    than the pay period, so editing or re-selecting a stream (which resets curCheckDate to the
+    stream's anchor date) can't re-credit paychecks from before it.
     */
     public void checkForNextCheck() {
         mToday = LocalDate.now();
+        LocalDate creditedThrough = incomeCreditedThrough != null ? incomeCreditedThrough
+                : FinancialCalc.initialIncomeCreditedThrough(incomeStreamList, curCheckDate, nextCheckDate);
+        curBalance += FinancialCalc.incomeArrivedSince(incomeStreamList, creditedThrough, mToday);
+        incomeCreditedThrough = mToday.isAfter(creditedThrough) ? mToday : creditedThrough;
+
         io.github.nishian3695.bujit.StorageManagement.FinancialCalc.CheckRollResult result =
                 io.github.nishian3695.bujit.StorageManagement.FinancialCalc.rollCheckDateForward(
-                        mToday, curCheckDate, nextCheckDate, checkFrequency, checkFrequencyTag, averageCheck,
+                        mToday, curCheckDate, nextCheckDate, checkFrequency, checkFrequencyTag,
                         FinancialCalc.payAnchorDay(incomeStreamList, curCheckDate));
         for (LocalDate[] period : result.rolledPeriods) {
             recordPeriodSnapshot(period[0], period[1]);
         }
         curCheckDate = result.curCheckDate;
         nextCheckDate = result.nextCheckDate;
-        curBalance += result.creditedIncome;
         begCheckDate = curCheckDate;
         endCheckDate = nextCheckDate;
     }
@@ -987,6 +1003,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         begCheckDate = curCheckDate;
         endCheckDate = nextCheckDate;
         lastOpened = mToday;
+        incomeCreditedThrough = null;
         curBalance = 0f;
         manualBalanceAddition = 0f;
         manualAccountsTotal = 0f;
@@ -1024,6 +1041,7 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             begCheckDate = curCheckDate;
             endCheckDate = nextCheckDate;
             lastOpened = mToday;
+            incomeCreditedThrough = null;
         }
 
         if (singleEventList == null) singleEventList = new ArrayList<>();
@@ -1668,14 +1686,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         return retCal;
     }
 
-    // Sums the shownCost of every expense in the list for the currently displayed check period
+    // Total still to be paid in the currently displayed check period (see FinancialCalc.checkExpensesTotal)
     public float getCheckExpenses() {
-        float expenseSum = 0;
-        for (ExpenseItem anExpense : expenseListStor) {
-            try { expenseSum += Float.parseFloat(anExpense.getShownCost()); }
-            catch (NumberFormatException ignored) {}
-        }
-        return expenseSum;
+        return FinancialCalc.checkExpensesTotal(expenseListStor);
     }
 
     /*

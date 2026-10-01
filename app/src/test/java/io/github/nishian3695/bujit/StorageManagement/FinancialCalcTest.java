@@ -66,13 +66,22 @@ public class FinancialCalcTest {
     public void rollCheckDateForward_monthlyPayOn31st_landsOnMonthEnds() {
         FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
                 LocalDate.of(2027, 5, 1), LocalDate.of(2027, 1, 31), LocalDate.of(2027, 2, 28),
-                1, ChronoUnit.MONTHS, 1000f, 31);
+                1, ChronoUnit.MONTHS, 31);
 
         assertEquals(3, result.rolledPeriods.size()); // paid Feb 28, Mar 31, Apr 30
         assertEquals(LocalDate.of(2027, 3, 31), result.rolledPeriods.get(1)[1]);
         assertEquals(LocalDate.of(2027, 4, 30), result.curCheckDate);
         assertEquals(LocalDate.of(2027, 5, 31), result.nextCheckDate);
-        assertEquals(3000f, result.creditedIncome, 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_monthlyPayOn31st_creditsMonthEnds() {
+        List<IncomeStreamModel> streams = new ArrayList<>();
+        streams.add(new IncomeStreamModel("Job", "1000", "2027.01.31", 1, 2)); // 2=MONTHS
+
+        // Feb 28, Mar 31, Apr 30
+        assertEquals(3000f, FinancialCalc.incomeArrivedSince(
+                streams, LocalDate.of(2027, 1, 31), LocalDate.of(2027, 5, 1)), 0.001f);
     }
 
     @Test
@@ -80,7 +89,7 @@ public class FinancialCalcTest {
         // Dates saved by an older build that drifted to the 28th.
         FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
                 LocalDate.of(2027, 4, 28), LocalDate.of(2027, 3, 28), LocalDate.of(2027, 4, 28),
-                1, ChronoUnit.MONTHS, 1000f, 31);
+                1, ChronoUnit.MONTHS, 31);
 
         assertEquals(LocalDate.of(2027, 4, 30), result.curCheckDate);
         assertEquals(LocalDate.of(2027, 5, 31), result.nextCheckDate);
@@ -181,58 +190,53 @@ public class FinancialCalcTest {
         assertEquals(15f, totals[1], 0.001f);
     }
 
-    // --- rollCheckDateForward: regression coverage for the "income re-credited on every app
-    // open" bug. handleStorage(READ) used to re-derive curCheckDate/nextCheckDate from the income
-    // stream's static anchor date on every load, discarding already-credited progress. The fix was
-    // to always feed rollCheckDateForward the previously-persisted dates. These tests assert the
-    // roll-forward math itself is correct and, critically, idempotent when fed its own prior output.
+    // --- Income crediting: regression coverage for the "income re-credited on every app open"
+    // (infinite-money) bug. Income used to be credited by rollCheckDateForward per rolled pay
+    // period, so re-deriving the period dates from a stream's static anchor re-credited it. Income
+    // is now credited by incomeArrivedSince from the persisted incomeCreditedThrough date, which
+    // advances to today on every open; these tests simulate reopens exactly that way.
 
-    @Test
-    public void rollCheckDateForward_dueToday_creditsExactlyOnePeriod() {
-        LocalDate today = LocalDate.now();
-        FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                today, today, today, 14, ChronoUnit.DAYS, 1000f, 0);
-
-        assertEquals(1000f, result.creditedIncome, 0.001f);
-        assertEquals(1, result.rolledPeriods.size());
-        assertEquals(today.plusDays(14), result.nextCheckDate);
-        assertEquals(today.plusDays(14), result.curCheckDate);
+    private static List<IncomeStreamModel> biweeklyJob(LocalDate anchor, String amount) {
+        List<IncomeStreamModel> streams = new ArrayList<>();
+        streams.add(new IncomeStreamModel("Job", amount, anchor.format(CHECK_DATE_FMT), 14, 0));
+        return streams;
     }
 
     @Test
-    public void rollCheckDateForward_calledAgainSameDayWithPriorOutput_doesNotDoubleCredit() {
-        // Simulates opening the app on payday (first credit), then reopening the app again later
-        // the same day. The second call MUST be fed the first call's output dates -- exactly what
-        // the fixed handleStorage(READ) now does by trusting the persisted dates instead of
-        // re-deriving them from the income stream's anchor date on every load.
+    public void incomeArrivedSince_paydayToday_creditsItOnce() {
         LocalDate today = LocalDate.now();
-        FinancialCalc.CheckRollResult firstOpen = FinancialCalc.rollCheckDateForward(
-                today, today, today, 14, ChronoUnit.DAYS, 1000f, 0);
-        assertEquals(1000f, firstOpen.creditedIncome, 0.001f);
+        // Last payday 14 days ago (already credited), the next one is today.
+        float credited = FinancialCalc.incomeArrivedSince(
+                biweeklyJob(today.minusDays(14), "1000"), today.minusDays(14), today);
 
-        FinancialCalc.CheckRollResult secondOpen = FinancialCalc.rollCheckDateForward(
-                today, firstOpen.curCheckDate, firstOpen.nextCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
+        assertEquals(1000f, credited, 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_calledAgainSameDay_doesNotDoubleCredit() {
+        // Opening on payday credits it and advances creditedThrough to today; reopening later the
+        // same day must credit nothing.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.minusDays(14), "1000");
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(14), today), 0.001f);
 
         assertEquals("Reopening the app on the same day must not re-credit income",
-                0f, secondOpen.creditedIncome, 0.001f);
-        assertEquals(0, secondOpen.rolledPeriods.size());
+                0f, FinancialCalc.incomeArrivedSince(streams, today, today), 0.001f);
     }
 
     @Test
-    public void rollCheckDateForward_reRunManyTimes_totalCreditedNeverExceedsOnePerPeriod() {
+    public void incomeArrivedSince_reopenManyTimes_creditsEachPaycheckOnce() {
         // Directly simulates "user force-quits and reopens the app repeatedly on payday" --
-        // the exact scenario reported as the infinite-money glitch.
+        // the exact scenario reported as the infinite-money glitch -- with creditedThrough
+        // persisted between opens as ExpenseActivity does.
         LocalDate today = LocalDate.now();
-        LocalDate curCheckDate = today;
-        LocalDate nextCheckDate = today;
+        List<IncomeStreamModel> streams = biweeklyJob(today.minusDays(14), "1000");
+        LocalDate creditedThrough = today.minusDays(14);
         float balance = 0f;
 
         for (int reopen = 0; reopen < 20; reopen++) {
-            FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                    today, curCheckDate, nextCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
-            balance += result.creditedIncome;
-            curCheckDate = result.curCheckDate;
-            nextCheckDate = result.nextCheckDate;
+            balance += FinancialCalc.incomeArrivedSince(streams, creditedThrough, today);
+            creditedThrough = today;
         }
 
         assertEquals("20 simulated app reopens on the same payday must credit income only once",
@@ -240,47 +244,133 @@ public class FinancialCalcTest {
     }
 
     @Test
-    public void rollCheckDateForward_multipleMissedPeriods_creditsEachExactlyOnce() {
-        // App wasn't opened for 6 weeks; biweekly pay should catch up exactly 3 periods, then
-        // settle into a non-credited state on the next call (mirroring the previous test).
+    public void incomeArrivedSince_multipleMissedPaydays_creditsEachExactlyOnce() {
+        // App wasn't opened for 6 weeks; biweekly pay catches up 3 paychecks, then nothing more.
+        LocalDate today = LocalDate.now();
+        LocalDate anchor = today.minusDays(42);
+        List<IncomeStreamModel> streams = biweeklyJob(anchor, "500");
+
+        assertEquals(1500f, FinancialCalc.incomeArrivedSince(streams, anchor, today), 0.001f);
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today, today), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_creditsEveryStream() {
+        // A side job (paydays -35 and -5) is credited too, not only the selected stream.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.minusDays(14), "1000");
+        streams.add(new IncomeStreamModel("Side", "250", today.minusDays(35).format(CHECK_DATE_FMT), 30, 0));
+
+        assertEquals(1250f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(14), today), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_ignoresPaychecksBeforeCreditedThrough() {
+        // A stream with an anchor far in the past (paydays ..., -13, +1): only paychecks after
+        // the last credit count. Editing or re-selecting a stream resets curCheckDate to its
+        // anchor; crediting no longer depends on curCheckDate, so that can't re-credit old ones.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.minusDays(97), "1000");
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(1), today), 0.001f);
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(14), today), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_streamStartingInTheFuture_creditsNothing() {
+        // The schedule extrapolates backward past its anchor for projections; crediting must not.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.plusDays(10), "1000");
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(60), today), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_startingDatesOwnPaycheck_isAlreadyInTheBalance() {
+        // Same as the selected stream always worked: its pay period starts on the starting date.
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today, "1000");
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(5), today), 0.001f);
+    }
+
+    @Test
+    public void initialIncomeCreditedThrough_alignedDates_isCurCheckDate() {
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today.minusDays(84), "1000");
+        streams.get(0).setSelected(true);
+
+        assertEquals(today.minusDays(14), FinancialCalc.initialIncomeCreditedThrough(
+                streams, today.minusDays(14), today));
+    }
+
+    @Test
+    public void initialIncomeCreditedThrough_driftedDates_doesNotCreditAPaycheckTwice() {
+        // An older build drifted a 31st payday to the 28th: it credited March's paycheck on Mar 28
+        // and stored the period [Mar 28, Apr 28). The stream's real March payday is Mar 31, which
+        // must not be credited again; April's (Apr 30) still is.
+        List<IncomeStreamModel> streams = new ArrayList<>();
+        IncomeStreamModel job = new IncomeStreamModel("Job", "1000", "2027.01.31", 1, 2);
+        job.setSelected(true);
+        streams.add(job);
+
+        LocalDate start = FinancialCalc.initialIncomeCreditedThrough(
+                streams, LocalDate.of(2027, 3, 28), LocalDate.of(2027, 4, 28));
+
+        assertEquals(LocalDate.of(2027, 3, 31), start);
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, start, LocalDate.of(2027, 4, 29)), 0.001f);
+        assertEquals(1000f, FinancialCalc.incomeArrivedSince(streams, start, LocalDate.of(2027, 4, 30)), 0.001f);
+    }
+
+    @Test
+    public void incomeArrivedSince_skipsInvalidAmounts() {
+        LocalDate today = LocalDate.now();
+        List<IncomeStreamModel> streams = biweeklyJob(today, "not-a-number");
+        streams.add(new IncomeStreamModel("Zero", "0", today.format(CHECK_DATE_FMT), 14, 0));
+
+        assertEquals(0f, FinancialCalc.incomeArrivedSince(streams, today.minusDays(1), today), 0.001f);
+    }
+
+    // --- rollCheckDateForward: now only advances the pay-period dates (and reports ended periods
+    // for history), but must still be idempotent when fed its own prior output.
+
+    @Test
+    public void rollCheckDateForward_dueToday_rollsExactlyOnePeriod() {
+        LocalDate today = LocalDate.now();
+        FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
+                today, today, today, 14, ChronoUnit.DAYS, 0);
+
+        assertEquals(1, result.rolledPeriods.size());
+        assertEquals(today.plusDays(14), result.nextCheckDate);
+        assertEquals(today.plusDays(14), result.curCheckDate);
+    }
+
+    @Test
+    public void rollCheckDateForward_calledAgainSameDayWithPriorOutput_rollsNothing() {
+        LocalDate today = LocalDate.now();
+        FinancialCalc.CheckRollResult firstOpen = FinancialCalc.rollCheckDateForward(
+                today, today, today, 14, ChronoUnit.DAYS, 0);
+
+        FinancialCalc.CheckRollResult secondOpen = FinancialCalc.rollCheckDateForward(
+                today, firstOpen.curCheckDate, firstOpen.nextCheckDate, 14, ChronoUnit.DAYS, 0);
+
+        assertEquals(0, secondOpen.rolledPeriods.size());
+        assertEquals(firstOpen.nextCheckDate, secondOpen.nextCheckDate);
+    }
+
+    @Test
+    public void rollCheckDateForward_multipleMissedPeriods_rollsEachOnce() {
         LocalDate today = LocalDate.now();
         LocalDate anchor = today.minusDays(42);
 
         FinancialCalc.CheckRollResult caughtUp = FinancialCalc.rollCheckDateForward(
-                today, anchor, anchor.plusDays(14), 14, ChronoUnit.DAYS, 500f, 0);
+                today, anchor, anchor.plusDays(14), 14, ChronoUnit.DAYS, 0);
 
         assertEquals(3, caughtUp.rolledPeriods.size());
-        assertEquals(1500f, caughtUp.creditedIncome, 0.001f);
         assertEquals(anchor.plusDays(56), caughtUp.nextCheckDate);
-
-        FinancialCalc.CheckRollResult reopenAfterCatchUp = FinancialCalc.rollCheckDateForward(
-                today, caughtUp.curCheckDate, caughtUp.nextCheckDate, 14, ChronoUnit.DAYS, 500f, 0);
-        assertEquals(0f, reopenAfterCatchUp.creditedIncome, 0.001f);
-    }
-
-    @Test
-    public void bugRepro_rederivingFromAnchorEveryOpen_wouldHaveDoubleCredited() {
-        // Reproduces the ORIGINAL bug for contrast: the old handleStorage(READ) re-derived
-        // curCheckDate/nextCheckDate from the income stream's static anchor date on every app
-        // open, instead of using the persisted, already-advanced dates. This test deliberately
-        // does that (anchorCheckDate never changes) to prove it really does over-credit, which is
-        // exactly what the fix (always passing the persisted dates, as in the tests above) avoids.
-        LocalDate today = LocalDate.now();
-        LocalDate anchorCheckDate = today; // the stream's fixed, never-advancing pay date
-        float balance = 0f;
-
-        for (int reopen = 0; reopen < 5; reopen++) {
-            LocalDate rederivedNext = anchorCheckDate.plus(14, ChronoUnit.DAYS);
-            // Simulates the bug: curCheckDate reset to the anchor before every roll, so nextCheckDate
-            // is "today" (or earlier) again on every single open.
-            FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                    today, anchorCheckDate, anchorCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
-            balance += result.creditedIncome;
-        }
-
-        assertEquals("Demonstrates the bug: re-deriving from a static anchor on every open "
-                + "credited income " + (balance / 1000f) + " times for a single payday",
-                5000f, balance, 0.001f);
+        assertEquals(0, FinancialCalc.rollCheckDateForward(
+                today, caughtUp.curCheckDate, caughtUp.nextCheckDate, 14, ChronoUnit.DAYS, 0)
+                .rolledPeriods.size());
     }
 
     // --- resolveIncomeState: exercises the ACTUAL production code that had the bug (the
@@ -328,7 +418,7 @@ public class FinancialCalcTest {
         // deliberately far in the past and NEVER changes across "opens" (nothing in production code
         // updates it either), which is what exposed the original bug.
         LocalDate today = LocalDate.now();
-        LocalDate anchor = today.minusDays(90);
+        LocalDate anchor = today.minusDays(84); // paydays every 14 days: ..., -14, today
 
         IncomeStreamModel stream = new IncomeStreamModel(
                 "Job", "1000.00", anchor.format(CHECK_DATE_FMT), 14, 0);
@@ -336,25 +426,34 @@ public class FinancialCalcTest {
         ArrayList<IncomeStreamModel> streams = new ArrayList<>();
         streams.add(stream);
 
+        // Saved before incomeCreditedThrough existed: the last roll-over credited the -14 payday.
         StorageHolder holder = new StorageHolder();
         holder.setIncomeStreamList(streams);
-        holder.setCurCheckDate(today);
+        holder.setCurCheckDate(today.minusDays(14));
         holder.setNextCheckDate(today);
 
         float balance = 0f;
         for (int reopen = 0; reopen < 10; reopen++) {
+            // Mirrors ExpenseActivity.checkForNextCheck: credit from incomeCreditedThrough (or its
+            // initial value for data saved before it existed), then roll the period dates.
             FinancialCalc.ResolvedIncomeState resolved = FinancialCalc.resolveIncomeState(holder);
+            LocalDate creditedThrough = holder.getIncomeCreditedThrough() != null
+                    ? holder.getIncomeCreditedThrough()
+                    : FinancialCalc.initialIncomeCreditedThrough(
+                            resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate);
+            balance += FinancialCalc.incomeArrivedSince(resolved.incomeStreamList, creditedThrough, today);
             FinancialCalc.CheckRollResult roll = FinancialCalc.rollCheckDateForward(
                     today, resolved.curCheckDate, resolved.nextCheckDate,
-                    resolved.checkFrequency, resolved.checkFrequencyTag, resolved.averageCheck, 0);
-            balance += roll.creditedIncome;
+                    resolved.checkFrequency, resolved.checkFrequencyTag, 0);
 
             // Simulate handleStorage(WRITE) followed by a fresh handleStorage(READ) on the next
-            // open: persist the rolled dates, but the stream itself (and its anchor) is untouched.
+            // open: persist the rolled dates and creditedThrough, but the stream itself (and its
+            // anchor) is untouched.
             holder = new StorageHolder();
             holder.setIncomeStreamList(streams);
             holder.setCurCheckDate(roll.curCheckDate);
             holder.setNextCheckDate(roll.nextCheckDate);
+            holder.setIncomeCreditedThrough(today.isAfter(creditedThrough) ? today : creditedThrough);
         }
 
         assertEquals("10 simulated force-quit/reopen cycles on the same payday must credit income "
@@ -362,13 +461,93 @@ public class FinancialCalcTest {
                 1000f, balance, 0.001f);
     }
 
+    // --- Regressions for two bugs confirmed against the previous code (each test failed there) ---
+
     @Test
-    public void rollCheckDateForward_notYetDue_creditsNothing() {
+    public void openingTheApp_creditsEveryStreamsPaychecks_includingOnFirstOpenAfterUpdate() {
+        // Selected job pays $1000 every 14 days (last payday 14 days ago, so one is due today);
+        // a side job (paydays -35 and -5) paid $250 five days ago. Opening today should credit
+        // both: $1250. Previously only the selected stream's averageCheck was credited ($1000).
+        // This is data saved before incomeCreditedThrough existed, so crediting starts from its
+        // initial value, as in ExpenseActivity.checkForNextCheck.
+        LocalDate today = LocalDate.now();
+        IncomeStreamModel job = new IncomeStreamModel(
+                "Job", "1000.00", today.minusDays(14).format(CHECK_DATE_FMT), 14, 0);
+        job.setSelected(true);
+        IncomeStreamModel side = new IncomeStreamModel(
+                "Side", "250.00", today.minusDays(35).format(CHECK_DATE_FMT), 30, 0);
+        ArrayList<IncomeStreamModel> streams = new ArrayList<>();
+        streams.add(job);
+        streams.add(side);
+        StorageHolder holder = new StorageHolder();
+        holder.setIncomeStreamList(streams);
+        holder.setCurCheckDate(today.minusDays(14));
+        holder.setNextCheckDate(today);
+
+        FinancialCalc.ResolvedIncomeState resolved = FinancialCalc.resolveIncomeState(holder);
+        LocalDate creditedThrough = holder.getIncomeCreditedThrough() != null
+                ? holder.getIncomeCreditedThrough()
+                : FinancialCalc.initialIncomeCreditedThrough(
+                        resolved.incomeStreamList, resolved.curCheckDate, resolved.nextCheckDate);
+
+        assertEquals(1250f, FinancialCalc.incomeArrivedSince(
+                resolved.incomeStreamList, creditedThrough, today), 0.001f);
+    }
+
+    @Test
+    public void creditCardPaidThisCheck_isNotSubtractedTwice() {
+        // $1000 balance; a $500 card was due 3 days ago, inside the current check. Opening the app
+        // pays it (balance -> $500) exactly as ExpenseActivity.bringDataUpToDate does, then After
+        // This Check is balance - checkExpensesTotal(), as in ExpenseActivity.setFinalBalance.
+        // It should be $500: the card is already paid.
+        LocalDate today = LocalDate.now();
+        LocalDate beg = today.minusDays(5);
+        LocalDate end = today.plusDays(9);
+        CreditModel card = new CreditModel("Card", "500.00", today.minusDays(3), "2000.00");
+        List<ExpenseItem> expenses = new ArrayList<>();
+        expenses.add(card);
+
+        float balance = 1000f;
+        balance -= card.makeCurrent(beg, end, expenses);
+        float afterThisCheck = balance - FinancialCalc.checkExpensesTotal(expenses);
+
+        assertEquals(500f, balance, 0.001f);
+        assertEquals(500f, afterThisCheck, 0.001f);
+    }
+
+    @Test
+    public void creditCardPaidThisCheck_rowStillShowsThePayoff() {
+        // The fix only changes the total: the row keeps showing what was paid this check.
+        LocalDate today = LocalDate.now();
+        CreditModel card = new CreditModel("Card", "500.00", today.minusDays(3), "2000.00");
+        List<ExpenseItem> expenses = new ArrayList<>();
+        expenses.add(card);
+
+        card.makeCurrent(today.minusDays(5), today.plusDays(9), expenses);
+
+        assertEquals("500.00", card.getShownCost());
+        assertEquals(0f, card.getUnpaidShownCost(), 0.001f);
+    }
+
+    @Test
+    public void creditCardNotYetDue_isStillSubtracted() {
+        // A card whose due date is still ahead in this check owes its balance.
+        LocalDate today = LocalDate.now();
+        CreditModel card = new CreditModel("Card", "500.00", today.plusDays(3), "2000.00");
+        List<ExpenseItem> expenses = new ArrayList<>();
+        expenses.add(card);
+
+        card.makeCurrent(today.minusDays(5), today.plusDays(9), expenses);
+
+        assertEquals(500f, FinancialCalc.checkExpensesTotal(expenses), 0.001f);
+    }
+
+    @Test
+    public void rollCheckDateForward_notYetDue_rollsNothing() {
         LocalDate today = LocalDate.now();
         FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                today, today, today.plusDays(1), 14, ChronoUnit.DAYS, 1000f, 0);
+                today, today, today.plusDays(1), 14, ChronoUnit.DAYS, 0);
 
-        assertEquals(0f, result.creditedIncome, 0.001f);
         assertEquals(0, result.rolledPeriods.size());
         assertEquals(today, result.curCheckDate);
         assertEquals(today.plusDays(1), result.nextCheckDate);
