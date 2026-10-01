@@ -92,26 +92,28 @@ public class ExpenseModel extends ExpenseItem {
     public void setCategory(String category) { this.category = (category != null && !category.isEmpty()) ? category : "Other"; }
 
     /*
-    Advances shownDate forward until it falls within [beg, end) and sets shownCost
-    to the total amount due in that check period. Used when navigating to a future check.
+    Advances shownDate to the first occurrence after payday beg and sets shownCost to the total
+    amount due in that check period (beg, end]. Used when navigating to a future check. An
+    occurrence ON beg belongs to the previous check (see getOccurrences), so it's skipped here.
     */
     @Override
     public void getNextCheckPayments(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
-        while (this.shownDate.isBefore(beg)) {
-            this.shownDate = this.shownDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+        while (!this.shownDate.isAfter(beg) && this.expenseFrequency > 0) {
+            this.shownDate = stepOccurrence(this.shownDate, 1);
         }
         int occurrences = getOccurrences(beg, end, false);
         setShownCost(occurrences * Float.parseFloat(this.expenseCost));
     }
 
     /*
-    Rewinds shownDate backward until it falls within [beg, end) and sets shownCost
-    to the total amount due in that check period. Used when navigating to a past check.
+    Rewinds shownDate to the first occurrence after payday beg and sets shownCost to the total
+    amount due in that check period (beg, end]. Used when navigating back to an earlier check.
     */
     @Override
     public void getPrevCheckPayments(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
-        while (beg.isBefore(this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag))) {
-            this.shownDate = this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag);
+        while (this.expenseFrequency > 0
+                && beg.isBefore(stepOccurrence(this.shownDate, -1))) {
+            this.shownDate = stepOccurrence(this.shownDate, -1);
         }
         int occurrences = getOccurrences(beg, end, false);
         setShownCost(occurrences * Float.parseFloat(this.expenseCost));
@@ -127,7 +129,7 @@ public class ExpenseModel extends ExpenseItem {
     public float makeCurrent(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
         int passedExpenses = 0;
         while (LocalDate.now().isAfter(this.expenseDate) && !hasEnded()) {
-            this.expenseDate = this.expenseDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+            this.expenseDate = stepOccurrence(this.expenseDate, 1);
             passedExpenses++;
         }
         setShownDate(this.expenseDate);

@@ -20,6 +20,18 @@ public class CreditModelTest {
     private static final List<ExpenseItem> NO_OTHER_EXPENSES = Collections.emptyList();
 
     @Test
+    public void makeCurrent_dueOn31st_overManyMonths_landsOnMonthEnd() {
+        LocalDate m = LocalDate.now().minusMonths(13);
+        while (m.lengthOfMonth() != 31) m = m.minusMonths(1);
+        CreditModel card = new CreditModel("Card", "500.00", m.withDayOfMonth(31), "2000.00");
+
+        card.makeCurrent(LocalDate.now(), LocalDate.now().plusDays(14), NO_OTHER_EXPENSES);
+
+        LocalDate next = card.getDate();
+        assertEquals(next.lengthOfMonth(), next.getDayOfMonth()); // never drifts to the 28th
+    }
+
+    @Test
     public void makeCurrent_futureDueDate_isNoOpAndLeavesDisplayBalanceAtCost() {
         LocalDate today = LocalDate.now();
         LocalDate dueDate = today.plusMonths(3);

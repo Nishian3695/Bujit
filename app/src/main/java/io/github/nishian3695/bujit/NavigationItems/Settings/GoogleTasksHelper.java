@@ -164,7 +164,7 @@ public class GoogleTasksHelper {
         LocalDate date = e.getDate();
         LocalDate today = LocalDate.now();
         while (date.isBefore(today)) {
-            date = date.plus(e.getFrequency(), e.getFrequencyTag());
+            date = e.stepOccurrence(date, 1);
         }
         if (e.getEndDate() != null && date.isAfter(e.getEndDate())) return null;
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
@@ -183,8 +183,10 @@ public class GoogleTasksHelper {
             case 3:  unit = ChronoUnit.YEARS;  break;
             default: unit = ChronoUnit.WEEKS;  break;
         }
+        int anchorDay = date.getDayOfMonth();
         while (date.isBefore(today)) {
-            date = date.plus(s.getFrequency(), unit);
+            date = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                    .stepDate(date, s.getFrequency(), unit, anchorDay);
         }
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
     }
