@@ -21,7 +21,7 @@ Imports budgeting data from a fixed-schema CSV file.
 
 Supported row types (first field is the type; _ prefix = optional):
   manual_account,<name>,<type>,<balance>
-  expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>
+  expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>
   credit,<name>,<balance>,<credit_limit>,<due_date>
   income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>
 
@@ -125,28 +125,42 @@ public class CsvImportHelper {
         r.accountsAdded++;
     }
 
-    // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>
-    // Parses one expense row and appends a new (non-credit) ExpenseModel.
-    private static void parseExpense(String[] p, StorageHolder h, ImportResult r) {
-        require(p, 6, "expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>");
+    // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>
+    // Parses one expense row and appends a new (non-credit) ExpenseModel. Both trailing fields are
+    // optional and may be omitted or left blank, so 6- and 7-field rows from before end dates
+    // existed import unchanged; a blank category with an end date is written as ",,<end_date>".
+    // Package-private for unit tests.
+    static void parseExpense(String[] p, StorageHolder h, ImportResult r) {
+        require(p, 6, "expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>");
         String     name     = nonEmpty(p[1], "name");
         float      amount   = parseAmount(p[2]);
         LocalDate  date     = parseDate(p[3]);
         int        freq     = parseFreq(p[4]);
         ChronoUnit unit     = parseUnit(p[5]);
         String     category = (p.length > 6 && !p[6].trim().isEmpty()) ? p[6].trim() : "Other";
+        LocalDate  endDate  = (p.length > 7 && !p[7].trim().isEmpty()) ? parseDate(p[7]) : null;
+        if (endDate != null && endDate.isBefore(date))
+            throw new IllegalArgumentException("end_date " + endDate + " is before due_date " + date);
 
         ExpenseModel e = new ExpenseModel(
                 name, String.format(Locale.US, "%.2f", amount),
                 date, freq, unit, false);
         e.setCategory(category);
+        // Like the add-expense dialog, treat due_date as where tracking starts, so history and
+        // projections never count occurrences before it (e.g. a subscription starting next month).
+        e.setStartDate(date);
+        e.setEndDate(endDate);
+        // A past due_date means earlier payments already happened outside the app: move to the
+        // next upcoming one instead of letting the next app open deduct every missed occurrence.
+        e.skipToNextDueDate(LocalDate.now());
         h.getExpenseList().add(e);
         r.expensesAdded++;
     }
 
     // credit,<name>,<balance>,<credit_limit>,<due_date>
     // Parses one credit row and appends a new credit-card ExpenseModel (monthly recurrence).
-    private static void parseCredit(String[] p, StorageHolder h, ImportResult r) {
+    // Package-private for unit tests.
+    static void parseCredit(String[] p, StorageHolder h, ImportResult r) {
         require(p, 5, "credit,<name>,<balance>,<credit_limit>,<due_date>");
         String    name  = nonEmpty(p[1], "name");
         float     bal   = parseAmount(p[2]);
@@ -157,6 +171,9 @@ public class CsvImportHelper {
         CreditModel c = new CreditModel(
                 name, String.format(Locale.US, "%.2f", bal),
                 date, String.format(Locale.US, "%.2f", limit));
+        // A past due date moves to the next upcoming one; the imported balance is what's owed
+        // now, so it must not be treated as paid off (which makeCurrent() would do on next open).
+        c.skipToNextDueDate(LocalDate.now());
         h.getExpenseList().add(c);
         r.creditsAdded++;
     }
@@ -261,8 +278,8 @@ public class CsvImportHelper {
     }
 
     // Splits one CSV line on commas, honoring double-quoted fields so a quoted value can itself
-    // contain a comma without being split.
-    private static String[] splitCsvLine(String line) {
+    // contain a comma without being split. Package-private for unit tests.
+    static String[] splitCsvLine(String line) {
         ArrayList<String> fields = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         boolean inQuotes = false;
@@ -290,6 +307,8 @@ public class CsvImportHelper {
         + "# Example\n"
         + "manual_account,My Savings,Savings,0\n"
         + "expense,Rent,2200,2024-01-01,1,month,Housing\n"
+        + "# Optional last field: an end date, after which the expense stops (inclusive)\n"
+        + "expense,Car Payment,350,2024-01-10,1,month,Transportation,2028-12-10\n"
         + "credit,Card Name,156,1000,2024-01-15\n"
         + "income_stream,Hardware Store,2500.56,2022-03-15,2,week\n";
 }

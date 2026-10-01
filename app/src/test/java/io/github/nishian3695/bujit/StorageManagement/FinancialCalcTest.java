@@ -37,6 +37,69 @@ public class FinancialCalcTest {
         assertEquals(0, occ);
     }
 
+    // --- Month-end paydays: a pay date on the 31st falls on the last day of short months and
+    // returns to the 31st afterwards, instead of drifting to the 28th forever ---
+
+    @Test
+    public void stepDate_monthlyAnchor31_snapsBackForwardAndBackward() {
+        LocalDate feb = FinancialCalc.stepDate(LocalDate.of(2027, 1, 31), 1, ChronoUnit.MONTHS, 31);
+        assertEquals(LocalDate.of(2027, 2, 28), feb);
+        assertEquals(LocalDate.of(2027, 3, 31), FinancialCalc.stepDate(feb, 1, ChronoUnit.MONTHS, 31));
+        assertEquals(LocalDate.of(2027, 1, 31), FinancialCalc.stepDate(feb, -1, ChronoUnit.MONTHS, 31));
+    }
+
+    @Test
+    public void stepDate_weeks_ignoresAnchor() {
+        assertEquals(LocalDate.of(2027, 2, 14),
+                FinancialCalc.stepDate(LocalDate.of(2027, 1, 31), 2, ChronoUnit.WEEKS, 31));
+    }
+
+    @Test
+    public void countIncomeOccurrences_monthlyPayOn31st_findsMarch31() {
+        IncomeStreamModel inc = new IncomeStreamModel("Job", "1000", "2027.01.31", 1, 2); // 2=MONTHS
+
+        assertEquals(1, FinancialCalc.countIncomeOccurrences(inc, LocalDate.of(2027, 3, 31), LocalDate.of(2027, 4, 1)));
+        assertEquals(0, FinancialCalc.countIncomeOccurrences(inc, LocalDate.of(2027, 3, 28), LocalDate.of(2027, 3, 29)));
+    }
+
+    @Test
+    public void rollCheckDateForward_monthlyPayOn31st_landsOnMonthEnds() {
+        FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
+                LocalDate.of(2027, 5, 1), LocalDate.of(2027, 1, 31), LocalDate.of(2027, 2, 28),
+                1, ChronoUnit.MONTHS, 1000f, 31);
+
+        assertEquals(3, result.rolledPeriods.size()); // paid Feb 28, Mar 31, Apr 30
+        assertEquals(LocalDate.of(2027, 3, 31), result.rolledPeriods.get(1)[1]);
+        assertEquals(LocalDate.of(2027, 4, 30), result.curCheckDate);
+        assertEquals(LocalDate.of(2027, 5, 31), result.nextCheckDate);
+        assertEquals(3000f, result.creditedIncome, 0.001f);
+    }
+
+    @Test
+    public void rollCheckDateForward_alreadyDriftedDates_healToAnchorDay() {
+        // Dates saved by an older build that drifted to the 28th.
+        FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
+                LocalDate.of(2027, 4, 28), LocalDate.of(2027, 3, 28), LocalDate.of(2027, 4, 28),
+                1, ChronoUnit.MONTHS, 1000f, 31);
+
+        assertEquals(LocalDate.of(2027, 4, 30), result.curCheckDate);
+        assertEquals(LocalDate.of(2027, 5, 31), result.nextCheckDate);
+    }
+
+    @Test
+    public void payAnchorDay_usesSelectedStreamElseFallback() {
+        List<IncomeStreamModel> streams = new ArrayList<>();
+        IncomeStreamModel other = new IncomeStreamModel("Side", "100", "2027.01.15", 1, 2);
+        IncomeStreamModel main = new IncomeStreamModel("Main", "1000", "2027.01.31", 1, 2);
+        main.setSelected(true);
+        streams.add(other);
+        streams.add(main);
+
+        assertEquals(31, FinancialCalc.payAnchorDay(streams, LocalDate.of(2027, 2, 28)));
+        main.setSelected(false);
+        assertEquals(28, FinancialCalc.payAnchorDay(streams, LocalDate.of(2027, 2, 28)));
+    }
+
     @Test
     public void countExpenseOccurrences_regularExpense_countsFrequencyBased() {
         LocalDate today = LocalDate.now();
@@ -45,6 +108,50 @@ public class FinancialCalcTest {
         int occ = FinancialCalc.countExpenseOccurrences(e, today, today.plusDays(28));
 
         assertEquals(4, occ);
+    }
+
+    @Test
+    public void countExpenseOccurrences_endDate_stopsCountingAfterIt() {
+        LocalDate today = LocalDate.now();
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", today, 7, ChronoUnit.DAYS, false);
+        e.setEndDate(today.plusDays(14)); // today, +7, +14 (inclusive)
+
+        int occ = FinancialCalc.countExpenseOccurrences(e, today, today.plusDays(28));
+
+        assertEquals(3, occ);
+    }
+
+    @Test
+    public void countExpenseOccurrences_futureStartDate_doesNotCountEarlierPeriods() {
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.plusDays(14);
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", start, 7, ChronoUnit.DAYS, false);
+        e.setStartDate(start);
+
+        // Without startDate this rewinds to count -14, -7, 0, +7 as well.
+        int occ = FinancialCalc.countExpenseOccurrences(e, today.minusDays(14), today.plusDays(28));
+
+        assertEquals(2, occ); // +14, +21
+    }
+
+    @Test
+    public void countExpenseOccurrences_noStartDate_keepsLegacyRewindBehavior() {
+        LocalDate today = LocalDate.now();
+        ExpenseModel e = new ExpenseModel("Gym", "15.00", today.plusDays(14), 7, ChronoUnit.DAYS, false);
+
+        int occ = FinancialCalc.countExpenseOccurrences(e, today.minusDays(14), today.plusDays(28));
+
+        assertEquals(6, occ);
+    }
+
+    @Test
+    public void countExpenseOccurrences_monthly31st_findsMarch31AfterFebruary() {
+        ExpenseModel e = new ExpenseModel("Rent", "100.00", LocalDate.of(2027, 1, 31), 1, ChronoUnit.MONTHS, false);
+
+        // Drifting stepping would give Feb 28 -> Mar 28 and miss Mar 31 entirely.
+        int occ = FinancialCalc.countExpenseOccurrences(e, LocalDate.of(2027, 3, 31), LocalDate.of(2027, 4, 1));
+
+        assertEquals(1, occ);
     }
 
     @Test
@@ -84,7 +191,7 @@ public class FinancialCalcTest {
     public void rollCheckDateForward_dueToday_creditsExactlyOnePeriod() {
         LocalDate today = LocalDate.now();
         FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                today, today, today, 14, ChronoUnit.DAYS, 1000f);
+                today, today, today, 14, ChronoUnit.DAYS, 1000f, 0);
 
         assertEquals(1000f, result.creditedIncome, 0.001f);
         assertEquals(1, result.rolledPeriods.size());
@@ -100,11 +207,11 @@ public class FinancialCalcTest {
         // re-deriving them from the income stream's anchor date on every load.
         LocalDate today = LocalDate.now();
         FinancialCalc.CheckRollResult firstOpen = FinancialCalc.rollCheckDateForward(
-                today, today, today, 14, ChronoUnit.DAYS, 1000f);
+                today, today, today, 14, ChronoUnit.DAYS, 1000f, 0);
         assertEquals(1000f, firstOpen.creditedIncome, 0.001f);
 
         FinancialCalc.CheckRollResult secondOpen = FinancialCalc.rollCheckDateForward(
-                today, firstOpen.curCheckDate, firstOpen.nextCheckDate, 14, ChronoUnit.DAYS, 1000f);
+                today, firstOpen.curCheckDate, firstOpen.nextCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
 
         assertEquals("Reopening the app on the same day must not re-credit income",
                 0f, secondOpen.creditedIncome, 0.001f);
@@ -122,7 +229,7 @@ public class FinancialCalcTest {
 
         for (int reopen = 0; reopen < 20; reopen++) {
             FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                    today, curCheckDate, nextCheckDate, 14, ChronoUnit.DAYS, 1000f);
+                    today, curCheckDate, nextCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
             balance += result.creditedIncome;
             curCheckDate = result.curCheckDate;
             nextCheckDate = result.nextCheckDate;
@@ -140,14 +247,14 @@ public class FinancialCalcTest {
         LocalDate anchor = today.minusDays(42);
 
         FinancialCalc.CheckRollResult caughtUp = FinancialCalc.rollCheckDateForward(
-                today, anchor, anchor.plusDays(14), 14, ChronoUnit.DAYS, 500f);
+                today, anchor, anchor.plusDays(14), 14, ChronoUnit.DAYS, 500f, 0);
 
         assertEquals(3, caughtUp.rolledPeriods.size());
         assertEquals(1500f, caughtUp.creditedIncome, 0.001f);
         assertEquals(anchor.plusDays(56), caughtUp.nextCheckDate);
 
         FinancialCalc.CheckRollResult reopenAfterCatchUp = FinancialCalc.rollCheckDateForward(
-                today, caughtUp.curCheckDate, caughtUp.nextCheckDate, 14, ChronoUnit.DAYS, 500f);
+                today, caughtUp.curCheckDate, caughtUp.nextCheckDate, 14, ChronoUnit.DAYS, 500f, 0);
         assertEquals(0f, reopenAfterCatchUp.creditedIncome, 0.001f);
     }
 
@@ -167,7 +274,7 @@ public class FinancialCalcTest {
             // Simulates the bug: curCheckDate reset to the anchor before every roll, so nextCheckDate
             // is "today" (or earlier) again on every single open.
             FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                    today, anchorCheckDate, anchorCheckDate, 14, ChronoUnit.DAYS, 1000f);
+                    today, anchorCheckDate, anchorCheckDate, 14, ChronoUnit.DAYS, 1000f, 0);
             balance += result.creditedIncome;
         }
 
@@ -239,7 +346,7 @@ public class FinancialCalcTest {
             FinancialCalc.ResolvedIncomeState resolved = FinancialCalc.resolveIncomeState(holder);
             FinancialCalc.CheckRollResult roll = FinancialCalc.rollCheckDateForward(
                     today, resolved.curCheckDate, resolved.nextCheckDate,
-                    resolved.checkFrequency, resolved.checkFrequencyTag, resolved.averageCheck);
+                    resolved.checkFrequency, resolved.checkFrequencyTag, resolved.averageCheck, 0);
             balance += roll.creditedIncome;
 
             // Simulate handleStorage(WRITE) followed by a fresh handleStorage(READ) on the next
@@ -259,7 +366,7 @@ public class FinancialCalcTest {
     public void rollCheckDateForward_notYetDue_creditsNothing() {
         LocalDate today = LocalDate.now();
         FinancialCalc.CheckRollResult result = FinancialCalc.rollCheckDateForward(
-                today, today, today.plusDays(1), 14, ChronoUnit.DAYS, 1000f);
+                today, today, today.plusDays(1), 14, ChronoUnit.DAYS, 1000f, 0);
 
         assertEquals(0f, result.creditedIncome, 0.001f);
         assertEquals(0, result.rolledPeriods.size());

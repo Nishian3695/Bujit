@@ -265,12 +265,17 @@ public class VisualsActivity extends AppCompatActivity {
 
         List<LocalDate> payDates = new ArrayList<>();
         LocalDate cursor = payAnchor;
+        int payAnchorDay = payAnchor.getDayOfMonth();
         int safety = 0;
-        while (!cursor.isBefore(yearStart) && safety++ < 10000) cursor = cursor.minus(payFreq, payUnit);
+        while (!cursor.isBefore(yearStart) && safety++ < 10000) {
+            cursor = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                    .stepDate(cursor, -payFreq, payUnit, payAnchorDay);
+        }
         safety = 0;
         while (cursor.isBefore(yearEnd) && safety++ < 10000) {
             if (!cursor.isBefore(yearStart)) payDates.add(cursor);
-            cursor = cursor.plus(payFreq, payUnit);
+            cursor = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                    .stepDate(cursor, payFreq, payUnit, payAnchorDay);
         }
         if (payDates.isEmpty()) {
             for (int m = 1; m <= 12; m++) payDates.add(LocalDate.of(displayYear, m, 1));
@@ -305,7 +310,8 @@ public class VisualsActivity extends AppCompatActivity {
                 try { amt = Float.parseFloat(inc.getAmount()); }
                 catch (NumberFormatException ex) { continue; }
                 if (amt <= 0) continue;
-                int occ = countIncomeOccurrencesInMonth(inc, periodStart, periodEnd);
+                int occ = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                        .countIncomeOccurrences(inc, periodStart, periodEnd);
                 if (occ > 0) incomeTotals[i] += occ * amt;
             }
             for (ExpenseItem e : expenseList) {
@@ -313,7 +319,8 @@ public class VisualsActivity extends AppCompatActivity {
                 try { cost = Float.parseFloat(e.getCost()); }
                 catch (NumberFormatException ex) { continue; }
                 if (cost <= 0) continue;
-                int occ = countOccurrencesInMonth(e, periodStart, periodEnd);
+                int occ = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                        .countExpenseOccurrences(e, periodStart, periodEnd);
                 if (occ > 0) expenseTotals[i] += occ * cost;
             }
         }
@@ -619,6 +626,7 @@ public class VisualsActivity extends AppCompatActivity {
         amounts.put(CategoryManager.OTHER, 0f);
         for (ExpenseItem e : expenseList) {
             if (excludeCredit && e.isCredit()) continue;
+            if (e.hasEnded()) continue;
             float pc = perCheckEquivalent(e, payPeriodDays);
             if (pc <= 0) continue;
             String cat = e.isCredit()
@@ -783,32 +791,6 @@ public class VisualsActivity extends AppCompatActivity {
         return null;
     }
 
-    // Returns the number of times this income stream pays within [start, end).
-    private int countIncomeOccurrencesInMonth(IncomeStreamModel inc, LocalDate start, LocalDate end) {
-        String raw = inc.getCheckDate();
-        if (raw == null || raw.isEmpty()) return 0;
-        LocalDate date;
-        try {
-            date = LocalDate.parse(raw, DateTimeFormatter.ofPattern("yyyy.MM.dd"));
-        } catch (Exception ex) {
-            return 0;
-        }
-        int freq = inc.getFrequency();
-        ChronoUnit tag = incomeFreqToChronoUnit(inc.getFrequencyTag());
-        if (freq <= 0) return 0;
-
-        int safety = 0;
-        while (!date.isBefore(start) && safety++ < 3650) date = date.minus(freq, tag);
-
-        int count = 0;
-        safety = 0;
-        while (date.isBefore(end) && safety++ < 3650) {
-            if (!date.isBefore(start)) count++;
-            date = date.plus(freq, tag);
-        }
-        return count;
-    }
-
     // IncomeStreamModel uses int codes (0=Days, 1=Weeks, 2=Months, 3=Years).
     private ChronoUnit incomeFreqToChronoUnit(int tag) {
         switch (tag) {
@@ -818,38 +800,6 @@ public class VisualsActivity extends AppCompatActivity {
             case 3:  return ChronoUnit.YEARS;
             default: return ChronoUnit.MONTHS;
         }
-    }
-
-    // Returns the number of times this expense falls within [start, end).
-    private int countOccurrencesInMonth(ExpenseItem e, LocalDate start, LocalDate end) {
-        LocalDate date = e.getDate();
-        if (date == null) return 0;
-
-        if (e.isCredit()) {
-            // Credit cards in this model are single upcoming payments: makeCurrent() advances
-            // expenseDate to the next due date and zeroes the cost once paid. Only project
-            // the one occurrence whose due date falls within this pay period.
-            return (!date.isBefore(start) && date.isBefore(end)) ? 1 : 0;
-        }
-
-        int freq = e.getFrequency();
-        ChronoUnit tag = e.getFrequencyTag();
-        if (freq <= 0 || tag == null) return 0;
-
-        // Step backward until date is strictly before start
-        int safety = 0;
-        while (!date.isBefore(start) && safety++ < 3650) {
-            date = date.minus(freq, tag);
-        }
-
-        // Count occurrences in [start, end)
-        int count = 0;
-        safety = 0;
-        while (date.isBefore(end) && safety++ < 3650) {
-            if (!date.isBefore(start)) count++;
-            date = date.plus(freq, tag);
-        }
-        return count;
     }
 
     // Returns the selected income stream's pay-period length in days (defaults to 30.44 if none set).

@@ -330,6 +330,9 @@ public class StorageManager {
         o.put("source",               e.getSource());
         o.put("sourceId",             strOrNull(e.getSourceId()));
         o.put("sourceDisplayName",    strOrNull(e.getSourceDisplayName()));
+        o.put("startDate",            dateOrNull(e.getStartDate()));
+        o.put("endDate",              dateOrNull(e.getEndDate()));
+        o.put("anchorDay",            e.getAnchorDay());
         if (e instanceof CreditModel) {
             CreditModel c = (CreditModel) e;
             o.put("creditLimit", c.getCreditLimit());
@@ -386,6 +389,13 @@ public class StorageManager {
             e.setSource(o.optString("source", "BALANCE"));
             if (!o.isNull("sourceId")) e.setSourceId(o.optString("sourceId", null));
             if (!o.isNull("sourceDisplayName")) e.setSourceDisplayName(o.optString("sourceDisplayName", null));
+            // Absent in data saved before start/end dates existed — stays null (unbounded).
+            e.setStartDate(parseDate(o.optString("startDate", null)));
+            e.setEndDate(parseDate(o.optString("endDate", null)));
+            // Absent in older data — the constructor's default (the saved date's day) is the best
+            // available guess, since a date that already drifted can't be recovered.
+            int anchorDay = o.optInt("anchorDay", 0);
+            if (anchorDay > 0) e.setAnchorDay(anchorDay);
             return e;
         } catch (Exception ex) {
             Log.e(TAG, "jsonToExpense failed", ex);

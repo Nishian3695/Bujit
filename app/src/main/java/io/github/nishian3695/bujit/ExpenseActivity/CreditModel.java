@@ -98,7 +98,7 @@ public class CreditModel extends ExpenseItem {
     @Override
     public void getNextCheckPayments(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
         while (this.shownDate.isBefore(beg)) {
-            this.shownDate = this.shownDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+            this.shownDate = stepOccurrence(this.shownDate, 1);
         }
         setShownCost(creditAmountDueWithin(beg, end, allExpenses));
         setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
@@ -111,8 +111,8 @@ public class CreditModel extends ExpenseItem {
     */
     @Override
     public void getPrevCheckPayments(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
-        while (beg.isBefore(this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag))) {
-            this.shownDate = this.shownDate.minus(this.expenseFrequency, this.expenseFrequencyTag);
+        while (beg.isBefore(stepOccurrence(this.shownDate, -1))) {
+            this.shownDate = stepOccurrence(this.shownDate, -1);
         }
         setShownCost(creditAmountDueWithin(beg, end, allExpenses));
         setDisplayBalance(projectedBalanceAsOf(allExpenses, beg, end));
@@ -134,7 +134,7 @@ public class CreditModel extends ExpenseItem {
         LocalDate dueBeforeAdvance = this.expenseDate;
         int passedExpenses = 0;
         while (LocalDate.now().isAfter(this.expenseDate)) {
-            this.expenseDate = this.expenseDate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+            this.expenseDate = stepOccurrence(this.expenseDate, 1);
             passedExpenses++;
         }
         setShownDate(this.expenseDate);
@@ -176,7 +176,7 @@ public class CreditModel extends ExpenseItem {
     private float creditAmountDueWithin(LocalDate beg, LocalDate end, List<ExpenseItem> allExpenses) {
         LocalDate due = dueDateWithin(beg, end);
         if (due == null) return 0f;
-        LocalDate precedingDue = due.minus(this.expenseFrequency, this.expenseFrequencyTag);
+        LocalDate precedingDue = stepOccurrence(due, -1);
         return projectedBalanceUpTo(allExpenses, precedingDue, due);
     }
 
@@ -229,11 +229,11 @@ public class CreditModel extends ExpenseItem {
         LocalDate candidate = this.expenseDate;
         int safety = 0;
         while (!candidate.isBefore(end) && safety++ < 3650) {
-            candidate = candidate.minus(this.expenseFrequency, this.expenseFrequencyTag);
+            candidate = stepOccurrence(candidate, -1);
         }
         safety = 0;
         while (candidate.isBefore(beg) && safety++ < 3650) {
-            candidate = candidate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+            candidate = stepOccurrence(candidate, 1);
         }
         return (!candidate.isBefore(beg) && candidate.isBefore(end)) ? candidate : null;
     }
@@ -248,7 +248,7 @@ public class CreditModel extends ExpenseItem {
         int safety = 0;
         while (!candidate.isAfter(end) && safety++ < 3650) {
             mostRecent = candidate;
-            candidate = candidate.plus(this.expenseFrequency, this.expenseFrequencyTag);
+            candidate = stepOccurrence(candidate, 1);
         }
         return mostRecent;
     }

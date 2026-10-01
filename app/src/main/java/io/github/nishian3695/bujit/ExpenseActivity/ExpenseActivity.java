@@ -317,7 +317,6 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         // Register intents
         registerOtherActivities();
 
-        updateExpensePerPaid();
         showDisclaimerIfNeeded();
     }
 
@@ -433,13 +432,6 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             tutorialOverlay = null;
         }
     }
-    // Recalculates ePerPay for every expense using the current check frequency.
-    public void updateExpensePerPaid() {
-        for (ExpenseItem anExpense : expenseListStor) {
-            anExpense.setPerPay(checkFrequency, checkFrequencyTag, mToday);
-        }
-    }
-
     /*
     Registers ActivityResultLaunchers for SettingsActivity, IncomeStreamsActivity,
     and CreditUtilActivity. Each launcher has a result callback that applies changes
@@ -641,7 +633,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         mToday = LocalDate.now();
         io.github.nishian3695.bujit.StorageManagement.FinancialCalc.CheckRollResult result =
                 io.github.nishian3695.bujit.StorageManagement.FinancialCalc.rollCheckDateForward(
-                        mToday, curCheckDate, nextCheckDate, checkFrequency, checkFrequencyTag, averageCheck);
+                        mToday, curCheckDate, nextCheckDate, checkFrequency, checkFrequencyTag, averageCheck,
+                        FinancialCalc.payAnchorDay(incomeStreamList, curCheckDate));
         for (LocalDate[] period : result.rolledPeriods) {
             recordPeriodSnapshot(period[0], period[1]);
         }
@@ -665,11 +658,10 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 start, totals[0], totals[1]));
     }
 
-    // Updates the saved pay-period length/unit and recalculates every expense's per-pay-period cost.
+    // Updates the saved pay-period length/unit.
     public void setCheckFreq(int freq, ChronoUnit tag) {
         checkFrequency = freq;
         checkFrequencyTag = tag;
-        updateExpensePerPaid();
     }
 
     // Projection helpers
@@ -1155,6 +1147,13 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         EditText expenseFrequency = dialogLayout.findViewById(R.id.expense_frequency_input);
         AutoCompleteTextView expenseFreqMagnitude = dialogLayout.findViewById(R.id.expense_frequency_magnitude_input);
         Button addExpenseStartDate = dialogLayout.findViewById(R.id.expense_start_date_input_button);
+        Button addExpenseEndDate   = dialogLayout.findViewById(R.id.expense_end_date_input_button);
+        Button clearEndDateBtn     = dialogLayout.findViewById(R.id.btn_clear_end_date);
+        TextView endDateError      = dialogLayout.findViewById(R.id.tv_end_date_error);
+        final LocalDate[] selEndDate = {null};
+        // {date, endDate} as loaded when editing, so an untouched ended expense can still be saved
+        // even though its next-due date is now past its end date.
+        final LocalDate[] originalDates = {null, null};
         Button fromConnectedBtn    = dialogLayout.findViewById(R.id.btn_from_connected);
         View linkedBanner          = dialogLayout.findViewById(R.id.linked_account_banner);
         TextView linkedLabel       = dialogLayout.findViewById(R.id.linked_account_label);
@@ -1313,6 +1312,9 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             month = expenseDate.getMonth().getValue();
             day = expenseDate.getDayOfMonth();
             addExpenseStartDate.setText(calendarToString(expenseDate, VIEW_FORMAT));
+            selEndDate[0] = expenseModel.getEndDate();
+            originalDates[0] = expenseDate;
+            originalDates[1] = expenseModel.getEndDate();
             if (expenseModel.isLinkedToBank()) {
                 linkedId[0]      = expenseModel.getLinkedAccountId();
                 linkedToken[0]   = expenseModel.getLinkedAccountToken();
@@ -1384,6 +1386,27 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
             }
         });
 
+        // Optional end date: "Never" until one is picked; Clear resets it to Never.
+        Runnable refreshEndDate = () -> {
+            addExpenseEndDate.setText(selEndDate[0] == null ? "Never"
+                    : calendarToString(selEndDate[0], VIEW_FORMAT));
+            clearEndDateBtn.setVisibility(selEndDate[0] == null ? View.GONE : View.VISIBLE);
+            endDateError.setVisibility(View.GONE);
+        };
+        refreshEndDate.run();
+        addExpenseEndDate.setOnClickListener(view -> {
+            LocalDate initial = selEndDate[0] != null ? selEndDate[0] : testDate[0];
+            // DatePickerDialog months are 0-based
+            new DatePickerDialog(ExpenseActivity.this, (picker, y, m, d) -> {
+                selEndDate[0] = LocalDate.of(y, m + 1, d);
+                refreshEndDate.run();
+            }, initial.getYear(), initial.getMonthValue() - 1, initial.getDayOfMonth()).show();
+        });
+        clearEndDateBtn.setOnClickListener(view -> {
+            selEndDate[0] = null;
+            refreshEndDate.run();
+        });
+
         fromConnectedBtn.setOnClickListener(v -> showConnectedAccountPicker(
                 expenseName, expenseCost, linkedId, linkedToken, linkedDisplay, linkedBanner, linkedLabel));
         unlinkBtn.setOnClickListener(v -> {
@@ -1453,9 +1476,18 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 } else {
                     freqLayout.setErrorEnabled(false);
                 }
+                LocalDate finalDate = testDate[0];
+                boolean datesUntouched = method.equals(EDIT)
+                        && finalDate.equals(originalDates[0])
+                        && java.util.Objects.equals(selEndDate[0], originalDates[1]);
+                if (selEndDate[0] != null && selEndDate[0].isBefore(finalDate) && !datesUntouched) {
+                    endDateError.setVisibility(View.VISIBLE);
+                    valid = false;
+                } else {
+                    endDateError.setVisibility(View.GONE);
+                }
                 if (!valid) return;
 
-                LocalDate finalDate = testDate[0];
                 int eFreqNum = Integer.parseInt(eFreqStr);
                 int freqTagIndex = Arrays.asList(freqUnits).indexOf(expenseFreqMagnitude.getText().toString());
                 ChronoUnit eFreqTag = null;
@@ -1467,6 +1499,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                 switch (method) {
                     case ADD: {
                         ExpenseModel newExpense = new ExpenseModel(eName, eCost, finalDate, eFreqNum, eFreqTag, false);
+                        newExpense.setStartDate(finalDate);
+                        newExpense.setEndDate(selEndDate[0]);
                         newExpense.setCategory(eCategory);
                         newExpense.setSource(selSource[0]);
                         newExpense.setSourceId(selSourceId[0]);
@@ -1500,7 +1534,22 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
                         expenseModel.setCost(eCost);
                         expenseModel.setFrequency(eFreqNum);
                         expenseModel.setFrequencyTag(eFreqTag);
-                        expenseModel.setDate(finalDate);
+                        // The field shows the next due date, which may be clamped (a 31st expense
+                        // shows Feb 28 in February). Only re-anchor the schedule when the user
+                        // actually picked a new date, so an unrelated edit doesn't move it to the 28th.
+                        if (!finalDate.equals(originalDates[0])) {
+                            expenseModel.setDate(finalDate);
+                        }
+                        // The date field shows the next due date, not the original start, so only
+                        // move startDate if the expense hasn't begun yet or the new date is earlier.
+                        // Otherwise an ordinary edit would hide occurrences already paid this period
+                        // from the history chart.
+                        LocalDate oldStart = expenseModel.getStartDate();
+                        if (oldStart != null && (oldStart.isAfter(LocalDate.now())
+                                || finalDate.isBefore(oldStart))) {
+                            expenseModel.setStartDate(finalDate);
+                        }
+                        expenseModel.setEndDate(selEndDate[0]);
                         expenseModel.setCategory(eCategory);
                         expenseModel.setSource(selSource[0]);
                         expenseModel.setSourceId(selSourceId[0]);
@@ -1674,8 +1723,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         addExpenseButton.setImageResource(R.drawable.sharp_home);
 
         performCheckTransition(true, () -> {
-            begCheckDate = begCheckDate.plus(projFrequency, projFreqTag);
-            endCheckDate = begCheckDate.plus(projFrequency, projFreqTag);
+            begCheckDate = stepProjectedPayday(begCheckDate, 1);
+            endCheckDate = stepProjectedPayday(begCheckDate, 1);
             shownBalance -= getCheckExpenses();
             for (ExpenseItem expenseModel : expenseListStor) {
                 expenseModel.getNextCheckPayments(begCheckDate, endCheckDate, expenseListStor);
@@ -1690,6 +1739,24 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         });
     }
 
+    // Moves a projected payday by `steps` projection periods, keeping monthly paydays on their
+    // intended day of month (e.g. the 31st -> Feb 28 -> Mar 31) instead of drifting. The anchor is
+    // the projected stream's pay date if a different stream was chosen for projection, else the
+    // selected stream's.
+    private LocalDate stepProjectedPayday(LocalDate date, int steps) {
+        int anchorDay = FinancialCalc.payAnchorDay(incomeStreamList, curCheckDate);
+        if (incomeStreamList != null) {
+            for (IncomeStreamModel s : incomeStreamList) {
+                LocalDate anchor = FinancialCalc.incomeAnchorDate(s);
+                if (anchor != null && s.getName() != null && s.getName().equals(projStreamName)) {
+                    anchorDay = anchor.getDayOfMonth();
+                    break;
+                }
+            }
+        }
+        return FinancialCalc.stepDate(date, (long) steps * projFrequency, projFreqTag, anchorDay);
+    }
+
     // Steps the projection one pay period backward (or straight home if only one step forward has
     // been taken), reversing the income/expense changes applied by getNextCheck().
     public void getPrevCheck() {
@@ -1699,8 +1766,8 @@ public class ExpenseActivity extends AppCompatActivity implements NavigationView
         } else {
             performCheckTransition(false, () -> {
                 projStepsForward--;
-                begCheckDate = begCheckDate.minus(projFrequency, projFreqTag);
-                endCheckDate = endCheckDate.minus(projFrequency, projFreqTag);
+                begCheckDate = stepProjectedPayday(begCheckDate, -1);
+                endCheckDate = stepProjectedPayday(endCheckDate, -1);
                 for (ExpenseItem expenseModel : expenseListStor) {
                     expenseModel.getPrevCheckPayments(begCheckDate, endCheckDate, expenseListStor);
                 }

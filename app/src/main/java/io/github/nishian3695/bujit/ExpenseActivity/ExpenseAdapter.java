@@ -113,8 +113,15 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseViewHolder> {
     public void onBindViewHolder(@NonNull ExpenseViewHolder holder, int position) {
         ExpenseItem anExpense = expenseList.get(position);
         holder.expenseName.setText(anExpense.getName());
-        holder.expenseStartDate.setText(expenseDateToString(anExpense.getShownDate()));
-        holder.expenseRate.setText(rateString(anExpense, context));
+        // Past its end date (now, or in the projected check being viewed), show when it ended
+        // instead of a due date that will never come.
+        LocalDate endDate = anExpense.getEndDate();
+        boolean ended = endDate != null && anExpense.getShownDate().isAfter(endDate);
+        holder.expenseStartDate.setText(ended ? "Ended " + expenseDateToString(endDate)
+                : expenseDateToString(anExpense.getShownDate()));
+        String rate = rateString(anExpense, context);
+        if (endDate != null && !ended) rate += " · until " + expenseDateToString(endDate);
+        holder.expenseRate.setText(rate);
         holder.expenseCost.setText("$" + CurrencyFormat.display(context, anExpense.getShownCost()));
         ThemeHelper.tintPrimaryText(holder.expenseCost, context);
         // Payment status is a regular-expense-only concept (the status TextView is hidden by

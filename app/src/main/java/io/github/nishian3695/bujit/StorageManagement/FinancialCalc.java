@@ -13,6 +13,11 @@ import java.util.Locale;
 Shared helpers for counting income/expense occurrences within a half-open date range
 [start, end). Used by both ExpenseActivity (snapshot recording) and VisualsActivity
 (future/current period projection) so both sides use identical math.
+
+Note this deliberately differs from ExpenseItem.getOccurrences(), which counts an expense due ON
+payday toward the check ending that day (a worst-case "lowest balance before the check lands"
+for the home screen). These helpers instead record which pay period an occurrence actually fell
+in, so payday belongs to the period it starts.
 */
 public final class FinancialCalc {
 
@@ -22,27 +27,63 @@ public final class FinancialCalc {
     private static final DateTimeFormatter CHECK_DATE_FMT =
             DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
+    /*
+    Moves a recurring date by `amount` units (negative = backward). For month/year units the day
+    of month snaps back to anchorDay whenever the target month is long enough: plain
+    LocalDate.plus clamps Jan 31 to Feb 28, and stepping again from Feb 28 would then stay on the
+    28th forever. With anchorDay 31 this gives Jan 31 -> Feb 28 -> Mar 31 -> Apr 30, and a Feb 29
+    anchor returns to Feb 29 in leap years. Day/week units are unaffected. Every recurring
+    schedule (expenses, credit card due dates, paydays) should step through here.
+    */
+    public static LocalDate stepDate(LocalDate date, long amount, ChronoUnit unit, int anchorDay) {
+        LocalDate stepped = date.plus(amount, unit);
+        if ((unit == ChronoUnit.MONTHS || unit == ChronoUnit.YEARS) && anchorDay > 0) {
+            stepped = stepped.withDayOfMonth(Math.min(anchorDay, stepped.lengthOfMonth()));
+        }
+        return stepped;
+    }
+
+    // Parses an income stream's pay date (its fixed schedule anchor), or null if missing/invalid.
+    public static LocalDate incomeAnchorDate(IncomeStreamModel inc) {
+        String raw = inc.getCheckDate();
+        if (raw == null || raw.isEmpty()) return null;
+        try { return LocalDate.parse(raw, CHECK_DATE_FMT); }
+        catch (Exception ex) { return null; }
+    }
+
+    // The intended payday day-of-month for the pay-period schedule: the selected income stream's
+    // fixed pay date, or `fallback`'s day if no stream is selected or its date is invalid.
+    public static int payAnchorDay(List<IncomeStreamModel> streams, LocalDate fallback) {
+        if (streams != null) {
+            for (IncomeStreamModel s : streams) {
+                if (!s.isSelected()) continue;
+                LocalDate anchor = incomeAnchorDate(s);
+                if (anchor != null) return anchor.getDayOfMonth();
+            }
+        }
+        return fallback.getDayOfMonth();
+    }
+
     // Returns how many times this income stream pays within [start, end).
     public static int countIncomeOccurrences(IncomeStreamModel inc, LocalDate start, LocalDate end) {
-        String raw = inc.getCheckDate();
-        if (raw == null || raw.isEmpty()) return 0;
-        LocalDate date;
-        try { date = LocalDate.parse(raw, CHECK_DATE_FMT); }
-        catch (Exception ex) { return 0; }
+        LocalDate date = incomeAnchorDate(inc);
+        if (date == null) return 0;
+        int anchorDay = date.getDayOfMonth();
         int freq = inc.getFrequency();
         ChronoUnit unit = incomeTag(inc.getFrequencyTag());
         if (freq <= 0) return 0;
         int safety = 0;
-        while (!date.isBefore(start) && safety++ < 3650) date = date.minus(freq, unit);
+        while (!date.isBefore(start) && safety++ < 3650) date = stepDate(date, -freq, unit, anchorDay);
         int count = 0; safety = 0;
         while (date.isBefore(end) && safety++ < 3650) {
             if (!date.isBefore(start)) count++;
-            date = date.plus(freq, unit);
+            date = stepDate(date, freq, unit, anchorDay);
         }
         return count;
     }
 
-    // Returns how many times this expense falls within [start, end).
+    // Returns how many times this expense falls within [start, end), ignoring any occurrence
+    // outside the expense's own start/end dates.
     public static int countExpenseOccurrences(ExpenseItem e, LocalDate start, LocalDate end) {
         LocalDate date = e.getDate();
         if (date == null) return 0;
@@ -53,11 +94,11 @@ public final class FinancialCalc {
         ChronoUnit tag = e.getFrequencyTag();
         if (freq <= 0 || tag == null) return 0;
         int safety = 0;
-        while (!date.isBefore(start) && safety++ < 3650) date = date.minus(freq, tag);
+        while (!date.isBefore(start) && safety++ < 3650) date = e.stepOccurrence(date, -1);
         int count = 0; safety = 0;
         while (date.isBefore(end) && safety++ < 3650) {
-            if (!date.isBefore(start)) count++;
-            date = date.plus(freq, tag);
+            if (!date.isBefore(start) && e.isWithinBounds(date)) count++;
+            date = e.stepOccurrence(date, 1);
         }
         return count;
     }
@@ -113,17 +154,18 @@ public final class FinancialCalc {
     // re-deriving them from an income stream's static anchor date -- doing the latter discards
     // already-credited progress and causes periods to be re-credited on every call. Idempotent
     // when called again with its own output and an unchanged "today": rolledPeriods is empty and
-    // creditedIncome is 0.
+    // creditedIncome is 0. payAnchorDay is the pay schedule's intended day of month (see
+    // stepDate), so monthly paydays on the 31st don't drift to the 28th after February.
     public static CheckRollResult rollCheckDateForward(
             LocalDate today, LocalDate curCheckDate, LocalDate nextCheckDate,
-            int checkFrequency, ChronoUnit checkFrequencyTag, float averageCheck) {
+            int checkFrequency, ChronoUnit checkFrequencyTag, float averageCheck, int payAnchorDay) {
         List<LocalDate[]> rolledPeriods = new ArrayList<>();
         float credited = 0f;
         int safety = 0;
         while (!today.isBefore(nextCheckDate) && safety++ < 3650) {
             rolledPeriods.add(new LocalDate[]{curCheckDate, nextCheckDate});
-            curCheckDate = curCheckDate.plus(checkFrequency, checkFrequencyTag);
-            nextCheckDate = nextCheckDate.plus(checkFrequency, checkFrequencyTag);
+            curCheckDate = stepDate(curCheckDate, checkFrequency, checkFrequencyTag, payAnchorDay);
+            nextCheckDate = stepDate(nextCheckDate, checkFrequency, checkFrequencyTag, payAnchorDay);
             credited += averageCheck;
         }
         return new CheckRollResult(curCheckDate, nextCheckDate, credited, rolledPeriods);

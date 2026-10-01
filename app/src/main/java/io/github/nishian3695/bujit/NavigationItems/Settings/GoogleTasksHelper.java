@@ -158,13 +158,15 @@ public class GoogleTasksHelper {
     }
 
     // Computes the next unpaid due date for an expense (rolling forward past occurrences),
-    // formatted as an RFC3339 date for the Tasks API's "due" field.
+    // formatted as an RFC3339 date for the Tasks API's "due" field. Returns null when the next
+    // occurrence would fall after the expense's end date.
     private String expenseDueDate(ExpenseItem e) {
         LocalDate date = e.getDate();
         LocalDate today = LocalDate.now();
         while (date.isBefore(today)) {
-            date = date.plus(e.getFrequency(), e.getFrequencyTag());
+            date = e.stepOccurrence(date, 1);
         }
+        if (e.getEndDate() != null && date.isAfter(e.getEndDate())) return null;
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
     }
 
@@ -181,8 +183,10 @@ public class GoogleTasksHelper {
             case 3:  unit = ChronoUnit.YEARS;  break;
             default: unit = ChronoUnit.WEEKS;  break;
         }
+        int anchorDay = date.getDayOfMonth();
         while (date.isBefore(today)) {
-            date = date.plus(s.getFrequency(), unit);
+            date = io.github.nishian3695.bujit.StorageManagement.FinancialCalc
+                    .stepDate(date, s.getFrequency(), unit, anchorDay);
         }
         return date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T00:00:00.000Z";
     }
@@ -191,11 +195,15 @@ public class GoogleTasksHelper {
     private JSONObject buildExpenseTask(ExpenseItem expense) throws Exception {
         JSONObject task = new JSONObject();
         task.put("title", expense.getName() + " — $" + expense.getCost());
+        String until = expense.getEndDate() != null
+                ? " until " + expense.getEndDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : "";
         task.put("notes", "Every " + expense.getFrequency() + " "
-                + expense.getFrequencyTag().toString().toLowerCase() + "(s)\nBujit Budget Expense");
+                + expense.getFrequencyTag().toString().toLowerCase() + "(s)" + until
+                + "\nBujit Budget Expense");
         task.put("status", "needsAction");
-        if (expense.isCalendarNotificationsEnabled()) {
-            task.put("due", expenseDueDate(expense));
+        String due = expense.isCalendarNotificationsEnabled() ? expenseDueDate(expense) : null;
+        if (due != null) {
+            task.put("due", due);
         }
         return task;
     }

@@ -26,8 +26,19 @@ public abstract class ExpenseItem implements Serializable {
     protected ChronoUnit expenseFrequencyTag;
     protected String expenseCost;
     protected String expenseName;
-    protected float eDaysBtwn;   // days between occurrences, computed by setPerPay()
-    protected float ePerPay;
+
+    // Optional bounds on the recurrence (null = unbounded). expenseDate above advances to the next
+    // due date as occurrences pass, so startDate separately remembers the first occurrence — it
+    // keeps history math (FinancialCalc) from extrapolating occurrences before the expense began.
+    // endDate is inclusive: an occurrence falling on it still counts.
+    protected LocalDate startDate = null;
+    protected LocalDate endDate = null;
+
+    // Intended day of month for monthly/yearly schedules (e.g. 31). Stepping a date by months
+    // clamps it in short months (Jan 31 -> Feb 28), so every step snaps back to this day when the
+    // month allows it — see stepOccurrence(). Set whenever the user sets the date, never by the
+    // automatic advancing. 0 = unknown (data from before this existed): use expenseDate's day.
+    protected int anchorDay;
 
     // Display fields for the currently viewed check period
     protected LocalDate shownDate;
@@ -55,6 +66,7 @@ public abstract class ExpenseItem implements Serializable {
                           int expenseFrequency, ChronoUnit expenseFrequencyTag) {
         this.expenseName = expenseName;
         this.expenseDate = expenseDate;
+        this.anchorDay = expenseDate.getDayOfMonth();
         this.expenseFrequency = expenseFrequency;
         this.expenseFrequencyTag = expenseFrequencyTag;
         this.shownDate = expenseDate;
@@ -68,8 +80,10 @@ public abstract class ExpenseItem implements Serializable {
     public boolean isCredit() { return false; }
 
     // Define setters
+    // User-chosen date: also resets the schedule's intended day of month to match.
     public void setDate(LocalDate expenseDate) {
         this.expenseDate = expenseDate;
+        this.anchorDay = expenseDate.getDayOfMonth();
     }
     public void setShownDate(LocalDate calendar) {
         this.shownDate = calendar;
@@ -120,6 +134,54 @@ public abstract class ExpenseItem implements Serializable {
         return this.expenseName;
     }
 
+    // Recurrence stepping
+    public int getAnchorDay() {
+        if (anchorDay > 0) return anchorDay;
+        return expenseDate != null ? expenseDate.getDayOfMonth() : 1;
+    }
+    public void setAnchorDay(int anchorDay) { this.anchorDay = anchorDay; }
+    /*
+    Returns the occurrence `steps` recurrences after `date` (negative = before). For monthly and
+    yearly schedules the day of month snaps back to getAnchorDay() whenever the target month is
+    long enough, so an expense on the 31st falls on Jan 31 -> Feb 28 -> Mar 31 rather than
+    drifting to the 28th forever (and a Feb 29 yearly expense returns to Feb 29 in leap years).
+    Every date step for an item's schedule must go through here.
+    */
+    public LocalDate stepOccurrence(LocalDate date, int steps) {
+        return io.github.nishian3695.bujit.StorageManagement.FinancialCalc.stepDate(
+                date, (long) steps * expenseFrequency, expenseFrequencyTag, getAnchorDay());
+    }
+
+    /*
+    Moves the next due date forward to `today` or later WITHOUT paying anything, for items entered
+    with a past date (CSV import) whose earlier occurrences already happened outside the app.
+    Unlike makeCurrent(), no amount is returned for deduction and a credit card keeps its balance.
+    Stops once past endDate, leaving an already-finished expense marked as ended.
+    */
+    public void skipToNextDueDate(LocalDate today) {
+        int safety = 0;
+        while (expenseDate.isBefore(today) && !hasEnded() && expenseFrequency > 0
+                && safety++ < 100000) {
+            expenseDate = stepOccurrence(expenseDate, 1);
+        }
+        shownDate = expenseDate;
+    }
+
+    // Recurrence bounds
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+    // True when the next due date is past the end date, i.e. no occurrences remain.
+    public boolean hasEnded() {
+        return endDate != null && expenseDate != null && expenseDate.isAfter(endDate);
+    }
+    // True when an occurrence on this date falls within [startDate, endDate] (either bound may be null).
+    public boolean isWithinBounds(LocalDate date) {
+        return (startDate == null || !date.isBefore(startDate))
+                && (endDate == null || !date.isAfter(endDate));
+    }
+
     // Linked account
     public boolean isLinkedToBank() {
         return linkedAccountId != null && !linkedAccountId.isEmpty();
@@ -153,68 +215,29 @@ public abstract class ExpenseItem implements Serializable {
     public void setSourceDisplayName(String sourceDisplayName) { this.sourceDisplayName = sourceDisplayName; }
 
     /*
-    Converts a frequency (magnitude + ChronoUnit) into a total number of days.
-    For month/year units the calculation accounts for variable month/year lengths
-    by summing the actual lengths of each period starting from timeCal.
-    Returns -1 as a base (incremented in the loop) for those branches, so the
-    caller receives the correct fractional representation.
-    */
-    public float freqToDays(int freq, ChronoUnit freqTag, LocalDate timeCal) {
-        float factor = -1f;
-        if (freqTag.equals(ChronoUnit.YEARS)) {
-            for (int i=0;i<freq;i++) {
-                timeCal = timeCal.plusYears(i);
-                factor += timeCal.lengthOfYear();
+    Returns the number of times this expense occurs in the check ending on payday nextCheck,
+    stepping through actual occurrence dates from shownDate.
 
-            }
-            return factor;
-        } else if (freqTag.equals(ChronoUnit.MONTHS)) {
-            for (int i=0;i<freq;i++) {
-                timeCal = timeCal.plusMonths(i);
-                factor += timeCal.lengthOfMonth();
-            }
-            return factor;
-        } else if (freqTag.equals(ChronoUnit.WEEKS)) {
-            factor = 7f; // Days per week
-        } else if (freqTag.equals(ChronoUnit.DAYS)) {
-            factor = 1f; // Days per day
-        }
-        return freq * factor;
-    }
-    /*
-    Pre-computes how many times this expense occurs within one pay period (ePerPay).
-    ePerPay > 1 means the expense recurs multiple times per check (e.g. a daily
-    expense in a weekly pay period). ePerPay <= 1 means it occurs at most once.
-    Must be called after the income stream frequency is known, before getOccurrences().
-    */
-    public void setPerPay(int payFreq, ChronoUnit payFreqTag, LocalDate timeCal) {
-        float payFreqDays = freqToDays(payFreq, payFreqTag, timeCal);
-        this.eDaysBtwn = freqToDays(expenseFrequency, expenseFrequencyTag, timeCal);
-        this.ePerPay = payFreqDays / this.eDaysBtwn;
-    }
-    /*
-    Returns the number of times this expense occurs within [checkStart, nextCheck).
-    curCheck=true means we compare against today (to skip already-passed occurrences);
-    curCheck=false compares against checkStart (used when projecting future checks).
-    For high-frequency expenses (ePerPay > 1), the count is derived from the number
-    of full recurrence intervals that fit in the remaining days of the check period.
+    A check's expenses include anything due ON its payday, since that debit may clear before
+    the paycheck lands — so "After This Check" is the lowest the balance could dip. The window
+    is therefore inclusive of nextCheck:
+      curCheck=true  (the current check): [today, nextCheck]
+      curCheck=false (a projected check): (checkStart, nextCheck] — checkStart is the previous
+                     payday, whose occurrence was already counted in the check before this one.
+    Occurrences after endDate are never counted.
     */
     public Integer getOccurrences(LocalDate checkStart, LocalDate nextCheck,
                                   Boolean curCheck) {
-        LocalDate compCal = LocalDate.now();
-        if (!curCheck) {
-            compCal = checkStart;
-        }
-        int occurrences;
-        if (this.ePerPay <= 1) {
-            // If today <= shownDate < next check, one occurrence, else zero
-            occurrences = (compCal.isBefore(shownDate) || compCal.equals(shownDate)) &&
-                    shownDate.isBefore(nextCheck) ? 1 : 0;
-        } else { // If occurs more than once per check
-            // Get days from first occurrence to end of check
-            int daysLeft = (int) ChronoUnit.DAYS.between(this.shownDate, nextCheck);
-            // +1 counts the first occurrence on shownDate itself
-            occurrences = (int) (Math.floor(daysLeft / this.eDaysBtwn) + 1);
+        LocalDate today = LocalDate.now();
+        int occurrences = 0;
+        int safety = 0;
+        for (LocalDate date = this.shownDate;
+             !date.isAfter(nextCheck) && (endDate == null || !date.isAfter(endDate))
+                     && safety++ < 3650;
+             date = stepOccurrence(date, 1)) {
+            boolean afterStart = curCheck ? !date.isBefore(today) : date.isAfter(checkStart);
+            if (afterStart) occurrences++;
+            if (this.expenseFrequency <= 0) break; // no recurrence to step through
         }
         return occurrences;
     }
