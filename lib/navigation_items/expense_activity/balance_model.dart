@@ -11,8 +11,8 @@
 // Expense windows follow CheckWindow's payday rule, so an expense on a
 // payday is counted exactly once, in the check that payday closes. A check's
 // income is every stream's paychecks in [its start, its end), as in the Java
-// app. Each check is computed from scratch, so paging forward and back can't
-// accumulate drift or double counting.
+// app, and makeRecent credits every stream too. Each check is computed from
+// scratch, so paging forward and back can't accumulate drift or double counting.
 import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'check_window.dart';
@@ -59,10 +59,9 @@ class BalanceModel {
     // Methods
 
     // Brings everything up to [today] (default: now): pays expenses that came due
-    // before today, pays off credit cards whose due date passed, and credits the
-    // active stream's paychecks through today. Other streams only move their
-    // dates forward without crediting, as in the Java app (which only credits
-    // the selected stream). Returns the net change applied to currentBalance.
+    // before today, pays off credit cards whose due date passed, and credits every
+    // income stream's paychecks through today -- not only the active stream's,
+    // which just sets the pay periods. Returns the net change applied to currentBalance.
     double makeRecent({DateTime? today}) {
         final DateTime day = dateOnly(today ?? todayDate());
         double change = 0.00;
@@ -70,8 +69,7 @@ class BalanceModel {
             change -= expense.makeRecent(today: day);
         }
         for (final IncomeStreamModel income in incomeStreams) {
-            final double credited = income.makeRecent(today: day);
-            if (identical(income, activeIncome)) change += credited;
+            change += income.makeRecent(today: day);
         }
         currentBalance += change;
         lastUpdated = day;

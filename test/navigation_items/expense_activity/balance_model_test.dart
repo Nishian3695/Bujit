@@ -223,13 +223,6 @@ void main() {
             expect(balance.lastUpdated, today);
         });
 
-        test("doesn't credit streams other than the active one, like the Java app", () {
-            final balance = _balance();
-            balance.incomeStreams.add(_income(amount: 250.0, start: day(-10), frequency: 30));
-
-            expect(balance.makeRecent(today: today), 0.0);
-        });
-
         test("pays a credit card whose due date passed", () {
             final balance = _balance();
             balance.expenses.add(CreditModel(
@@ -238,6 +231,39 @@ void main() {
             ));
 
             expect(balance.makeRecent(today: today), closeTo(-300.0, 1e-9));
+        });
+
+        // Confirmed against the previous code, which only credited the active stream ($0 here).
+        test("credits every stream's arrived paychecks, not only the active one's", () {
+            final balance = _balance(); // job: payday today, already in the balance
+            // Side job: paydays -35 and -5; credited through -35, so the -5 paycheck is new.
+            final side = IncomeStreamModel(
+                name: "Side", amount: 250.0, startDate: day(-35),
+                frequency: 30, frequencyUnits: FrequencyUnit.daily,
+            );
+            balance.incomeStreams.add(side);
+
+            expect(balance.makeRecent(today: today), closeTo(250.0, 1e-9));
+        });
+
+        // Guards against the double subtraction found in the Java app (not present here).
+        test("a credit card paid this check isn't subtracted again from After This Check", () {
+            final balance = _balance();
+            balance.expenses.add(CreditModel(
+                name: "Card", amount: 300.0, startDate: day(-3),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0,
+            ));
+
+            balance.makeRecent(today: today);
+            expect(balance.currentBalance, closeTo(700.0, 1e-9));
+            expect(balance.check(0, today: today).endBalance, closeTo(700.0, 1e-9));
+        });
+
+        test("a stream starting in the future credits nothing yet", () {
+            final balance = _balance();
+            balance.incomeStreams.add(_income(amount: 250.0, start: day(10), frequency: 30));
+
+            expect(balance.makeRecent(today: today), 0.0);
         });
 
         test("opening again on the same day changes nothing", () {
