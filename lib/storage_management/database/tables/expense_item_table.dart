@@ -24,11 +24,18 @@ import 'package:bujit/utils/category_manager.dart';
 // ExpenseModel. Converting between "generated row" and "domain object" is
 // handled separately in mappers/expense_mapper.dart, so the rest of the
 // app never needs to import drift types directly.
+//
+// Generated names: row class ExpenseItemRow, companion ExpenseItemRowsCompanion,
+// and the table accessor `expenseItemRows` on the database/DAO.
 class ExpenseItemRows extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 200)();
   RealColumn get amount => real()();
-  DateTimeColumn get dueDate => dateTime()();
+  // Both dates are needed to rebuild ExpenseItem's Projector: startDate is the
+  // origin the schedule is anchored to (its day of month keeps month-end dates
+  // from drifting), currentDueDate is the next occurrence as of the last check-in.
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get currentDueDate => dateTime()();
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
   TextColumn get category => text().withDefault(const Constant(otherCategory))();

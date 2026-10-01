@@ -71,6 +71,11 @@ class IncomeStreamModel {
         nextDate = _projector.occurrenceDate(numPriorOccurrences + 1);
     }
 
+    // Get number of occurrences (paychecks) in a period, same as ExpenseItem's
+    int numOccurrencesInPeriod(DateTime start, DateTime end) {
+        return _projector.numOccurrencesInPeriod(start, end);
+    }
+
     // Project to period
     void toPeriod(DateTime start, DateTime end) {
         final result = _projector.projectToPeriod(start, end);

@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
+import 'navigation_items/expense_activity/expense_activity.dart';
 
 void main() {
   runApp(const BujitApp());
 }
 
-/// Bare-bones entry point so the project runs out of the box. Replace
-/// this with your own translation of the original app's screens/navigation
-/// as you build out lib/ExpenseActivity, lib/NavigationItems, etc.
+// App root. The home screen (ExpenseActivity) mirrors the Java app's main
+// screen; other screens get added as routes as they're ported.
 class BujitApp extends StatelessWidget {
   const BujitApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Bujit',
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Bujit')),
-        body: const Center(child: Text('Bare-bones scaffold - start translating here.')),
-      ),
+      home: ExpenseActivity(),
     );
   }
 }

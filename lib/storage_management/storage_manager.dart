@@ -43,6 +43,9 @@ class StorageManager {
         return manager;
     }
 
+    // Everything loaded from the database at create() time.
+    StorageHolder get holder => _storageHolder;
+
     // Methods
 
     // Loads everything currently persisted into a StorageHolder. Only

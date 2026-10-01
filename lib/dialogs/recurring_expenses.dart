@@ -40,7 +40,16 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     // Defined things to change but keep locally until Save is pressed
     late FrequencyUnit _frequencyUnit = widget.existing?.frequencyUnits ?? FrequencyUnit.values.first;
     late String _category = widget.existing?.category ?? "Other";
-    late DateTime? _startDate = widget.existing?.dueDate;
+    // Like the Java app, editing shows the next due date and adding defaults to today.
+    late DateTime _startDate = widget.existing?.currentDueDate ?? _today;
+
+    static DateTime get _today {
+        final now = DateTime.now();
+        return DateTime(now.year, now.month, now.day);
+    }
+
+    // Formats a date for the button label as YYYY-MM-DD.
+    static String _formatDate(DateTime date) => date.toLocal().toString().split(' ')[0];
 
     @override
     void dispose() {
@@ -60,7 +69,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     Future<DateTime?> _selectStartDate(BuildContext context) async {
         DateTime? startDate = await showDatePicker(
             context: context,
-            initialDate: widget.existing?.dueDate ?? DateTime.now(),
+            initialDate: _startDate,
             firstDate: DateTime(1900),
             lastDate: DateTime(2100),
         );
@@ -69,36 +78,33 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
 
     // Get actions if adding an expense
     List<Widget> _actions(ExpenseModel? existing) {
-        // Helper function to validate input and create an ExpenseModel
-        void createExpenseModel() {
+        // Builds the ExpenseModel from the validated form. Saving it is the
+        // caller's job: the dialog just returns it from showRecurringExpenseDialog.
+        ExpenseModel createExpenseModel() {
             // Name is just name
             final String name = _nameController.text.trim();
             // Amount should already be in currency format based on allowed input
             final double? amount = double.tryParse(_amountController.text.trim());
             // Frequency should be a positive integer
             final int? frequency = int.tryParse(_frequencyController.text.trim());
-            // Frequency unit is already selected from a dropdown
-            final FrequencyUnit frequencyUnits = _frequencyUnit;
-            // Start date is already selected from a date picker
-            final DateTime? dueDate = _startDate;
-            // Category is already selected from a dropdown
-            final String category = _category;
             // Inputs should be validated by the form, but we can double-check here
-            if (name.isEmpty || amount == null || frequency == null || frequency <= 0 || dueDate == null) {
+            if (name.isEmpty || amount == null || amount <= 0 || frequency == null || frequency <= 0) {
                 // Raise an error -- this should not happen if the form is validated correctly
                 throw Exception("Invalid input");
             }
-
-            ExpenseModel expense = ExpenseModel(
+            // An unchanged date when editing keeps the existing schedule (its original
+            // start anchors the day of month); picking a new date starts a new one.
+            final bool keepSchedule = existing != null && _startDate == existing.currentDueDate;
+            return ExpenseModel(
+                id: existing?.id,
                 name: name,
                 amount: amount,
                 frequency: frequency,
-                frequencyUnits: frequencyUnits,
-                dueDate: dueDate,
-                category: category,
+                frequencyUnits: _frequencyUnit,
+                startDate: keepSchedule ? existing.startDate : _startDate,
+                currentDueDate: keepSchedule ? existing.currentDueDate : null,
+                category: _category,
             );
-            // TODO: Save the expense to storage here
-
         }
 
         List<Widget> actions = [
@@ -110,14 +116,12 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 onPressed: () {
                     // validate() runs every TextFormField's validator below and
                     // shows their error text; only proceed if all of them pass.
+                    // On failure validate() already shows each field's error inline, so
+                    // there's no SnackBar: it would need a Scaffold behind the dialog and
+                    // would render under the modal barrier anyway.
                     if (_formKey.currentState!.validate()) {
-                        createExpenseModel();
-                        Navigator.of(context).pop(); // Close the dialog
-                    } else {
-                        // Show a snackbar or some feedback that validation failed
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Please fix the errors in the form")),
-                        );
+                        // Close the dialog, handing the expense back to the caller
+                        Navigator.of(context).pop(createExpenseModel());
                     }
                 },
                 child: const Text("Save"),
@@ -180,6 +184,9 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                 if (amount == null) {
                                     return "Enter a valid amount";
                                 }
+                                if (amount <= 0) {
+                                    return "Enter an amount greater than 0";
+                                }
                                 return null;
                             },
                         ),
@@ -191,11 +198,9 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                 Expanded(
                                     child: TextFormField(
                                         controller: _frequencyController,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        inputFormatters: [
-                                            // Regex to allow any positive number
-                                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                                        ],
+                                        // Whole numbers only: the frequency is parsed with int.tryParse
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                         decoration: const InputDecoration(
                                             labelText: "Frequency",
                                             hintText: "e.g., 1",
@@ -227,11 +232,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     setState(() => _startDate = picked);
                                 }
                             },
-                            child: Text(_startDate == null
-                                // If null, use today
-                                ? "Starting Date: ${DateTime.now().toLocal().toString().split(' ')[0]}"
-                                : "Starting Date: ${_startDate!.toLocal().toString().split(' ')[0]}"
-                                ),
+                            child: Text("Starting Date: ${_formatDate(_startDate)}"),
                         ),
                         // Category dropdown
                         DropdownButton<String>(

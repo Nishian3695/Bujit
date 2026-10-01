@@ -14,8 +14,10 @@ const int _nameFieldIndex = 0;
 const int _amountFieldIndex = 1;
 
 // Pumps a MaterialApp with a button that opens the dialog, then opens it.
-// Returns the Future the real caller would await for the dialog's result.
-Future<ExpenseModel?> _openDialog(WidgetTester tester, {ExpenseModel? existing}) async {
+// Returns a function giving the Future the real caller would await for the
+// dialog's result. It can't return that Future directly: an async function
+// that returns a Future waits for it, which would block until the dialog closed.
+Future<Future<ExpenseModel?> Function()> _openDialog(WidgetTester tester, {ExpenseModel? existing}) async {
     late Future<ExpenseModel?> result;
     await tester.pumpWidget(MaterialApp(
         home: Builder(
@@ -29,7 +31,7 @@ Future<ExpenseModel?> _openDialog(WidgetTester tester, {ExpenseModel? existing})
     ));
     await tester.tap(find.byType(ElevatedButton));
     await tester.pumpAndSettle();
-    return result;
+    return () => result;
 }
 
 void main() {
@@ -42,8 +44,10 @@ void main() {
         expect(find.text("1"), findsOneWidget);
         // Frequency unit dropdown defaults to the first entry.
         expect(find.text("Daily"), findsOneWidget);
-        // No start date chosen yet.
-        expect(find.text("Pick start date"), findsOneWidget);
+        // Start date defaults to today, like the Java app.
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day).toString().split(' ')[0];
+        expect(find.text("Starting Date: $today"), findsOneWidget);
     });
 
     testWidgets("shows Edit title and prefills fields from the existing expense",
@@ -92,7 +96,7 @@ void main() {
         expect(find.text("Add Expense"), findsOneWidget);
     });
 
-    testWidgets("valid input lets Save close the dialog", (tester) async {
+    testWidgets("valid input lets Save close the dialog and return the expense", (tester) async {
         final resultFuture = await _openDialog(tester);
 
         await tester.enterText(find.byType(TextFormField).at(_nameFieldIndex), "Rent");
@@ -101,10 +105,37 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text("Add Expense"), findsNothing);
-        // _createExpenseModel isn't wired up yet, so Save currently pops with
-        // no value -- this should be updated to check the real ExpenseModel
-        // once that TODO is finished.
-        await expectLater(resultFuture, completion(isNull));
+        final expense = await resultFuture();
+        expect(expense, isNotNull);
+        expect(expense!.name, "Rent");
+        expect(expense.amount, 50.0);
+        expect(expense.frequency, 1);
+        expect(expense.frequencyUnits, FrequencyUnit.daily);
+        final now = DateTime.now();
+        expect(expense.startDate, DateTime(now.year, now.month, now.day));
+    });
+
+    testWidgets("saving an edit without changing the date keeps the original schedule", (tester) async {
+        final existing = ExpenseModel(
+            id: 7,
+            name: "Rent",
+            amount: 1200.0,
+            startDate: DateTime(2026, 1, 31),
+            frequency: 1,
+            frequencyUnits: FrequencyUnit.monthly,
+        );
+        final resultFuture = await _openDialog(tester, existing: existing);
+
+        await tester.enterText(find.byType(TextFormField).at(_amountFieldIndex), "1250.00");
+        await tester.tap(find.widgetWithText(TextButton, "Save"));
+        await tester.pumpAndSettle();
+
+        final edited = await resultFuture();
+        expect(edited!.id, 7);
+        expect(edited.amount, 1250.0);
+        // The 31st start still anchors the schedule, so month-end dates don't drift.
+        expect(edited.startDate, DateTime(2026, 1, 31));
+        expect(edited.currentDueDate, existing.currentDueDate);
     });
 
     testWidgets("Cancel closes the dialog without popping a value", (tester) async {
@@ -114,15 +145,15 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text("Add Expense"), findsNothing);
-        await expectLater(resultFuture, completion(isNull));
+        await expectLater(resultFuture(), completion(isNull));
     });
 
     testWidgets("picking a frequency unit updates the dropdown", (tester) async {
         await _openDialog(tester);
 
-        // The frequency-unit dropdown is the first DropdownButton in the tree
-        // (category's is second).
-        await tester.tap(find.byType(DropdownButton<String>).first);
+        // The frequency-unit dropdown is typed by FrequencyUnit (category's is a
+        // DropdownButton<String>), so it can be found by type directly.
+        await tester.tap(find.byType(DropdownButton<FrequencyUnit>));
         await tester.pumpAndSettle();
         await tester.tap(find.text("Weekly").last);
         await tester.pumpAndSettle();

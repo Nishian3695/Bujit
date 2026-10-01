@@ -8,9 +8,9 @@ import 'package:drift/drift.dart';
 // building the DAO (e.g. seed once in StorageManager.create() if empty).
 //
 // TODO(you): build a CategoriesDao + mapper (rows <-> List<String>).
-@DataClassName('Category') // REQUIRED -- drift's default "strip a trailing
-// s" heuristic would otherwise turn "Categories" into "Categorie".
-class Categories extends Table {
+@DataClassName('CategoryRow') // Named explicitly, matching the other tables'
+// ...Row convention (drift would otherwise derive it from the class name).
+class CategoryRows extends Table {
   IntColumn get id => integer().autoIncrement()();
   // unique() enforces one row per category name at the SQL level.
   TextColumn get name => text().withLength(min: 1, max: 100).unique()();

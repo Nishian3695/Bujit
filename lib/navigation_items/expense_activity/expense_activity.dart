@@ -1,16 +1,9 @@
 // Mirrors ExpenseActivity/ExpenseActivity.java in the original Java app.
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../dialogs/recurring_expenses.dart';
 import '../../utils/frequency_unit.dart';
 import '../income_streams/income_stream_model.dart';
 import 'expense_model.dart';
-
-void main() {
-    runApp(const MaterialApp(
-        home: ExpenseActivity(),
-    ));
-}
 
 enum StorageAction { read, write }
 enum DialogOption { add, edit, delete }
@@ -175,7 +168,9 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             balanceSummary,
             expenseListHeader,
             Divider(), // Divider between header and list
-            expenseList,
+            // Expanded gives the ListView a bounded height; a scrollable list
+            // directly inside a Column fails at runtime with "unbounded height".
+            Expanded(child: expenseList),
         ],
     );
     
