@@ -1,0 +1,12 @@
+# drift_dev's make-migrations: keeps a snapshot of every released database schema
+# (drift_schemas/) and generates migration helpers and tests from them. See the
+# notes in lib/storage_management/database/app_database.dart.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          databases:
+            app_database: lib/storage_management/database/app_database.dart
+          schema_dir: drift_schemas/
+          test_dir: test/drift/

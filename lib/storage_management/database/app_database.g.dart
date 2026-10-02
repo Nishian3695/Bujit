@@ -1820,6 +1820,18 @@ class $AppMetaRowsTable extends AppMetaRows
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pendingLinkedBalanceIdsMeta =
+      const VerificationMeta('pendingLinkedBalanceIds');
+  @override
+  late final GeneratedColumn<String> pendingLinkedBalanceIds =
+      GeneratedColumn<String>(
+        'pending_linked_balance_ids',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(""),
+      );
   static const VerificationMeta _tasksSyncEnabledMeta = const VerificationMeta(
     'tasksSyncEnabled',
   );
@@ -1871,6 +1883,7 @@ class $AppMetaRowsTable extends AppMetaRows
     appLockEnabled,
     disclaimerAccepted,
     lastBankSync,
+    pendingLinkedBalanceIds,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -1991,6 +2004,15 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('pending_linked_balance_ids')) {
+      context.handle(
+        _pendingLinkedBalanceIdsMeta,
+        pendingLinkedBalanceIds.isAcceptableOrUnknown(
+          data['pending_linked_balance_ids']!,
+          _pendingLinkedBalanceIdsMeta,
+        ),
+      );
+    }
     if (data.containsKey('tasks_sync_enabled')) {
       context.handle(
         _tasksSyncEnabledMeta,
@@ -2075,6 +2097,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_bank_sync'],
       ),
+      pendingLinkedBalanceIds: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pending_linked_balance_ids'],
+      )!,
       tasksSyncEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}tasks_sync_enabled'],
@@ -2109,6 +2135,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final bool appLockEnabled;
   final bool disclaimerAccepted;
   final DateTime? lastBankSync;
+  final String pendingLinkedBalanceIds;
   final bool tasksSyncEnabled;
   final String? tasksListId;
   final String? tasksAccount;
@@ -2125,6 +2152,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.appLockEnabled,
     required this.disclaimerAccepted,
     this.lastBankSync,
+    required this.pendingLinkedBalanceIds,
     required this.tasksSyncEnabled,
     this.tasksListId,
     this.tasksAccount,
@@ -2146,6 +2174,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     if (!nullToAbsent || lastBankSync != null) {
       map['last_bank_sync'] = Variable<DateTime>(lastBankSync);
     }
+    map['pending_linked_balance_ids'] = Variable<String>(
+      pendingLinkedBalanceIds,
+    );
     map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled);
     if (!nullToAbsent || tasksListId != null) {
       map['tasks_list_id'] = Variable<String>(tasksListId);
@@ -2172,6 +2203,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       lastBankSync: lastBankSync == null && nullToAbsent
           ? const Value.absent()
           : Value(lastBankSync),
+      pendingLinkedBalanceIds: Value(pendingLinkedBalanceIds),
       tasksSyncEnabled: Value(tasksSyncEnabled),
       tasksListId: tasksListId == null && nullToAbsent
           ? const Value.absent()
@@ -2202,6 +2234,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       appLockEnabled: serializer.fromJson<bool>(json['appLockEnabled']),
       disclaimerAccepted: serializer.fromJson<bool>(json['disclaimerAccepted']),
       lastBankSync: serializer.fromJson<DateTime?>(json['lastBankSync']),
+      pendingLinkedBalanceIds: serializer.fromJson<String>(
+        json['pendingLinkedBalanceIds'],
+      ),
       tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
       tasksListId: serializer.fromJson<String?>(json['tasksListId']),
       tasksAccount: serializer.fromJson<String?>(json['tasksAccount']),
@@ -2223,6 +2258,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'appLockEnabled': serializer.toJson<bool>(appLockEnabled),
       'disclaimerAccepted': serializer.toJson<bool>(disclaimerAccepted),
       'lastBankSync': serializer.toJson<DateTime?>(lastBankSync),
+      'pendingLinkedBalanceIds': serializer.toJson<String>(
+        pendingLinkedBalanceIds,
+      ),
       'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
       'tasksListId': serializer.toJson<String?>(tasksListId),
       'tasksAccount': serializer.toJson<String?>(tasksAccount),
@@ -2242,6 +2280,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     bool? appLockEnabled,
     bool? disclaimerAccepted,
     Value<DateTime?> lastBankSync = const Value.absent(),
+    String? pendingLinkedBalanceIds,
     bool? tasksSyncEnabled,
     Value<String?> tasksListId = const Value.absent(),
     Value<String?> tasksAccount = const Value.absent(),
@@ -2258,6 +2297,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     appLockEnabled: appLockEnabled ?? this.appLockEnabled,
     disclaimerAccepted: disclaimerAccepted ?? this.disclaimerAccepted,
     lastBankSync: lastBankSync.present ? lastBankSync.value : this.lastBankSync,
+    pendingLinkedBalanceIds:
+        pendingLinkedBalanceIds ?? this.pendingLinkedBalanceIds,
     tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
     tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
     tasksAccount: tasksAccount.present ? tasksAccount.value : this.tasksAccount,
@@ -2298,6 +2339,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       lastBankSync: data.lastBankSync.present
           ? data.lastBankSync.value
           : this.lastBankSync,
+      pendingLinkedBalanceIds: data.pendingLinkedBalanceIds.present
+          ? data.pendingLinkedBalanceIds.value
+          : this.pendingLinkedBalanceIds,
       tasksSyncEnabled: data.tasksSyncEnabled.present
           ? data.tasksSyncEnabled.value
           : this.tasksSyncEnabled,
@@ -2325,6 +2369,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('disclaimerAccepted: $disclaimerAccepted, ')
           ..write('lastBankSync: $lastBankSync, ')
+          ..write('pendingLinkedBalanceIds: $pendingLinkedBalanceIds, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -2346,6 +2391,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     appLockEnabled,
     disclaimerAccepted,
     lastBankSync,
+    pendingLinkedBalanceIds,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -2366,6 +2412,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.appLockEnabled == this.appLockEnabled &&
           other.disclaimerAccepted == this.disclaimerAccepted &&
           other.lastBankSync == this.lastBankSync &&
+          other.pendingLinkedBalanceIds == this.pendingLinkedBalanceIds &&
           other.tasksSyncEnabled == this.tasksSyncEnabled &&
           other.tasksListId == this.tasksListId &&
           other.tasksAccount == this.tasksAccount);
@@ -2384,6 +2431,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<bool> appLockEnabled;
   final Value<bool> disclaimerAccepted;
   final Value<DateTime?> lastBankSync;
+  final Value<String> pendingLinkedBalanceIds;
   final Value<bool> tasksSyncEnabled;
   final Value<String?> tasksListId;
   final Value<String?> tasksAccount;
@@ -2400,6 +2448,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.appLockEnabled = const Value.absent(),
     this.disclaimerAccepted = const Value.absent(),
     this.lastBankSync = const Value.absent(),
+    this.pendingLinkedBalanceIds = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2417,6 +2466,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.appLockEnabled = const Value.absent(),
     this.disclaimerAccepted = const Value.absent(),
     this.lastBankSync = const Value.absent(),
+    this.pendingLinkedBalanceIds = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2434,6 +2484,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<bool>? appLockEnabled,
     Expression<bool>? disclaimerAccepted,
     Expression<DateTime>? lastBankSync,
+    Expression<String>? pendingLinkedBalanceIds,
     Expression<bool>? tasksSyncEnabled,
     Expression<String>? tasksListId,
     Expression<String>? tasksAccount,
@@ -2453,6 +2504,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (appLockEnabled != null) 'app_lock_enabled': appLockEnabled,
       if (disclaimerAccepted != null) 'disclaimer_accepted': disclaimerAccepted,
       if (lastBankSync != null) 'last_bank_sync': lastBankSync,
+      if (pendingLinkedBalanceIds != null)
+        'pending_linked_balance_ids': pendingLinkedBalanceIds,
       if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
       if (tasksListId != null) 'tasks_list_id': tasksListId,
       if (tasksAccount != null) 'tasks_account': tasksAccount,
@@ -2472,6 +2525,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<bool>? appLockEnabled,
     Value<bool>? disclaimerAccepted,
     Value<DateTime?>? lastBankSync,
+    Value<String>? pendingLinkedBalanceIds,
     Value<bool>? tasksSyncEnabled,
     Value<String?>? tasksListId,
     Value<String?>? tasksAccount,
@@ -2490,6 +2544,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       appLockEnabled: appLockEnabled ?? this.appLockEnabled,
       disclaimerAccepted: disclaimerAccepted ?? this.disclaimerAccepted,
       lastBankSync: lastBankSync ?? this.lastBankSync,
+      pendingLinkedBalanceIds:
+          pendingLinkedBalanceIds ?? this.pendingLinkedBalanceIds,
       tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
       tasksListId: tasksListId ?? this.tasksListId,
       tasksAccount: tasksAccount ?? this.tasksAccount,
@@ -2537,6 +2593,11 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (lastBankSync.present) {
       map['last_bank_sync'] = Variable<DateTime>(lastBankSync.value);
     }
+    if (pendingLinkedBalanceIds.present) {
+      map['pending_linked_balance_ids'] = Variable<String>(
+        pendingLinkedBalanceIds.value,
+      );
+    }
     if (tasksSyncEnabled.present) {
       map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled.value);
     }
@@ -2564,6 +2625,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('disclaimerAccepted: $disclaimerAccepted, ')
           ..write('lastBankSync: $lastBankSync, ')
+          ..write('pendingLinkedBalanceIds: $pendingLinkedBalanceIds, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -6075,6 +6137,7 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<bool> appLockEnabled,
       Value<bool> disclaimerAccepted,
       Value<DateTime?> lastBankSync,
+      Value<String> pendingLinkedBalanceIds,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -6093,6 +6156,7 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<bool> appLockEnabled,
       Value<bool> disclaimerAccepted,
       Value<DateTime?> lastBankSync,
+      Value<String> pendingLinkedBalanceIds,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -6164,6 +6228,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<DateTime> get lastBankSync => $composableBuilder(
     column: $table.lastBankSync,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pendingLinkedBalanceIds => $composableBuilder(
+    column: $table.pendingLinkedBalanceIds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6252,6 +6321,11 @@ class $$AppMetaRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get pendingLinkedBalanceIds => $composableBuilder(
+    column: $table.pendingLinkedBalanceIds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => ColumnOrderings(column),
@@ -6335,6 +6409,11 @@ class $$AppMetaRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get pendingLinkedBalanceIds => $composableBuilder(
+    column: $table.pendingLinkedBalanceIds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => column,
@@ -6394,6 +6473,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> appLockEnabled = const Value.absent(),
                 Value<bool> disclaimerAccepted = const Value.absent(),
                 Value<DateTime?> lastBankSync = const Value.absent(),
+                Value<String> pendingLinkedBalanceIds = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -6410,6 +6490,7 @@ class $$AppMetaRowsTableTableManager
                 appLockEnabled: appLockEnabled,
                 disclaimerAccepted: disclaimerAccepted,
                 lastBankSync: lastBankSync,
+                pendingLinkedBalanceIds: pendingLinkedBalanceIds,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
@@ -6428,6 +6509,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> appLockEnabled = const Value.absent(),
                 Value<bool> disclaimerAccepted = const Value.absent(),
                 Value<DateTime?> lastBankSync = const Value.absent(),
+                Value<String> pendingLinkedBalanceIds = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -6444,6 +6526,7 @@ class $$AppMetaRowsTableTableManager
                 appLockEnabled: appLockEnabled,
                 disclaimerAccepted: disclaimerAccepted,
                 lastBankSync: lastBankSync,
+                pendingLinkedBalanceIds: pendingLinkedBalanceIds,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,

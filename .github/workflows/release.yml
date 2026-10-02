@@ -1,0 +1,167 @@
+name: Release
+
+# Ported from the Java app's release workflow. Push a tag to release:
+#   git tag v1.0.0 && git push origin v1.0.0
+# The build is signed with the Java app's keystore and uploaded to the Play Store's
+# internal track; a "-<suffix>" on the tag (e.g. v1.0.1-closed) also promotes it to
+# the tracks in TRACK_MAP below.
+#
+# Repository secrets (the same names as the Java repo's): KEYSTORE_BASE64,
+# STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, SERVICE_ACCOUNT_JSON. Firebase settings
+# are committed (lib/firebase_options.dart), so no google-services.json secret.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+# contents:write creates the GitHub Release with the APK.
+permissions:
+  contents: write
+
+# The Play Developer API allows one open edit per package; queue, never cancel.
+concurrency:
+  group: play-store-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build, Sign & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.5'
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      # Outside the workspace, so it can't end up in an artifact.
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/release.jks"
+
+      # versionName = the tag without its leading 'v' or "-<suffix>" (e.g. 1.0.3)
+      # versionCode = major*10000 + minor*1000 + patch (e.g. v1.0.3 -> 10003), the Java
+      #   app's formula, so codes keep rising past its last release (0.3.16 -> 3016).
+      # trackSuffix = what follows "-" in the tag, looked up in TRACK_MAP below.
+      - name: Compute version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION_FULL="${TAG#v}"
+          VERSION="${VERSION_FULL%%-*}"
+          SUFFIX="${VERSION_FULL#*-}"
+          [ "$SUFFIX" = "$VERSION_FULL" ] && SUFFIX=""
+          VERSION_CODE=$(echo "$VERSION" | awk -F. '{print $1*10000 + $2*1000 + $3}')
+          echo "versionName=$VERSION"      >> "$GITHUB_OUTPUT"
+          echo "versionCode=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "trackSuffix=$SUFFIX"       >> "$GITHUB_OUTPUT"
+          echo "Release: $VERSION  (versionCode $VERSION_CODE)  suffix: '${SUFFIX:-<none>}'"
+
+      # The signing values reach android/app/build.gradle.kts as environment
+      # variables, never as files in the workspace.
+      - name: Build release AAB (Play Store)
+        env:
+          STORE_FILE: ${{ runner.temp }}/release.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: >
+          flutter build appbundle --release
+          --build-name=${{ steps.version.outputs.versionName }}
+          --build-number=${{ steps.version.outputs.versionCode }}
+
+      - name: Build release APK (GitHub Releases / sideload)
+        env:
+          STORE_FILE: ${{ runner.temp }}/release.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: >
+          flutter build apk --release
+          --build-name=${{ steps.version.outputs.versionName }}
+          --build-number=${{ steps.version.outputs.versionCode }}
+
+      - name: Shred keystore
+        if: always()
+        run: |
+          if [ -f "${{ runner.temp }}/release.jks" ]; then
+            shred -u "${{ runner.temp }}/release.jks"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+
+      - name: Upload AAB to Play Store (internal track)
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.nishian3695.bujit
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          whatsNewDirectory: play/whatsnew
+
+      # Promotes the build already on internal (by versionCode) to the tag's tracks;
+      # see the Java workflow's notes for finding a track's real ID.
+      - name: Promote to target track(s)
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ steps.version.outputs.versionCode }}
+          TRACK_SUFFIX: ${{ steps.version.outputs.trackSuffix }}
+        run: |
+          pip3 install --quiet google-auth google-api-python-client
+          python3 - << 'EOF'
+          import os, json, sys
+          from google.oauth2.service_account import Credentials
+          from googleapiclient.discovery import build
+
+          TRACK_MAP = {
+              '':            [],                                   # internal only
+              'closedalpha': ['alpha'],
+              'closedbeta':  ['closed_0.1.0'],
+              'closed':      ['alpha', 'closed_0.1.0'],
+              'open':        ['beta'],
+              'all':         ['alpha', 'closed_0.1.0', 'beta'],
+          }
+
+          suffix = os.environ['TRACK_SUFFIX']
+          if suffix not in TRACK_MAP:
+              sys.exit(f"Unknown tag suffix '{suffix}'. Known: {sorted(k for k in TRACK_MAP if k)}.")
+          tracks = TRACK_MAP[suffix]
+          if not tracks:
+              print('No extra track for this tag -- release stays on internal.')
+              sys.exit(0)
+
+          creds = Credentials.from_service_account_info(
+              json.loads(os.environ['SERVICE_ACCOUNT_JSON']),
+              scopes=['https://www.googleapis.com/auth/androidpublisher'])
+          api = build('androidpublisher', 'v3', credentials=creds, cache_discovery=False)
+          pkg = 'io.github.nishian3695.bujit'
+          vc = int(os.environ['VERSION_CODE'])
+          body = {'releases': [{'versionCodes': [str(vc)], 'status': 'completed'}]}
+          edit = api.edits().insert(packageName=pkg, body={}).execute()
+          for track in tracks:
+              api.edits().tracks().update(packageName=pkg, editId=edit['id'], track=track, body=body).execute()
+              print(f'Staged versionCode {vc} -> {track}')
+          api.edits().commit(packageName=pkg, editId=edit['id']).execute()
+          EOF

@@ -11,6 +11,7 @@ import 'navigation_items/settings/google_tasks_helper.dart';
 import 'navigation_items/settings/tip_jar.dart';
 import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
+import 'storage_management/java_migration.dart';
 import 'tutorial/tutorial_manager.dart';
 import 'utils/money.dart';
 import 'utils/sample_data.dart';
@@ -41,11 +42,23 @@ class AppState extends ChangeNotifier {
 
     // Loads saved data and brings it up to [today] (default: now), paying what came
     // due and crediting paychecks that arrived, then saves the result. On the very
-    // first launch there's nothing saved, so the tutorial's sample data is loaded
-    // instead, as the Java app does.
+    // first launch there's nothing saved: the Java app's data is imported if this
+    // was installed over it ([javaData]), else the tutorial's sample data is loaded,
+    // as the Java app does.
     static Future<AppState> open(AppDataStore store,
-            {DateTime? today, GoogleTasksSync? tasks, BankingService? banking}) async {
+            {DateTime? today, GoogleTasksSync? tasks, BankingService? banking, JavaDataSource? javaData}) async {
         AppData? data = await store.load();
+        bool fromJava = false;
+        if (data == null && javaData != null) {
+            try {
+                final Map<Object?, Object?>? raw = await javaData.read();
+                data = raw == null ? null : JavaMigration.fromJava(raw, today: today);
+                fromJava = data != null;
+            } catch (e, stack) {
+                // The Java data can't be read (e.g. its key is gone): start fresh rather than not at all.
+                _logger.severe("Importing the Java app's data failed", e, stack);
+            }
+        }
         if (data == null) {
             // A fresh install: the disclaimer comes first, then the tutorial.
             data = AppData(balance: BalanceModel(currentBalance: 0.00), disclaimerAccepted: false);
@@ -58,9 +71,21 @@ class AppState extends ChangeNotifier {
         final AppState state = AppState(data, store)
             ..tasks = tasks
             ..banking = banking;
-        await state.save();
+        if (fromJava) {
+            // Only once it's safely saved here is the Java data set aside.
+            try {
+                await store.save(data);
+                await javaData!.markMigrated();
+                _logger.info("Imported the Java app's data");
+            } catch (e, stack) {
+                _logger.severe("Saving the Java app's data failed; it will be imported again", e, stack);
+            }
+        } else {
+            await state.save();
+        }
         state.syncTasks(today: today); // Due dates may have moved on; runs in the background
-        state.refreshBanks(); // Linked balances, unless synced in the last 15 minutes
+        // Linked balances, unless synced in the last 15 minutes (right away after an import).
+        state.refreshBanks(force: fromJava);
         return state;
     }
 

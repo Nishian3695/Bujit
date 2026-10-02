@@ -38,6 +38,9 @@ class AppData {
     final Map<String, String> syncedTasks;
     final List<LinkedItem> linkedItems; // Linked bank logins (see BankingService)
     DateTime? lastBankSync;
+    // Bank account ids to count toward the balance once a sync lists them (the
+    // Java app's picks, imported before their accounts were fetched).
+    final Set<String> pendingLinkedBalanceIds;
 
     AppData({
         required this.balance,
@@ -56,7 +59,9 @@ class AppData {
         Map<String, String>? syncedTasks,
         List<LinkedItem>? linkedItems,
         this.lastBankSync,
-    }) : categories = categories ?? defaultCategories(),
+        Set<String>? pendingLinkedBalanceIds,
+    }) : pendingLinkedBalanceIds = pendingLinkedBalanceIds ?? {},
+         categories = categories ?? defaultCategories(),
          singleEvents = singleEvents ?? [],
          syncedTasks = syncedTasks ?? {},
          linkedItems = linkedItems ?? [];
@@ -220,6 +225,9 @@ class AppDataStore {
                         institution: row.institution, needsRelink: row.needsRelink),
             ],
             lastBankSync: meta.lastBankSync,
+            pendingLinkedBalanceIds: {
+                for (final String id in meta.pendingLinkedBalanceIds.split(",")) if (id.isNotEmpty) id,
+            },
         );
     }
 
@@ -311,6 +319,7 @@ class AppDataStore {
                 appLockEnabled: Value(data.appLockEnabled),
                 disclaimerAccepted: Value(data.disclaimerAccepted),
                 lastBankSync: Value(data.lastBankSync),
+                pendingLinkedBalanceIds: Value(data.pendingLinkedBalanceIds.join(",")),
                 tasksSyncEnabled: Value(data.tasksSyncEnabled),
                 tasksListId: Value(data.tasksListId),
                 tasksAccount: Value(data.tasksAccount),

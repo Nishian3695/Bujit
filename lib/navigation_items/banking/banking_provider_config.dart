@@ -7,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../../config/firebase_config.dart';
 import 'banking_auth_exception.dart';
 import 'plaid_backend_client.dart';
@@ -21,6 +22,14 @@ class FirebaseBankingAuth implements BankingAuth {
         final FirebaseOptions? options = firebaseOptions();
         if (options == null) throw const BankingException("Bank linking isn't set up in this build");
         await Firebase.initializeApp(options: options);
+        if (defaultTargetPlatform == TargetPlatform.android && kReleaseMode) {
+            // Android release builds prove themselves the Java app's way: a Play Integrity
+            // token exchanged at the backend (android/app/src/release/.../
+            // StandardIntegrityAppCheckProvider.kt). Activating Firebase's own provider
+            // here would replace it.
+            await const MethodChannel("bujit/app_check").invokeMethod<bool>("installReleaseProvider");
+            return;
+        }
         await FirebaseAppCheck.instance.activate(
             providerAndroid: kDebugMode ? const AndroidDebugProvider() : const AndroidPlayIntegrityProvider(),
             providerApple: kDebugMode

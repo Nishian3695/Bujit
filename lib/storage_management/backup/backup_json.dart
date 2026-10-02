@@ -163,7 +163,11 @@ class BackupJson {
     // fromJson, a malformed item is skipped rather than failing the whole restore;
     // anything that isn't this JSON at all throws FormatException. The caller
     // brings the result up to today (BalanceModel.makeRecent).
-    static AppData decode(String json, {DateTime? today}) {
+    // [keepBankLinks]: keep expenses' links to bank accounts and LINKED_ACCOUNT
+    // sources -- for importing the Java app's data on the same device, where its
+    // bank logins come along too (see JavaMigration). A backup file has no bank
+    // logins, so those fall back to the balance.
+    static AppData decode(String json, {DateTime? today, bool keepBankLinks = false}) {
         final Object? root = jsonDecode(json);
         if (root is! Map<String, dynamic>) throw const FormatException("Not Bujit data");
         final DateTime day = dateOnly(today ?? todayDate());
@@ -188,7 +192,7 @@ class BackupJson {
             ));
         }
         for (final Map<String, dynamic> o in _objects(root["expenseList"])) {
-            final ExpenseItem? item = _expenseFromJson(o, day);
+            final ExpenseItem? item = _expenseFromJson(o, day, keepBankLinks);
             if (item != null) balance.expenses.add(item);
         }
         for (final Map<String, dynamic> o in _objects(root["incomeStreamList"])) {
@@ -231,7 +235,7 @@ class BackupJson {
         );
     }
 
-    static ExpenseItem? _expenseFromJson(Map<String, dynamic> o, DateTime today) {
+    static ExpenseItem? _expenseFromJson(Map<String, dynamic> o, DateTime today, bool keepBankLinks) {
         try {
             final String name = _string(o["name"])?.trim() ?? "";
             if (name.isEmpty) return null;
@@ -245,9 +249,11 @@ class BackupJson {
             final (FundingSource, String?) source = switch (_string(o["source"])) {
                 "MANUAL_ACCOUNT" => (FundingSource.manualAccount, _string(o["sourceId"])),
                 "CREDIT_CARD" when !isCredit => (FundingSource.creditCard, _string(o["sourceId"])),
-                _ => (FundingSource.balance, null), // BALANCE, and LINKED_ACCOUNT until bank linking exists
+                "LINKED_ACCOUNT" when keepBankLinks => (FundingSource.linkedAccount, _string(o["sourceId"])),
+                _ => (FundingSource.balance, null), // BALANCE, and LINKED_ACCOUNT without the bank login
             };
             final String? taskId = _string(o["googleTaskId"]);
+            final String? linkedAccountId = keepBankLinks ? _string(o["linkedAccountId"]) : null;
             final bool remind = o["calendarNotif"] != false;
             if (isCredit) {
                 return CreditModel(
@@ -262,6 +268,7 @@ class BackupJson {
                     remindInTasks: remind,
                     source: source.$1,
                     sourceId: source.$2,
+                    linkedAccountId: linkedAccountId,
                 );
             }
             final DateTime? end = _date(o["endDate"]);
@@ -279,6 +286,7 @@ class BackupJson {
                 remindInTasks: remind,
                 source: source.$1,
                 sourceId: source.$2,
+                linkedAccountId: linkedAccountId,
             );
         } catch (_) {
             return null;

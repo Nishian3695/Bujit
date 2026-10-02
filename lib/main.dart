@@ -14,6 +14,7 @@ import 'navigation_items/settings/google_tasks_helper.dart';
 import 'navigation_items/settings/tip_jar.dart';
 import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
+import 'storage_management/java_migration.dart';
 import 'storage_management/storage_manager.dart';
 import 'utils/sample_data.dart';
 
@@ -45,6 +46,7 @@ Future<AppState> openAppState() async {
         PlaidBackendClient(host: bankingBackendHost, auth: FirebaseBankingAuth()),
         PlaidFlutterLauncher(),
       ),
+      javaData: AndroidJavaDataSource(),
     );
     return state
       ..deviceAuth = deviceAuth

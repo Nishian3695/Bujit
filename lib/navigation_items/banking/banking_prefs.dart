@@ -85,6 +85,8 @@ class BankingService {
             try {
                 final List<BankAccountModel> fetched = await backend.fetchAccounts(item);
                 item.needsRelink = false;
+                // Imported logins (from the Java app) learn their bank's name here.
+                if (item.institution.isEmpty && fetched.isNotEmpty) item.institution = fetched.first.institution;
                 for (final BankAccountModel account in fetched) {
                     final BankAccountModel? existing = balance.linkedAccount(account.id);
                     if (existing == null) {
@@ -113,10 +115,18 @@ class BankingService {
         }
         if (result.synced) {
             data.lastBankSync = time;
+            _applyPendingPicks(data);
             balance.applyLinkedBalances();
             _applyLinkedItems(balance);
         }
         return result;
+    }
+
+    // Accounts the Java app counted toward the balance, now that a sync lists them.
+    static void _applyPendingPicks(AppData data) {
+        for (final BankAccountModel account in data.balance.linkedAccounts) {
+            if (data.pendingLinkedBalanceIds.remove(account.id) && account.isCash) account.countsTowardBalance = true;
+        }
     }
 
     // Disconnects the banks with [itemKeys] (see the notes at the top).
