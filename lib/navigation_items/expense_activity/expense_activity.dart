@@ -5,6 +5,7 @@
 // displays the result. The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
 import '../../dialogs/recurring_expenses.dart';
+import '../../utils/sample_data.dart';
 import 'balance_model.dart';
 import 'expense_item.dart';
 
@@ -28,8 +29,15 @@ class ExpenseActivity extends StatefulWidget {
 }
 
 class ExpenseActivityState extends State<ExpenseActivity> {
-    // TODO: Load from StorageManager, then call _balance.makeRecent() and persist the result
-    final BalanceModel _balance = BalanceModel(currentBalance: 0.00);
+    // TODO: Load from StorageManager, then call _balance.makeRecent() and persist the result.
+    // Until then the tutorial's sample data is loaded on every launch (see seedSampleData).
+    final BalanceModel _balance = _sampleBalance();
+
+    static BalanceModel _sampleBalance() {
+        final BalanceModel balance = BalanceModel(currentBalance: 0.00);
+        seedSampleData(balance);
+        return balance;
+    }
     // Which check is on screen: 0 = current, 1+ = projected
     int _checkIndex = 0;
     late CheckSummary _summary = _balance.showCheck(_checkIndex);
