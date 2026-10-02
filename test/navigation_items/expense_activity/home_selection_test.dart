@@ -132,7 +132,8 @@ void main() {
             await tester.scrollUntilVisible(find.text("Gym"), 100); // the last row
             expect(find.textContaining("\$40.00/2wk · until 2099-01-01"), findsOneWidget);
             await tester.scrollUntilVisible(find.text("Everyday Card"), -100);
-            expect(find.textContaining("\$450.00/mo"), findsOneWidget); // a card's rate is its balance
+            expect(find.textContaining("\$450.00 owed"), findsOneWidget); // a card shows what it owes, not a rate
+            expect(find.textContaining("\$450.00/mo"), findsNothing);
             expect(find.byIcon(Icons.link), findsOneWidget);
         });
 

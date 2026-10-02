@@ -3,13 +3,17 @@
 // account" in the expense dialog. Uses a fake backend and Plaid Link.
 import 'dart:convert';
 import 'package:bujit/app_state.dart';
+import 'package:bujit/dialogs/credit_card_dialog.dart';
+import 'package:bujit/navigation_items/banking/bank_account_model.dart';
 import 'package:bujit/navigation_items/banking/banking_activity.dart';
 import 'package:bujit/navigation_items/banking/banking_prefs.dart';
 import 'package:bujit/navigation_items/banking/plaid_api.dart';
 import 'package:bujit/navigation_items/banking/plaid_backend_client.dart';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
+import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_activity.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
+import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/sample_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +79,8 @@ void main() {
 
         await tester.tap(find.text("Link a bank or credit card"));
         await tester.pumpAndSettle();
+        await tester.tap(find.text("Not now")); // the offer to add its card
+        await tester.pumpAndSettle();
 
         expect(find.text("CHASE"), findsOneWidget);
         expect(find.text("Checking …1111"), findsOneWidget);
@@ -92,6 +98,86 @@ void main() {
         expect(removed, ["access"]);
         expect(find.text("CHASE"), findsNothing);
         expect(state.balance.linkedAccounts, isEmpty);
+    });
+
+    testWidgets("a linked bank's cards can be added, asking for the due date it can't give", (tester) async {
+        final AppState state = _sampleState();
+        await tester.pumpWidget(MaterialApp(home: BankingActivity(state: state)));
+        await tester.tap(find.text("Link a bank or credit card"));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Add these cards to Credit Utilization?"), findsOneWidget);
+        expect(find.text("Chase Sapphire …3333"), findsOneWidget);
+        expect(find.text("Chase Checking …1111"), findsNothing); // only cards
+        await tester.tap(find.text("Add"));
+        await tester.pumpAndSettle();
+
+        // Filled from the bank, linked, with no due date until one is picked.
+        expect(find.text("Add Credit Card"), findsOneWidget);
+        expect(find.text("Amount syncs from Chase Sapphire …3333"), findsOneWidget);
+        expect(find.text("640.25"), findsOneWidget);
+        expect(find.text("2000.00"), findsOneWidget);
+        expect(find.text("Next Due Date: pick a date"), findsOneWidget);
+        await tester.tap(find.text("Save"));
+        await tester.pumpAndSettle();
+        expect(find.text("Pick the next due date"), findsOneWidget);
+
+        await tester.tap(find.text("Next Due Date: pick a date"));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("15"));
+        await tester.tap(find.text("OK"));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("Save"));
+        await tester.pumpAndSettle();
+
+        final CreditModel card = state.balance.creditCards.firstWhere((c) => c.name == "Chase Sapphire …3333");
+        expect(card.linkedAccountId, "cc");
+        expect(card.amount, 640.25);
+        expect(card.creditLimit, 2000.0);
+        final DateTime today = todayDate();
+        expect(card.currentDueDate, today.day <= 15
+            ? DateTime(today.year, today.month, 15)
+            : DateTime(today.year, today.month + 1, 15)); // a past date rolls to the next one
+    });
+
+    testWidgets("a linked card not yet tracked can be added from Linked Accounts", (tester) async {
+        final AppState state = _sampleState();
+        await state.linkBank();
+        await tester.pumpWidget(MaterialApp(home: BankingActivity(state: state)));
+
+        expect(find.textContaining("tap to add to Credit Utilization"), findsOneWidget); // the card, not checking
+        await tester.tap(find.text("Sapphire …3333"));
+        await tester.pumpAndSettle();
+        expect(find.text("Amount syncs from Chase Sapphire …3333"), findsOneWidget);
+        await tester.tap(find.text("Next Due Date: pick a date"));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("15"));
+        await tester.tap(find.text("OK"));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("Save"));
+        await tester.pumpAndSettle();
+
+        expect(state.balance.creditCards.where((c) => c.linkedAccountId == "cc"), hasLength(1));
+        expect(find.textContaining("tap to add to Credit Utilization"), findsNothing);
+    });
+
+    testWidgets("a new card has no due date, and a bank without a limit asks for it", (tester) async {
+        final BankAccountModel noLimit = BankAccountModel(id: "amex", itemKey: "k", name: "Gold", type: "credit",
+            mask: "1005", institution: "Amex", ledger: 300.0);
+        CreditModel? saved;
+        await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => TextButton(
+            onPressed: () async => saved = await showCreditCardDialog(context, linkTo: noLimit, connectable: [noLimit]),
+            child: const Text("open"),
+        ))));
+        await tester.tap(find.text("open"));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Your bank didn't report a limit; enter it"), findsOneWidget);
+        await tester.tap(find.text("Save"));
+        await tester.pumpAndSettle();
+        expect(find.text("Pick the next due date"), findsOneWidget);
+        expect(find.text("Enter a valid amount"), findsOneWidget); // the empty limit
+        expect(saved, isNull);
     });
 
     testWidgets("From Accounts offers linked checking and savings, not cards", (tester) async {

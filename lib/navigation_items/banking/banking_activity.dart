@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import '../../utils/money.dart';
 import '../../app_state.dart';
+import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/manual_account_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
 import '../expense_activity/balance_model.dart';
+import '../expense_activity/credit_model.dart';
 import '../expense_activity/expense_item.dart';
 import '../expense_activity/funding_source.dart';
 import 'bank_account_model.dart';
@@ -41,12 +43,20 @@ class _BankingActivityState extends State<BankingActivity> {
     Future<void> _link({LinkedItem? replacing}) async {
         final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
         setState(() => _linking = true);
+        List<BankAccountModel> newCards = const [];
         try {
+            final Set<String> before = {for (final a in _balance.linkedAccounts) a.id};
             final String? institution = await widget.state.linkBank(replacing: replacing);
             if (institution != null) {
                 messenger.showSnackBar(SnackBar(content: Text(
                     "${institution.isEmpty ? "Bank" : institution} linked. Pick its accounts for your balance "
                     "with \"From Accounts\" when you update it.")));
+                if (replacing == null) {
+                    newCards = [
+                        for (final BankAccountModel a in _balance.linkedAccounts)
+                            if (a.isCredit && !before.contains(a.id)) a,
+                    ];
+                }
             }
         } catch (e, stack) {
             _logger.severe(replacing == null ? "Linking a bank failed" : "Reconnecting failed", e, stack);
@@ -56,6 +66,71 @@ class _BankingActivityState extends State<BankingActivity> {
         } finally {
             if (mounted) setState(() => _linking = false);
         }
+        // Once linking is done (and its spinner gone), offer the bank's new cards.
+        if (newCards.isNotEmpty && mounted) await _offerCards(newCards);
+    }
+
+    // After linking a bank with credit cards: offer to add them to Credit
+    // Utilization, linked so their balance and limit follow the bank. Each opens
+    // the card dialog filled in, for what the bank couldn't tell us (the due
+    // date, and the limit when unknown).
+    Future<void> _offerCards(List<BankAccountModel> cards) async {
+        if (cards.isEmpty) return;
+        final Set<String> picked = {for (final c in cards) c.id};
+        final bool? add = await showDialog<bool>(
+            context: context,
+            builder: (context) => StatefulBuilder(
+                builder: (context, setDialogState) => AlertDialog(
+                    title: const Text("Add these cards to Credit Utilization?"),
+                    content: SingleChildScrollView(
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                                const Text("Their balance and limit will follow your bank. Your bank doesn't "
+                                    "share due dates, so you'll be asked for each card's next one."),
+                                for (final BankAccountModel card in cards)
+                                    CheckboxListTile(
+                                        value: picked.contains(card.id),
+                                        title: Text(card.displayName),
+                                        subtitle: Text(card.ledger == null ? "" : "${Money.format(card.ledger!.abs())} owed"),
+                                        onChanged: (on) => setDialogState(
+                                            () => on == true ? picked.add(card.id) : picked.remove(card.id)),
+                                    ),
+                            ],
+                        ),
+                    ),
+                    actions: [
+                        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Not now")),
+                        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Add")),
+                    ],
+                ),
+            ),
+        );
+        if (add != true) return;
+        for (final BankAccountModel account in cards.where((c) => picked.contains(c.id))) {
+            if (!mounted) return;
+            await _addCard(account); // Cancelling skips just this one
+        }
+    }
+
+    // A credit card at a linked bank that no card in Credit Utilization follows yet.
+    bool _untrackedCard(BankAccountModel account) =>
+        account.isCredit && !_balance.creditCards.any((c) => c.linkedAccountId == account.id);
+
+    // Adds one linked card, asking for what the bank couldn't tell us.
+    Future<void> _addCard(BankAccountModel account) async {
+        final CreditModel? card = await showCreditCardDialog(
+            context,
+            linkTo: account,
+            sources: _balance.paymentOptions(forCard: true),
+            otherCardNames: _balance.creditCards.map((c) => c.name),
+            connectable: _balance.linkedAccounts.where((a) => a.isCredit).toList(),
+        );
+        if (card == null) return;
+        card.skipToNextDueDate();
+        _balance.expenses.add(card);
+        await _save();
     }
 
     Future<void> _sync() async {
@@ -222,9 +297,11 @@ class _BankingActivityState extends State<BankingActivity> {
                         subtitle: Text([
                             account.displayType,
                             if (account.countsTowardBalance) "in your current balance",
+                            if (_untrackedCard(account)) "tap to add to Credit Utilization",
                             if (item.needsRelink) "not syncing",
                         ].where((s) => s.isNotEmpty).join(" · ")),
                         trailing: Text(account.ledger == null ? "—" : _money(account.ledger!)),
+                        onTap: _untrackedCard(account) ? () => _addCard(account) : null,
                     ),
             ],
             if (items.isNotEmpty)

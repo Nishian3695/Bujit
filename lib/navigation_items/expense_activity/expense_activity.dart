@@ -435,9 +435,11 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // The Java app's Rate column: the amount per period ("$15.99/mo", "$40.00/2wk");
-    // for a card, its balance as of this check.
+    // The Java app's Rate column: the amount per period ("$15.99/mo", "$40.00/2wk").
+    // A card has no fixed rate, so it shows what it owes as of this check
+    // ("$640.25 owed"; Java's "/mo" there wasn't true).
     static String _rate(ExpenseItem expense) {
+        if (expense is CreditModel) return "${_money(expense.displayBalance)} owed";
         final int f = expense.frequency;
         final String unit = switch (expense.frequencyUnits) {
             FrequencyUnit.daily => f == 1 ? "day" : "${f}d",
@@ -446,8 +448,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             FrequencyUnit.monthly => f == 1 ? "mo" : "${f}mo",
             FrequencyUnit.yearly => f == 1 ? "yr" : "${f}yr",
         };
-        final double amount = expense is CreditModel ? expense.displayBalance : expense.amount;
-        return "${_money(amount)}/$unit";
+        return "${_money(expense.amount)}/$unit";
     }
 
     // One row of the expense list, as in the Java app: name; due date (or when it

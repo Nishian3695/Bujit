@@ -1,6 +1,9 @@
 // Add/edit dialog for a credit card (CreditModel). Cards always bill monthly.
 // Cards are referred to by name (what's charged to them, single events), so a
-// name can't be shared with another card.
+// name can't be shared with another card. A new card has no due date until one
+// is picked (no default that could be saved by accident), and a card filled from
+// a bank asks for whatever the bank didn't report (the due date always; the limit
+// when it's unknown).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/banking/bank_account_model.dart';
@@ -16,7 +19,8 @@ import 'confirm_delete.dart';
 // editing, Delete asks for confirmation and then calls [onDelete].
 // [sources] are the "Paid from" choices (BalanceModel.paymentOptions(forCard: true));
 // [otherCardNames] are the names already taken; [connectable] the linked credit
-// accounts its balance and limit can sync from.
+// accounts its balance and limit can sync from. [linkTo] starts a new card
+// already linked to (and filled from) that account.
 Future<CreditModel?> showCreditCardDialog(
     BuildContext context, {
     CreditModel? existing,
@@ -24,6 +28,7 @@ Future<CreditModel?> showCreditCardDialog(
     List<SourceOption> sources = const [SourceOption.currentBalance],
     Iterable<String> otherCardNames = const [],
     List<BankAccountModel> connectable = const [],
+    BankAccountModel? linkTo,
 }) {
     return showAdaptiveDialog<CreditModel>(
         context: context,
@@ -33,6 +38,7 @@ Future<CreditModel?> showCreditCardDialog(
             sources: sources,
             otherCardNames: otherCardNames.toSet(),
             connectable: connectable,
+            linkTo: linkTo,
         ),
     );
 }
@@ -43,12 +49,14 @@ class _CreditCardDialog extends StatefulWidget {
     final List<SourceOption> sources;
     final Set<String> otherCardNames;
     final List<BankAccountModel> connectable;
+    final BankAccountModel? linkTo;
     const _CreditCardDialog({
         this.existing,
         this.onDelete,
         required this.sources,
         required this.otherCardNames,
         required this.connectable,
+        this.linkTo,
     });
 
     @override
@@ -62,11 +70,20 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
     late final TextEditingController _limit =
         TextEditingController(text: widget.existing?.creditLimit.toStringAsFixed(2));
     final _formKey = GlobalKey<FormState>();
-    // Next due date: the card's current one when editing, else a month from today.
-    late DateTime _dueDate = widget.existing?.currentDueDate ?? DateTime(
-        todayDate().year, todayDate().month + 1, todayDate().day);
+    // Next due date: the card's current one when editing; none until picked for a new card.
+    late DateTime? _dueDate = widget.existing?.currentDueDate;
+    String? _dueDateError;
     late SourceOption _source = initialSource(widget.sources, widget.existing);
-    late BankAccountModel? _linked = _connectable(widget.existing?.linkedAccountId);
+    late BankAccountModel? _linked = widget.linkTo ?? _connectable(widget.existing?.linkedAccountId);
+    // The linked bank didn't report a limit (or enough to work one out).
+    bool _limitUnknown = false;
+
+    @override
+    void initState() {
+        super.initState();
+        final BankAccountModel? linkTo = widget.linkTo;
+        if (linkTo != null) _fillFrom(linkTo);
+    }
 
     BankAccountModel? _connectable(String? id) {
         for (final BankAccountModel a in widget.connectable) {
@@ -82,10 +99,13 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
         if (ledger != null) _balance.text = ledger.abs().toStringAsFixed(2);
         final double? limit = account.limit;
         final double? available = account.available;
+        _limitUnknown = false;
         if (limit != null && limit > 0) {
             _limit.text = limit.toStringAsFixed(2);
         } else if (ledger != null && available != null && available > 0) {
             _limit.text = (ledger + available).toStringAsFixed(2);
+        } else if (widget.existing == null) {
+            _limitUnknown = true;
         }
     }
 
@@ -108,13 +128,14 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
     // anchors the day of month); a new one starts a schedule from that date.
     CreditModel _build() {
         final CreditModel? existing = widget.existing;
-        final bool keepSchedule = existing != null && _dueDate == existing.currentDueDate;
+        final DateTime dueDate = _dueDate!;
+        final bool keepSchedule = existing != null && dueDate == existing.currentDueDate;
         return CreditModel(
             id: existing?.id,
             name: _name.text.trim(),
             amount: double.parse(_balance.text.trim()),
             creditLimit: double.parse(_limit.text.trim()),
-            startDate: keepSchedule ? existing.startDate : _dueDate,
+            startDate: keepSchedule ? existing.startDate : dueDate,
             currentDueDate: keepSchedule ? existing.currentDueDate : null,
             frequency: 1,
             frequencyUnits: FrequencyUnit.monthly,
@@ -126,12 +147,13 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
         );
     }
 
-    TextFormField _moneyField(TextEditingController controller, String label, {required bool positive}) {
+    TextFormField _moneyField(TextEditingController controller, String label,
+            {required bool positive, String? helper}) {
         return TextFormField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
-            decoration: InputDecoration(prefixText: '\$', labelText: label),
+            decoration: InputDecoration(prefixText: '\$', labelText: label, helperText: helper),
             validator: (value) => _amountError(value, positive: positive),
         );
     }
@@ -167,19 +189,29 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                                 onUnlink: () => setState(() => _linked = null),
                             ),
                             _moneyField(_balance, "Balance Owed", positive: false),
-                            _moneyField(_limit, "Credit Limit", positive: true),
+                            _moneyField(_limit, "Credit Limit", positive: true,
+                                helper: _limitUnknown ? "Your bank didn't report a limit; enter it" : null),
                             TextButton(
                                 onPressed: () async {
                                     final DateTime? picked = await showDatePicker(
                                         context: context,
-                                        initialDate: _dueDate,
+                                        initialDate: _dueDate ?? todayDate(),
                                         firstDate: DateTime(1900),
                                         lastDate: DateTime(2100),
                                     );
-                                    if (picked != null) setState(() => _dueDate = dateOnly(picked));
+                                    if (picked != null) {
+                                        setState(() {
+                                            _dueDate = dateOnly(picked);
+                                            _dueDateError = null;
+                                        });
+                                    }
                                 },
-                                child: Text("Next Due Date: ${_dueDate.toString().split(' ')[0]}"),
+                                child: Text(_dueDate == null
+                                    ? "Next Due Date: pick a date"
+                                    : "Next Due Date: ${_dueDate.toString().split(' ')[0]}"),
                             ),
+                            if (_dueDateError != null)
+                                Text(_dueDateError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                             PaidFromField(
                                 options: widget.sources,
                                 value: _source,
@@ -204,7 +236,9 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                 TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
                 TextButton(
                     onPressed: () {
-                        if (_formKey.currentState!.validate()) Navigator.of(context).pop(_build());
+                        final bool hasDueDate = _dueDate != null;
+                        setState(() => _dueDateError = hasDueDate ? null : "Pick the next due date");
+                        if (_formKey.currentState!.validate() && hasDueDate) Navigator.of(context).pop(_build());
                     },
                     child: const Text("Save"),
                 ),
