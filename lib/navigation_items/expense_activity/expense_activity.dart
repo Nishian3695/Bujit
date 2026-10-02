@@ -2,12 +2,17 @@
 //
 // All balance and schedule math lives in BalanceModel; this screen only asks
 // it for the check being viewed (index 0 = current, 1+ = projected) and
-// displays the result. The layout is a placeholder until the UI pass.
+// displays the result. Data changes go through AppState, which saves them.
+// The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
+import '../../app_state.dart';
+import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/recurring_expenses.dart';
-import '../../utils/sample_data.dart';
+import '../app_drawer.dart';
 import 'balance_model.dart';
+import 'credit_model.dart';
 import 'expense_item.dart';
+import 'expense_model.dart';
 
 enum StorageAction { read, write }
 enum DialogOption { add, edit, delete }
@@ -22,30 +27,38 @@ enum ExpenseDateFormat {
 
 // StatefulWidget subclass. Resets state when rebuilt
 class ExpenseActivity extends StatefulWidget {
-    const ExpenseActivity({super.key});
+    final AppState state;
+    const ExpenseActivity({super.key, required this.state});
 
     @override
     State<StatefulWidget> createState() => ExpenseActivityState();
 }
 
 class ExpenseActivityState extends State<ExpenseActivity> {
-    // TODO: Load from StorageManager, then call _balance.makeRecent() and persist the result.
-    // Until then the tutorial's sample data is loaded on every launch (see seedSampleData).
-    final BalanceModel _balance = _sampleBalance();
-
-    static BalanceModel _sampleBalance() {
-        final BalanceModel balance = BalanceModel(currentBalance: 0.00);
-        seedSampleData(balance);
-        return balance;
-    }
+    AppState get _state => widget.state;
+    BalanceModel get _balance => _state.balance;
     // Which check is on screen: 0 = current, 1+ = projected
     int _checkIndex = 0;
     late CheckSummary _summary = _balance.showCheck(_checkIndex);
 
     bool get _onHomeScreen => _checkIndex == 0;
 
+    @override
+    void initState() {
+        super.initState();
+        // Any screen changing data (income streams, cards, settings) rebuilds this one.
+        _state.addListener(_refresh);
+    }
+
+    @override
+    void dispose() {
+        _state.removeListener(_refresh);
+        super.dispose();
+    }
+
     // Recomputes the check on screen and rebuilds.
     void _refresh() {
+        if (!mounted) return;
         setState(() => _summary = _balance.showCheck(_checkIndex));
     }
 
@@ -61,37 +74,78 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         _refresh();
     }
 
+    // Back to the current check (the Java app's home button).
+    void _goHome() {
+        _checkIndex = 0;
+        _refresh();
+    }
+
+    // Adds a user category the dialog created, so it's offered next time.
+    void _rememberCategory(String category) {
+        if (!_state.data.categories.contains(category)) _state.data.categories.add(category);
+    }
+
     // Opens the add-expense dialog and adds the result. A date in the past is
     // rolled forward to the next due date without charging anything, like the
     // Java app's dialog: those earlier payments happened outside the app.
     Future<void> _addExpense() async {
-        final ExpenseItem? expense = await showRecurringExpenseDialog(context);
+        final ExpenseModel? expense = await showRecurringExpenseDialog(
+            context,
+            categories: _state.data.categories,
+        );
         if (expense == null) return;
         expense.skipToNextDueDate();
+        _rememberCategory(expense.category);
         _balance.expenses.add(expense);
-        // TODO: Persist via StorageManager
-        _refresh();
+        await _state.changed();
+    }
+
+    // Opens the right edit dialog for a row; Delete removes it.
+    Future<void> _editItem(ExpenseItem item) async {
+        void delete() {
+            _balance.expenses.remove(item);
+            _state.changed();
+        }
+
+        final ExpenseItem? edited = item is CreditModel
+            ? await showCreditCardDialog(context, existing: item, onDelete: delete)
+            : await showRecurringExpenseDialog(
+                context,
+                existing: item as ExpenseModel,
+                categories: _state.data.categories,
+                onDelete: delete,
+            );
+        if (edited == null) return;
+        // A newly picked date in the past rolls forward without charging, as when adding.
+        edited.skipToNextDueDate();
+        _rememberCategory(edited.category);
+        final int index = _balance.expenses.indexOf(item);
+        if (index >= 0) _balance.expenses[index] = edited;
+        await _state.changed();
     }
 
     static String _money(double value) => "\$${value.toStringAsFixed(2)}";
     static String _date(DateTime date) => date.toString().split(' ')[0];
 
-    // Balance summary Card
-    Card get balanceSummary => Card(
-        child: IntrinsicHeight(
-            child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                    const Text("CURRENT BALANCE"),
-                    Text(_money(_summary.startBalance)),
-                    const VerticalDivider(),
-                    // TODO: Show "NEXT CHECK" and endBalanceWithNextCheck when that setting is on
-                    const Text("AFTER THIS CHECK"),
-                    Text(_money(_summary.endBalance)),
-                ],
+    // Balance summary Card. With the Next Check setting on, the right-hand figure
+    // adds the next paycheck and is labelled "NEXT CHECK", as in the Java app.
+    Card get balanceSummary {
+        final bool nextCheck = _state.data.includeNextCheck;
+        return Card(
+            child: IntrinsicHeight(
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Text("CURRENT BALANCE"),
+                        Text(_money(_summary.startBalance)),
+                        const VerticalDivider(),
+                        Text(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK"),
+                        Text(_money(nextCheck ? _summary.endBalanceWithNextCheck : _summary.endBalance)),
+                    ],
+                ),
             ),
-        ),
-    );
+        );
+    }
 
     // Define the appBar and its actions
     AppBar get appBar => AppBar(
@@ -121,7 +175,8 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // Expense list for the check on screen
+    // Expense list for the check on screen. Rows can be edited from the
+    // current check only, as in the Java app (projections are read-only).
     Widget get expenseList => RefreshIndicator(
         onRefresh: () async {
             // TODO: Refresh linked bank balances
@@ -135,6 +190,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                     title: Text(expense.name),
                     subtitle: Text(expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}"),
                     trailing: Text(_money(expense.periodAmount)),
+                    onTap: _onHomeScreen ? () => _editItem(expense) : null,
                 );
             },
         ),
@@ -144,6 +200,11 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     Widget get mainActivity => Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+            if (!_state.isSaving)
+                const MaterialBanner(
+                    content: Text("Storage couldn't be opened, so changes won't be saved."),
+                    actions: [SizedBox.shrink()],
+                ),
             balanceSummary,
             expenseListHeader,
             const Divider(), // Divider between header and list
@@ -157,11 +218,14 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     Widget build(BuildContext context) {
         return Scaffold(
             appBar: appBar,
+            drawer: AppDrawer(state: _state, onReturn: _refresh),
             body: mainActivity,
+            // Adds an expense on the current check; while viewing a projected check
+            // it becomes a home button that returns to the current one.
             floatingActionButton: FloatingActionButton(
-                onPressed: _addExpense,
-                tooltip: "Add expense",
-                child: const Icon(Icons.add),
+                onPressed: _onHomeScreen ? _addExpense : _goHome,
+                tooltip: _onHomeScreen ? "Add expense" : "Back to this check",
+                child: Icon(_onHomeScreen ? Icons.add : Icons.home),
             ),
         );
     }

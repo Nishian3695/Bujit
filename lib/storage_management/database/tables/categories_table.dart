@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-// Flat list of user-defined category names (StorageHolder.categories).
+// Flat list of user-defined category names (AppData.categories).
 // Does NOT include category_manager.dart's `newCategory` sentinel
 // ("── New Category ──") -- that string means "show the add-new-category
 // UI prompt" and must never be written here. Whether/where to seed

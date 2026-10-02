@@ -113,6 +113,32 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     requiredDuringInsert: false,
     defaultValue: const Constant(otherCategory),
   );
+  static const VerificationMeta _isCreditMeta = const VerificationMeta(
+    'isCredit',
+  );
+  @override
+  late final GeneratedColumn<bool> isCredit = GeneratedColumn<bool>(
+    'is_credit',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_credit" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _creditLimitMeta = const VerificationMeta(
+    'creditLimit',
+  );
+  @override
+  late final GeneratedColumn<double> creditLimit = GeneratedColumn<double>(
+    'credit_limit',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -124,6 +150,8 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     frequency,
     frequencyUnits,
     category,
+    isCredit,
+    creditLimit,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -195,6 +223,21 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
       );
     }
+    if (data.containsKey('is_credit')) {
+      context.handle(
+        _isCreditMeta,
+        isCredit.isAcceptableOrUnknown(data['is_credit']!, _isCreditMeta),
+      );
+    }
+    if (data.containsKey('credit_limit')) {
+      context.handle(
+        _creditLimitMeta,
+        creditLimit.isAcceptableOrUnknown(
+          data['credit_limit']!,
+          _creditLimitMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -242,6 +285,14 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         DriftSqlType.string,
         data['${effectivePrefix}category'],
       )!,
+      isCredit: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_credit'],
+      )!,
+      creditLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}credit_limit'],
+      ),
     );
   }
 
@@ -266,6 +317,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final int frequency;
   final FrequencyUnit frequencyUnits;
   final String category;
+  final bool isCredit;
+  final double? creditLimit;
   const ExpenseItemRow({
     required this.id,
     required this.name,
@@ -276,6 +329,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     required this.frequency,
     required this.frequencyUnits,
     required this.category,
+    required this.isCredit,
+    this.creditLimit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -295,6 +350,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       );
     }
     map['category'] = Variable<String>(category);
+    map['is_credit'] = Variable<bool>(isCredit);
+    if (!nullToAbsent || creditLimit != null) {
+      map['credit_limit'] = Variable<double>(creditLimit);
+    }
     return map;
   }
 
@@ -311,6 +370,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
       category: Value(category),
+      isCredit: Value(isCredit),
+      creditLimit: creditLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(creditLimit),
     );
   }
 
@@ -331,6 +394,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
         serializer.fromJson<String>(json['frequencyUnits']),
       ),
       category: serializer.fromJson<String>(json['category']),
+      isCredit: serializer.fromJson<bool>(json['isCredit']),
+      creditLimit: serializer.fromJson<double?>(json['creditLimit']),
     );
   }
   @override
@@ -348,6 +413,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
         $ExpenseItemRowsTable.$converterfrequencyUnits.toJson(frequencyUnits),
       ),
       'category': serializer.toJson<String>(category),
+      'isCredit': serializer.toJson<bool>(isCredit),
+      'creditLimit': serializer.toJson<double?>(creditLimit),
     };
   }
 
@@ -361,6 +428,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     int? frequency,
     FrequencyUnit? frequencyUnits,
     String? category,
+    bool? isCredit,
+    Value<double?> creditLimit = const Value.absent(),
   }) => ExpenseItemRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -371,6 +440,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     category: category ?? this.category,
+    isCredit: isCredit ?? this.isCredit,
+    creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
   );
   ExpenseItemRow copyWithCompanion(ExpenseItemRowsCompanion data) {
     return ExpenseItemRow(
@@ -387,6 +458,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ? data.frequencyUnits.value
           : this.frequencyUnits,
       category: data.category.present ? data.category.value : this.category,
+      isCredit: data.isCredit.present ? data.isCredit.value : this.isCredit,
+      creditLimit: data.creditLimit.present
+          ? data.creditLimit.value
+          : this.creditLimit,
     );
   }
 
@@ -401,7 +476,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
-          ..write('category: $category')
+          ..write('category: $category, ')
+          ..write('isCredit: $isCredit, ')
+          ..write('creditLimit: $creditLimit')
           ..write(')'))
         .toString();
   }
@@ -417,6 +494,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     frequency,
     frequencyUnits,
     category,
+    isCredit,
+    creditLimit,
   );
   @override
   bool operator ==(Object other) =>
@@ -430,7 +509,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.endDate == this.endDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
-          other.category == this.category);
+          other.category == this.category &&
+          other.isCredit == this.isCredit &&
+          other.creditLimit == this.creditLimit);
 }
 
 class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
@@ -443,6 +524,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
   final Value<String> category;
+  final Value<bool> isCredit;
+  final Value<double?> creditLimit;
   const ExpenseItemRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -453,6 +536,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
     this.category = const Value.absent(),
+    this.isCredit = const Value.absent(),
+    this.creditLimit = const Value.absent(),
   });
   ExpenseItemRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -464,6 +549,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     required int frequency,
     required FrequencyUnit frequencyUnits,
     this.category = const Value.absent(),
+    this.isCredit = const Value.absent(),
+    this.creditLimit = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        startDate = Value(startDate),
@@ -480,6 +567,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
     Expression<String>? category,
+    Expression<bool>? isCredit,
+    Expression<double>? creditLimit,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -491,6 +580,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (category != null) 'category': category,
+      if (isCredit != null) 'is_credit': isCredit,
+      if (creditLimit != null) 'credit_limit': creditLimit,
     });
   }
 
@@ -504,6 +595,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
     Value<String>? category,
+    Value<bool>? isCredit,
+    Value<double?>? creditLimit,
   }) {
     return ExpenseItemRowsCompanion(
       id: id ?? this.id,
@@ -515,6 +608,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       category: category ?? this.category,
+      isCredit: isCredit ?? this.isCredit,
+      creditLimit: creditLimit ?? this.creditLimit,
     );
   }
 
@@ -552,6 +647,12 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (isCredit.present) {
+      map['is_credit'] = Variable<bool>(isCredit.value);
+    }
+    if (creditLimit.present) {
+      map['credit_limit'] = Variable<double>(creditLimit.value);
+    }
     return map;
   }
 
@@ -566,7 +667,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
-          ..write('category: $category')
+          ..write('category: $category, ')
+          ..write('isCredit: $isCredit, ')
+          ..write('creditLimit: $creditLimit')
           ..write(')'))
         .toString();
   }
@@ -1279,8 +1382,28 @@ class $AppMetaRowsTable extends AppMetaRows
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _includeNextCheckMeta = const VerificationMeta(
+    'includeNextCheck',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, currentBalance, lastUpdated];
+  late final GeneratedColumn<bool> includeNextCheck = GeneratedColumn<bool>(
+    'include_next_check',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("include_next_check" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    currentBalance,
+    lastUpdated,
+    includeNextCheck,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1316,6 +1439,15 @@ class $AppMetaRowsTable extends AppMetaRows
     } else if (isInserting) {
       context.missing(_lastUpdatedMeta);
     }
+    if (data.containsKey('include_next_check')) {
+      context.handle(
+        _includeNextCheckMeta,
+        includeNextCheck.isAcceptableOrUnknown(
+          data['include_next_check']!,
+          _includeNextCheckMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1337,6 +1469,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_updated'],
       )!,
+      includeNextCheck: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}include_next_check'],
+      )!,
     );
   }
 
@@ -1350,10 +1486,12 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final int id;
   final double currentBalance;
   final DateTime lastUpdated;
+  final bool includeNextCheck;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
     required this.lastUpdated,
+    required this.includeNextCheck,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1361,6 +1499,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['id'] = Variable<int>(id);
     map['current_balance'] = Variable<double>(currentBalance);
     map['last_updated'] = Variable<DateTime>(lastUpdated);
+    map['include_next_check'] = Variable<bool>(includeNextCheck);
     return map;
   }
 
@@ -1369,6 +1508,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       id: Value(id),
       currentBalance: Value(currentBalance),
       lastUpdated: Value(lastUpdated),
+      includeNextCheck: Value(includeNextCheck),
     );
   }
 
@@ -1381,6 +1521,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       id: serializer.fromJson<int>(json['id']),
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
+      includeNextCheck: serializer.fromJson<bool>(json['includeNextCheck']),
     );
   }
   @override
@@ -1390,6 +1531,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'id': serializer.toJson<int>(id),
       'currentBalance': serializer.toJson<double>(currentBalance),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
+      'includeNextCheck': serializer.toJson<bool>(includeNextCheck),
     };
   }
 
@@ -1397,10 +1539,12 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     int? id,
     double? currentBalance,
     DateTime? lastUpdated,
+    bool? includeNextCheck,
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
     lastUpdated: lastUpdated ?? this.lastUpdated,
+    includeNextCheck: includeNextCheck ?? this.includeNextCheck,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -1411,6 +1555,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       lastUpdated: data.lastUpdated.present
           ? data.lastUpdated.value
           : this.lastUpdated,
+      includeNextCheck: data.includeNextCheck.present
+          ? data.includeNextCheck.value
+          : this.includeNextCheck,
     );
   }
 
@@ -1419,45 +1566,53 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     return (StringBuffer('AppMetaRow(')
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
-          ..write('lastUpdated: $lastUpdated')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('includeNextCheck: $includeNextCheck')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, currentBalance, lastUpdated);
+  int get hashCode =>
+      Object.hash(id, currentBalance, lastUpdated, includeNextCheck);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppMetaRow &&
           other.id == this.id &&
           other.currentBalance == this.currentBalance &&
-          other.lastUpdated == this.lastUpdated);
+          other.lastUpdated == this.lastUpdated &&
+          other.includeNextCheck == this.includeNextCheck);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<int> id;
   final Value<double> currentBalance;
   final Value<DateTime> lastUpdated;
+  final Value<bool> includeNextCheck;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.lastUpdated = const Value.absent(),
+    this.includeNextCheck = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
     required DateTime lastUpdated,
+    this.includeNextCheck = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
     Expression<double>? currentBalance,
     Expression<DateTime>? lastUpdated,
+    Expression<bool>? includeNextCheck,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (currentBalance != null) 'current_balance': currentBalance,
       if (lastUpdated != null) 'last_updated': lastUpdated,
+      if (includeNextCheck != null) 'include_next_check': includeNextCheck,
     });
   }
 
@@ -1465,11 +1620,13 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<int>? id,
     Value<double>? currentBalance,
     Value<DateTime>? lastUpdated,
+    Value<bool>? includeNextCheck,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
       currentBalance: currentBalance ?? this.currentBalance,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      includeNextCheck: includeNextCheck ?? this.includeNextCheck,
     );
   }
 
@@ -1485,6 +1642,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (lastUpdated.present) {
       map['last_updated'] = Variable<DateTime>(lastUpdated.value);
     }
+    if (includeNextCheck.present) {
+      map['include_next_check'] = Variable<bool>(includeNextCheck.value);
+    }
     return map;
   }
 
@@ -1493,7 +1653,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     return (StringBuffer('AppMetaRowsCompanion(')
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
-          ..write('lastUpdated: $lastUpdated')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('includeNextCheck: $includeNextCheck')
           ..write(')'))
         .toString();
   }
@@ -1533,6 +1694,8 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       required int frequency,
       required FrequencyUnit frequencyUnits,
       Value<String> category,
+      Value<bool> isCredit,
+      Value<double?> creditLimit,
     });
 typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
     ExpenseItemRowsCompanion Function({
@@ -1545,6 +1708,8 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
       Value<String> category,
+      Value<bool> isCredit,
+      Value<double?> creditLimit,
     });
 
 class $$ExpenseItemRowsTableFilterComposer
@@ -1599,6 +1764,16 @@ class $$ExpenseItemRowsTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
     column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCredit => $composableBuilder(
+    column: $table.isCredit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1656,6 +1831,16 @@ class $$ExpenseItemRowsTableOrderingComposer
     column: $table.category,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isCredit => $composableBuilder(
+    column: $table.isCredit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpenseItemRowsTableAnnotationComposer
@@ -1698,6 +1883,14 @@ class $$ExpenseItemRowsTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCredit =>
+      $composableBuilder(column: $table.isCredit, builder: (column) => column);
+
+  GeneratedColumn<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpenseItemRowsTableTableManager
@@ -1746,6 +1939,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
                 Value<String> category = const Value.absent(),
+                Value<bool> isCredit = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
               }) => ExpenseItemRowsCompanion(
                 id: id,
                 name: name,
@@ -1756,6 +1951,8 @@ class $$ExpenseItemRowsTableTableManager
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 category: category,
+                isCredit: isCredit,
+                creditLimit: creditLimit,
               ),
           createCompanionCallback:
               ({
@@ -1768,6 +1965,8 @@ class $$ExpenseItemRowsTableTableManager
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
                 Value<String> category = const Value.absent(),
+                Value<bool> isCredit = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
               }) => ExpenseItemRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -1778,6 +1977,8 @@ class $$ExpenseItemRowsTableTableManager
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 category: category,
+                isCredit: isCredit,
+                creditLimit: creditLimit,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2187,12 +2388,14 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<int> id,
       Value<double> currentBalance,
       required DateTime lastUpdated,
+      Value<bool> includeNextCheck,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
       Value<int> id,
       Value<double> currentBalance,
       Value<DateTime> lastUpdated,
+      Value<bool> includeNextCheck,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -2216,6 +2419,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<DateTime> get lastUpdated => $composableBuilder(
     column: $table.lastUpdated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get includeNextCheck => $composableBuilder(
+    column: $table.includeNextCheck,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2243,6 +2451,11 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.lastUpdated,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get includeNextCheck => $composableBuilder(
+    column: $table.includeNextCheck,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -2264,6 +2477,11 @@ class $$AppMetaRowsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get lastUpdated => $composableBuilder(
     column: $table.lastUpdated,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get includeNextCheck => $composableBuilder(
+    column: $table.includeNextCheck,
     builder: (column) => column,
   );
 }
@@ -2302,20 +2520,24 @@ class $$AppMetaRowsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
+                Value<bool> includeNextCheck = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
+                includeNextCheck: includeNextCheck,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
                 required DateTime lastUpdated,
+                Value<bool> includeNextCheck = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
+                includeNextCheck: includeNextCheck,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

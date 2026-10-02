@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart';
 
 // Single-row table for whole-app values that don't belong to any one
-// expense/income/category -- StorageHolder's remaining fields:
-// currentBalance and lastUpdated.
+// expense/income/category: the balance, the day everything was last brought
+// up to (BalanceModel.lastUpdated), and settings. No row at all means the app
+// has never been opened (AppDataStore.load returns null).
 //
 // SQLite has no built-in "singleton table" concept; this is the common
 // drift/SQL pattern for emulating one: fix the primary key to a single
@@ -10,9 +11,6 @@ import 'package:drift/drift.dart';
 // id 0, and use an upsert (insertOnConflictUpdate) rather than a plain
 // insert, so a second "insert" updates the one row instead of failing
 // the CHECK.
-//
-// TODO(you): build an AppMetaDao (or just query db.appMeta directly --
-// a DAO is organizational sugar, not required for a single-row table).
 @DataClassName('AppMetaRow') // named ...Row so the generated class name
 // doesn't read as confusingly close to the table class's own name.
 class AppMetaRows extends Table {
@@ -27,6 +25,8 @@ class AppMetaRows extends Table {
   IntColumn get id => integer().customConstraint('NOT NULL DEFAULT 0 CHECK (id = 0)')();
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
   DateTimeColumn get lastUpdated => dateTime()();
+  // Settings: show "Next Check" (After This Check plus the next paycheck).
+  BoolColumn get includeNextCheck => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};

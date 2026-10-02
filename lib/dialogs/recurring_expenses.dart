@@ -2,16 +2,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/expense_activity/expense_model.dart';
+import '../utils/category_manager.dart';
 import '../utils/frequency_unit.dart';
+import 'confirm_delete.dart';
 
 // Returns the created/edited ExpenseModel, or null if the dialog was cancelled
+// or the expense was deleted. [categories] are the user's categories ("Other"
+// and a "New Category" option are added). When editing, Delete asks for
+// confirmation and then calls [onDelete].
 Future<ExpenseModel?> showRecurringExpenseDialog(
     BuildContext context, {
     ExpenseModel? existing,
+    List<String> categories = const [],
+    VoidCallback? onDelete,
 }) {
     return showAdaptiveDialog<ExpenseModel>(
         context: context,
-        builder: (context) => _RecurringExpenseDialog(existing: existing),
+        builder: (context) => _RecurringExpenseDialog(
+            existing: existing,
+            categories: categories,
+            onDelete: onDelete,
+        ),
     );
 }
 
@@ -19,7 +30,9 @@ Future<ExpenseModel?> showRecurringExpenseDialog(
 class _RecurringExpenseDialog extends StatefulWidget {
     // The existing ExpenseModel to edit, or null to create a new one
     final ExpenseModel? existing;
-    const _RecurringExpenseDialog({this.existing});
+    final List<String> categories;
+    final VoidCallback? onDelete;
+    const _RecurringExpenseDialog({this.existing, required this.categories, this.onDelete});
 
     @override
     State<_RecurringExpenseDialog> createState() => _RecurringExpenseDialogState();
@@ -30,7 +43,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     // Fill in with existing values if editing an existing expense
     late final TextEditingController _nameController =
         TextEditingController(text: widget.existing?.name);
-    late final TextEditingController _amountController = 
+    late final TextEditingController _amountController =
         TextEditingController(text: widget.existing?.amount.toStringAsFixed(2));
     // Defaults to 1 for a new expense
     late final TextEditingController _frequencyController =
@@ -39,9 +52,14 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     final _formKey = GlobalKey<FormState>();
     // Defined things to change but keep locally until Save is pressed
     late FrequencyUnit _frequencyUnit = widget.existing?.frequencyUnits ?? FrequencyUnit.values.first;
-    late String _category = widget.existing?.category ?? "Other";
+    late String _category = widget.existing?.category ?? otherCategory;
     // Like the Java app, editing shows the next due date and adding defaults to today.
     late DateTime _startDate = widget.existing?.currentDueDate ?? _today;
+    // Optional last date (inclusive); null = never ends.
+    late DateTime? _endDate = widget.existing?.endDate;
+    // Categories added from this dialog ("New Category"), shown in the dropdown.
+    final List<String> _addedCategories = [];
+    String? _endDateError;
 
     static DateTime get _today {
         final now = DateTime.now();
@@ -59,21 +77,34 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
         super.dispose();
     }
 
-    // Get current items, including user-specified categories if they exist
-    // TODO: Get categories from storage instead of hardcoding them
+    // Dropdown entries: the user's categories, "Other", then "New Category". The
+    // current category is always included, even if it was since removed.
     List<String> get _currentItems {
-        return [_category];
+        final List<String> items = getCategories([...widget.categories, ..._addedCategories]);
+        if (!items.contains(_category)) items.insert(0, _category);
+        return items;
     }
 
     // Show a date picker and return the selected date, or null if cancelled
-    Future<DateTime?> _selectStartDate(BuildContext context) async {
-        DateTime? startDate = await showDatePicker(
+    Future<DateTime?> _selectDate(BuildContext context, DateTime initial) async {
+        return showDatePicker(
             context: context,
-            initialDate: _startDate,
+            initialDate: initial,
             firstDate: DateTime(1900),
             lastDate: DateTime(2100),
         );
-        return startDate;
+    }
+
+    // An end date before the start is invalid -- unless neither date was touched
+    // while editing an expense that has already ended (its next-due date is then
+    // past its end date), so it can still be saved. Same rule as the Java app.
+    bool _endDateValid() {
+        final ExpenseModel? existing = widget.existing;
+        final bool untouched = existing != null
+            && _startDate == existing.currentDueDate
+            && _endDate == existing.endDate;
+        final DateTime? end = _endDate;
+        return end == null || !end.isBefore(_startDate) || untouched;
     }
 
     // Get actions if adding an expense
@@ -103,6 +134,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 frequencyUnits: _frequencyUnit,
                 startDate: keepSchedule ? existing.startDate : _startDate,
                 currentDueDate: keepSchedule ? existing.currentDueDate : null,
+                endDate: _endDate,
                 category: _category,
             );
         }
@@ -119,7 +151,9 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                     // On failure validate() already shows each field's error inline, so
                     // there's no SnackBar: it would need a Scaffold behind the dialog and
                     // would render under the modal barrier anyway.
-                    if (_formKey.currentState!.validate()) {
+                    final bool endOk = _endDateValid();
+                    setState(() => _endDateError = endOk ? null : "Ending date can't be before the starting date");
+                    if (_formKey.currentState!.validate() && endOk) {
                         // Close the dialog, handing the expense back to the caller
                         Navigator.of(context).pop(createExpenseModel());
                     }
@@ -131,9 +165,12 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
         // If editing, add a "Delete" button
         if (existing != null) {
             actions.insert(0, TextButton(
-                onPressed: () {
-                    // TODO: Implement delete dialog
-                    Navigator.of(context).pop(); // Close the dialog
+                onPressed: () async {
+                    final NavigatorState navigator = Navigator.of(context);
+                    if (await confirmDelete(context, "Expense", existing.name)) {
+                        widget.onDelete?.call();
+                        navigator.pop(); // Close the dialog
+                    }
                 },
                 child: const Text("Delete"),
             ));
@@ -149,100 +186,137 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
             // Form with GlobalKey<FormState> lets single validate() check TextFormFields
             content: Form(
                 key: _formKey,
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        // Expense name
-                        TextFormField(
-                            controller: _nameController,
-                            decoration: const InputDecoration(
-                                labelText: "Expense Name",
-                                hintText: "e.g., Rent",
+                child: SingleChildScrollView(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            // Expense name
+                            TextFormField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                    labelText: "Expense Name",
+                                    hintText: "e.g., Rent",
+                                ),
+                                validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                        return "Name is required";
+                                    }
+                                    return null;
+                                },
                             ),
-                            validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                    return "Name is required";
-                                }
-                                return null;
-                            },
-                        ),
-                        // Expense amount
-                        TextFormField(
-                            controller: _amountController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                                // Regex to allow only numbers and up to two decimal places
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                            ],
-                            decoration: const InputDecoration(
-                                prefixText: '\$',
-                                labelText: "Amount",
-                                hintText: "0.00",
+                            // Expense amount
+                            TextFormField(
+                                controller: _amountController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                    // Regex to allow only numbers and up to two decimal places
+                                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                decoration: const InputDecoration(
+                                    prefixText: '\$',
+                                    labelText: "Amount",
+                                    hintText: "0.00",
+                                ),
+                                validator: (value) {
+                                    final amount = double.tryParse(value?.trim() ?? "");
+                                    if (amount == null) {
+                                        return "Enter a valid amount";
+                                    }
+                                    if (amount <= 0) {
+                                        return "Enter an amount greater than 0";
+                                    }
+                                    return null;
+                                },
                             ),
-                            validator: (value) {
-                                final amount = double.tryParse(value?.trim() ?? "");
-                                if (amount == null) {
-                                    return "Enter a valid amount";
-                                }
-                                if (amount <= 0) {
-                                    return "Enter an amount greater than 0";
-                                }
-                                return null;
-                            },
-                        ),
-                        // TODO: Add a "From Connected Account" button
-                        // Row of (frequency, frequency unit) fields
-                        Row(
-                            children: [
-                                // Frequency count field
-                                Expanded(
-                                    child: TextFormField(
-                                        controller: _frequencyController,
-                                        // Whole numbers only: the frequency is parsed with int.tryParse
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                        decoration: const InputDecoration(
-                                            labelText: "Frequency",
-                                            hintText: "e.g., 1",
+                            // TODO: Add a "From Connected Account" button
+                            // Row of (frequency, frequency unit) fields
+                            Row(
+                                children: [
+                                    // Frequency count field
+                                    Expanded(
+                                        child: TextFormField(
+                                            controller: _frequencyController,
+                                            // Whole numbers only: the frequency is parsed with int.tryParse
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                            decoration: const InputDecoration(
+                                                labelText: "Frequency",
+                                                hintText: "e.g., 1",
+                                            ),
+                                            validator: (value) {
+                                                final frequency = int.tryParse(value?.trim() ?? "");
+                                                if (frequency == null || frequency <= 0) {
+                                                    return "Enter a frequency greater than 0";
+                                                }
+                                                return null;
+                                            },
                                         ),
-                                        validator: (value) {
-                                            final frequency = int.tryParse(value?.trim() ?? "");
-                                            if (frequency == null || frequency <= 0) {
-                                                return "Enter a frequency greater than 0";
-                                            }
-                                            return null;
-                                        },
                                     ),
-                                ),
-                                // Frequency unit dropdown
-                                DropdownButton<FrequencyUnit>(
-                                    value: _frequencyUnit,
-                                    items: FrequencyUnit.values
-                                        .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
-                                        .toList(),
-                                    onChanged: (unit) => setState(() => _frequencyUnit = unit!),
-                                ),
-                            ],
-                        ),
-                        // Start date picker
-                        TextButton(
-                            onPressed: () async {
-                                final picked = await _selectStartDate(context);
-                                if (picked != null) {
-                                    setState(() => _startDate = picked);
-                                }
-                            },
-                            child: Text("Starting Date: ${_formatDate(_startDate)}"),
-                        ),
-                        // Category dropdown
-                        DropdownButton<String>(
-                            value: _category,
-                            items: _currentItems
-                                .map((category) => DropdownMenuItem(value: category, child: Text(category)))
-                                .toList(),
-                            onChanged: (category) => setState(() => _category = category!),
-                        ),
-                    ],
+                                    // Frequency unit dropdown
+                                    DropdownButton<FrequencyUnit>(
+                                        value: _frequencyUnit,
+                                        items: FrequencyUnit.values
+                                            .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
+                                            .toList(),
+                                        onChanged: (unit) => setState(() => _frequencyUnit = unit!),
+                                    ),
+                                ],
+                            ),
+                            // Start date picker
+                            TextButton(
+                                onPressed: () async {
+                                    final picked = await _selectDate(context, _startDate);
+                                    if (picked != null) {
+                                        setState(() => _startDate = picked);
+                                    }
+                                },
+                                child: Text("Starting Date: ${_formatDate(_startDate)}"),
+                            ),
+                            // End date picker ("Never" until one is picked; Clear resets it)
+                            Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                    TextButton(
+                                        onPressed: () async {
+                                            final picked = await _selectDate(context, _endDate ?? _startDate);
+                                            if (picked != null) {
+                                                setState(() { _endDate = picked; _endDateError = null; });
+                                            }
+                                        },
+                                        child: Text("Ending Date: ${_endDate == null ? "Never" : _formatDate(_endDate!)}"),
+                                    ),
+                                    if (_endDate != null)
+                                        TextButton(
+                                            onPressed: () => setState(() { _endDate = null; _endDateError = null; }),
+                                            child: const Text("Clear"),
+                                        ),
+                                ],
+                            ),
+                            if (_endDateError != null)
+                                Text(_endDateError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                            // Category dropdown
+                            DropdownButton<String>(
+                                value: _category,
+                                items: _currentItems
+                                    .map((category) => DropdownMenuItem(value: category, child: Text(category)))
+                                    .toList(),
+                                onChanged: (category) async {
+                                    if (category == null) return;
+                                    if (category != newCategory) {
+                                        setState(() => _category = category);
+                                        return;
+                                    }
+                                    final String? added = await askNewCategory(context);
+                                    if (added != null) {
+                                        setState(() {
+                                            if (!_currentItems.contains(added)) _addedCategories.add(added);
+                                            _category = added;
+                                        });
+                                    }
+                                },
+                            ),
+                        ],
+                    ),
                 ),
             ),
             actions: _actions(widget.existing),

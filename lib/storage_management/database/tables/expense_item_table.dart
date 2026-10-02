@@ -41,4 +41,8 @@ class ExpenseItemRows extends Table {
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
   TextColumn get category => text().withDefault(const Constant(otherCategory))();
+  // Credit cards share this table (CreditModel extends ExpenseItem): amount is
+  // the card's balance and creditLimit its limit; null for regular expenses.
+  BoolColumn get isCredit => boolean().withDefault(const Constant(false))();
+  RealColumn get creditLimit => real().nullable()();
 }
