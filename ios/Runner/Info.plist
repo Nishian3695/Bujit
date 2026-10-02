@@ -68,5 +68,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Google sign-in (Google Tasks sync) returns to the app through this scheme:
+	     the iOS OAuth client's ID, reversed. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.533939418471-hcd1blgas2f6il4qjb6ok84stjq3dcpr</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
