@@ -35,7 +35,11 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
     // A due date entered in the past rolls forward to the next one without
     // paying anything -- the balance entered is what's owed now.
     Future<void> _add() async {
-        final CreditModel? card = await showCreditCardDialog(context);
+        final CreditModel? card = await showCreditCardDialog(
+            context,
+            sources: _balance.paymentOptions(forCard: true),
+            otherCardNames: _balance.creditCards.map((c) => c.name),
+        );
         if (card == null) return;
         card.skipToNextDueDate();
         _balance.expenses.add(card);
@@ -46,16 +50,21 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
         final CreditModel? edited = await showCreditCardDialog(
             context,
             existing: old,
-            onDelete: () {
-                _balance.expenses.remove(old);
-                _save();
+            sources: _balance.paymentOptions(forCard: true),
+            otherCardNames: _balance.creditCards.where((c) => c != old).map((c) => c.name),
+            onDelete: () async {
+                await widget.state.removeItem(old);
+                _refreshCards();
             },
         );
         if (edited == null) return;
-        edited.skipToNextDueDate();
-        final int index = _balance.expenses.indexOf(old);
-        if (index >= 0) _balance.expenses[index] = edited;
-        await _save();
+        await widget.state.replaceItem(old, edited);
+        _refreshCards();
+    }
+
+    void _refreshCards() {
+        _balance.showCheck(0);
+        if (mounted) setState(() {});
     }
 
     // Green under 30%, amber under 70%, red from 70%, as in the Java app.

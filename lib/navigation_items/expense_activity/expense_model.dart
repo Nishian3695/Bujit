@@ -18,6 +18,8 @@ class ExpenseModel extends ExpenseItem {
         super.endDate,
         super.googleTaskId,
         super.remindInTasks,
+        super.source,
+        super.sourceId,
     });
 
     // Getters

@@ -1,28 +1,48 @@
 // Add/edit dialog for a credit card (CreditModel). Cards always bill monthly.
+// Cards are referred to by name (what's charged to them, single events), so a
+// name can't be shared with another card.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/expense_activity/credit_model.dart';
+import '../navigation_items/expense_activity/funding_source.dart';
+import 'paid_from_field.dart';
 import '../utils/date_utils.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 
 // Returns the created/edited CreditModel, or null if cancelled or deleted. When
 // editing, Delete asks for confirmation and then calls [onDelete].
+// [sources] are the "Paid from" choices (BalanceModel.paymentOptions(forCard: true));
+// [otherCardNames] are the names already taken.
 Future<CreditModel?> showCreditCardDialog(
     BuildContext context, {
     CreditModel? existing,
     VoidCallback? onDelete,
+    List<SourceOption> sources = const [SourceOption.currentBalance],
+    Iterable<String> otherCardNames = const [],
 }) {
     return showAdaptiveDialog<CreditModel>(
         context: context,
-        builder: (context) => _CreditCardDialog(existing: existing, onDelete: onDelete),
+        builder: (context) => _CreditCardDialog(
+            existing: existing,
+            onDelete: onDelete,
+            sources: sources,
+            otherCardNames: otherCardNames.toSet(),
+        ),
     );
 }
 
 class _CreditCardDialog extends StatefulWidget {
     final CreditModel? existing;
     final VoidCallback? onDelete;
-    const _CreditCardDialog({this.existing, this.onDelete});
+    final List<SourceOption> sources;
+    final Set<String> otherCardNames;
+    const _CreditCardDialog({
+        this.existing,
+        this.onDelete,
+        required this.sources,
+        required this.otherCardNames,
+    });
 
     @override
     State<_CreditCardDialog> createState() => _CreditCardDialogState();
@@ -38,6 +58,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
     // Next due date: the card's current one when editing, else a month from today.
     late DateTime _dueDate = widget.existing?.currentDueDate ?? DateTime(
         todayDate().year, todayDate().month + 1, todayDate().day);
+    late SourceOption _source = initialSource(widget.sources, widget.existing);
 
     @override
     void dispose() {
@@ -70,6 +91,8 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
             frequencyUnits: FrequencyUnit.monthly,
             googleTaskId: existing?.googleTaskId,
             remindInTasks: existing?.remindInTasks ?? true,
+            source: _source.source,
+            sourceId: _source.id,
         );
     }
 
@@ -97,8 +120,12 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                             TextFormField(
                                 controller: _name,
                                 decoration: const InputDecoration(labelText: "Card Name"),
-                                validator: (value) =>
-                                    (value == null || value.trim().isEmpty) ? "Name is required" : null,
+                                validator: (value) {
+                                    final String name = value?.trim() ?? "";
+                                    if (name.isEmpty) return "Name is required";
+                                    if (widget.otherCardNames.contains(name)) return "Another card has this name";
+                                    return null;
+                                },
                             ),
                             _moneyField(_balance, "Balance Owed", positive: false),
                             _moneyField(_limit, "Credit Limit", positive: true),
@@ -113,6 +140,11 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                                     if (picked != null) setState(() => _dueDate = dateOnly(picked));
                                 },
                                 child: Text("Next Due Date: ${_dueDate.toString().split(' ')[0]}"),
+                            ),
+                            PaidFromField(
+                                options: widget.sources,
+                                value: _source,
+                                onChanged: (source) => setState(() => _source = source),
                             ),
                         ],
                     ),

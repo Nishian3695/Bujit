@@ -4,6 +4,7 @@ import 'package:bujit/utils/frequency_unit.dart';
 import 'package:bujit/utils/projector.dart';
 import 'package:bujit/utils/category_manager.dart';
 import 'check_window.dart';
+import 'funding_source.dart';
 
 class ExpenseItem {
     // Persistent fields
@@ -25,6 +26,10 @@ class ExpenseItem {
     // Whether its Google Task gets the next due date (Google Tasks reminds you
     // on due dates); the Java app's per-expense "calendar notifications".
     bool remindInTasks;
+    // What pays each occurrence (see FundingSource): a manual account's id or a
+    // card's name in sourceId.
+    FundingSource source;
+    String? sourceId;
 
     // Displayed date and cost for the check currently on screen (see toCheck)
     late DateTime shownDate;
@@ -42,6 +47,8 @@ class ExpenseItem {
         DateTime? endDate,
         this.googleTaskId,
         this.remindInTasks = true,
+        this.source = FundingSource.balance,
+        this.sourceId,
     }) : startDate = dateOnly(startDate),
          currentDueDate = dateOnly(currentDueDate ?? startDate),
          endDate = endDate == null ? null : dateOnly(endDate) {
@@ -71,6 +78,20 @@ class ExpenseItem {
         final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
         if (lo.isAfter(hi)) return 0;
         return _projector.countBetween(lo, hi);
+    }
+
+    // Dates of the unpaid occurrences from [from] through [to], both inclusive
+    // (the same ones occurrencesBetween counts).
+    List<DateTime> occurrenceDatesBetween(DateTime from, DateTime to) {
+        final DateTime lo = maxDate(maxDate(dateOnly(from), startDate), currentDueDate);
+        final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
+        final List<DateTime> dates = [];
+        DateTime date = _projector.firstOnOrAfter(lo);
+        while (!date.isAfter(hi) && date.isBefore(Projector.never)) {
+            dates.add(date);
+            date = _projector.firstOnOrAfter(addDays(date, 1));
+        }
+        return dates;
     }
 
     // Get number of occurrences in the half-open period [start, end)

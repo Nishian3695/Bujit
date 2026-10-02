@@ -16,6 +16,7 @@ extension SingleEventRowMapper on SingleEventRow {
         appliedAmount: appliedAmount,
         target: target,
         targetName: targetName,
+        targetId: targetId,
       );
 }
 
@@ -29,5 +30,6 @@ extension SingleEventModelMapper on SingleEventModel {
         appliedAmount: appliedAmount,
         target: target,
         targetName: Value(targetName),
+        targetId: Value(targetId),
       );
 }

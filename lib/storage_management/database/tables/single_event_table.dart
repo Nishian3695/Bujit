@@ -13,5 +13,6 @@ class SingleEventRows extends Table {
   // Signed effect currently applied to the target (see SingleEventModel.appliedAmount).
   RealColumn get appliedAmount => real()();
   TextColumn get target => textEnum<EventTarget>()();
-  TextColumn get targetName => text().nullable()(); // Credit card name for EventTarget.creditCard
+  TextColumn get targetName => text().nullable()(); // Card name, or the account's name for display
+  TextColumn get targetId => text().nullable()(); // Manual account id for EventTarget.manualAccount
 }

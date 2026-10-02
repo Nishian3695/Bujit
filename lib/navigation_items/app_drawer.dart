@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../tutorial/tutorial_manager.dart';
-import 'not_built_yet.dart';
 import 'screens.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -35,7 +34,7 @@ class AppDrawer extends StatelessWidget {
                     const DrawerHeader(child: Text("Bujit")),
                     item(Icons.payments, "Income Streams", screenFor(TutorialScreen.incomeStreams, state)),
                     item(Icons.credit_card, "Credit Utilization", screenFor(TutorialScreen.creditUtil, state)),
-                    item(Icons.account_balance, "Linked Accounts", const NotBuiltYet(title: "Linked Accounts")),
+                    item(Icons.account_balance, "Linked Accounts", screenFor(TutorialScreen.linkedAccounts, state)),
                     item(Icons.event, "Single Events", screenFor(TutorialScreen.singleEvents, state)),
                     item(Icons.bar_chart, "Visuals", screenFor(TutorialScreen.visuals, state)),
                     const Divider(),

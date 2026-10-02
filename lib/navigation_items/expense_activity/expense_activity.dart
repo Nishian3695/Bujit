@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/recurring_expenses.dart';
+import '../../dialogs/update_balance_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
 import '../app_drawer.dart';
@@ -95,6 +96,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             context,
             categories: _state.data.categories,
             showTasksOption: _state.data.tasksSyncEnabled,
+            sources: _balance.paymentOptions(forCard: false),
         );
         if (expense == null) return;
         expense.skipToNextDueDate();
@@ -105,27 +107,33 @@ class ExpenseActivityState extends State<ExpenseActivity> {
 
     // Opens the right edit dialog for a row; Delete removes it.
     Future<void> _editItem(ExpenseItem item) async {
-        void delete() {
-            _balance.expenses.remove(item);
-            _state.changed();
-        }
+        void delete() => _state.removeItem(item);
 
         final ExpenseItem? edited = item is CreditModel
-            ? await showCreditCardDialog(context, existing: item, onDelete: delete)
+            ? await showCreditCardDialog(
+                context,
+                existing: item,
+                onDelete: delete,
+                sources: _balance.paymentOptions(forCard: true),
+                otherCardNames: _balance.creditCards.where((c) => c != item).map((c) => c.name),
+            )
             : await showRecurringExpenseDialog(
                 context,
                 existing: item as ExpenseModel,
                 categories: _state.data.categories,
                 onDelete: delete,
                 showTasksOption: _state.data.tasksSyncEnabled,
+                sources: _balance.paymentOptions(forCard: false),
             );
         if (edited == null) return;
-        // A newly picked date in the past rolls forward without charging, as when adding.
-        edited.skipToNextDueDate();
         _rememberCategory(edited.category);
-        final int index = _balance.expenses.indexOf(item);
-        if (index >= 0) _balance.expenses[index] = edited;
-        await _state.changed();
+        // A newly picked date in the past rolls forward without charging, as when adding.
+        await _state.replaceItem(item, edited);
+    }
+
+    // Tapping (or long-pressing, as in the Java app) the current balance on this check.
+    Future<void> _updateBalance() async {
+        if (await showUpdateBalanceDialog(context, _balance)) await _state.changed();
     }
 
     static String _money(double value) => "\$${value.toStringAsFixed(2)}";
@@ -133,6 +141,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
 
     // Balance summary Card. With the Next Check setting on, the right-hand figure
     // adds the next paycheck and is labelled "NEXT CHECK", as in the Java app.
+    // On this check, tapping the current balance updates it.
     Card get balanceSummary {
         final bool nextCheck = _state.data.includeNextCheck;
         return Card(
@@ -140,8 +149,20 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                        const Text("CURRENT BALANCE"),
-                        Text(_money(_summary.startBalance)),
+                        InkWell(
+                            onTap: _onHomeScreen ? _updateBalance : null,
+                            onLongPress: _onHomeScreen ? _updateBalance : null,
+                            child: Tooltip(
+                                message: _onHomeScreen ? "Update balance" : "",
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                        const Text("CURRENT BALANCE"),
+                                        Text(_money(_summary.startBalance)),
+                                    ],
+                                ),
+                            ),
+                        ),
                         const VerticalDivider(),
                         Text(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK"),
                         Text(_money(nextCheck ? _summary.endBalanceWithNextCheck : _summary.endBalance)),
@@ -207,9 +228,13 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             itemCount: _balance.expenses.length,
             itemBuilder: (context, index) {
                 final ExpenseItem expense = _balance.expenses[index];
+                final String paidFrom = _balance.paidFromLabel(expense);
                 return ListTile(
                     title: Text(expense.name),
-                    subtitle: Text(expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}"),
+                    subtitle: Text([
+                        expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}",
+                        if (paidFrom != "Current Balance") "from $paidFrom",
+                    ].join(" · ")),
                     trailing: Text(_money(expense.periodAmount)),
                     onTap: _onHomeScreen ? () => _editItem(expense) : null,
                 );

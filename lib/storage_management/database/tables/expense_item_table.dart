@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:bujit/utils/category_manager.dart';
+import 'package:bujit/navigation_items/expense_activity/funding_source.dart';
 
 // -----------------------------------------------------------------------
 // The Expenses table
@@ -48,4 +49,7 @@ class ExpenseItemRows extends Table {
   // Google Tasks: the item's task id once synced, and whether the task gets a due date.
   TextColumn get googleTaskId => text().nullable()();
   BoolColumn get remindInTasks => boolean().withDefault(const Constant(true))();
+  // What pays it (FundingSource) and which account/card (an account id or card name).
+  TextColumn get source => textEnum<FundingSource>().withDefault(Constant(FundingSource.balance.name))();
+  TextColumn get sourceId => text().nullable()();
 }

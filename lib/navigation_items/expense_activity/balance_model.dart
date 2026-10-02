@@ -13,12 +13,20 @@
 // income is every stream's paychecks in [its start, its end), as in the Java
 // app, and makeRecent credits every stream too. Each check is computed from
 // scratch, so paging forward and back can't accumulate drift or double counting.
+//
+// Funding sources (see FundingSource): an expense or card paid from a manual
+// account takes from that account, and from currentBalance only if the account
+// counts toward it; an expense charged to a card adds to the card instead, and
+// leaves the balance when the card is paid. "Expenses due" in a check counts
+// only what leaves currentBalance, so nothing is counted twice.
 import 'package:bujit/utils/date_utils.dart';
+import 'package:bujit/navigation_items/banking/manual_account_model.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'package:bujit/storage_management/period_snapshot.dart';
 import 'check_window.dart';
 import 'credit_model.dart';
 import 'expense_item.dart';
+import 'funding_source.dart';
 
 // One check's numbers, as computed by BalanceModel.check().
 class CheckSummary {
@@ -55,11 +63,153 @@ class BalanceModel {
     IncomeStreamModel? activeIncome; // The income stream whose paydays define the checks
     // Totals of pay periods that have ended, recorded by makeRecent, for Visuals.
     final List<PeriodSnapshot> snapshots = [];
+    final List<ManualAccountModel> manualAccounts = [];
+    // "Additional funds" in Update Balance: money tracked outside any account
+    // (the Java app's manualBalanceAddition), part of currentBalance.
+    double balanceExtra;
 
     BalanceModel({
         required this.currentBalance,
         DateTime? lastUpdated,
+        this.balanceExtra = 0.00,
     }) : lastUpdated = dateOnly(lastUpdated ?? todayDate());
+
+    // ── Accounts and funding sources ────────────────────────────────────────
+
+    ManualAccountModel? manualAccount(String? id) {
+        for (final ManualAccountModel account in manualAccounts) {
+            if (account.id == id) return account;
+        }
+        return null;
+    }
+
+    // Cards are referred to by name, as in the Java app (see renameCard).
+    CreditModel? card(String? name) {
+        for (final CreditModel card in creditCards) {
+            if (card.name == name) return card;
+        }
+        return null;
+    }
+
+    // Sum of the accounts that count toward currentBalance.
+    double get countedAccountsTotal => manualAccounts
+        .where((a) => a.countsTowardBalance)
+        .fold(0.00, (sum, a) => sum + a.balance);
+
+    // Changes an account's balance; currentBalance moves with it when the account
+    // counts toward it (the Java app's manualAccountsTotal delta).
+    void adjustAccount(ManualAccountModel account, double delta) {
+        account.balance += delta;
+        if (account.countsTowardBalance) currentBalance += delta;
+    }
+
+    // Removes an account. If it counted toward currentBalance, its balance leaves
+    // currentBalance with it. Whatever it paid for is paid from the balance instead.
+    void removeAccount(ManualAccountModel account) {
+        if (account.countsTowardBalance) currentBalance -= account.balance;
+        manualAccounts.remove(account);
+        _redirectSources(FundingSource.manualAccount, account.id);
+    }
+
+    // After a card is deleted: what was charged to it is paid from the balance.
+    void cardRemoved(String name) => _redirectSources(FundingSource.creditCard, name);
+
+    // After a card is renamed: keeps what's charged to it pointing at it.
+    void renameCard(String oldName, String newName) {
+        if (oldName == newName) return;
+        for (final ExpenseItem expense in expenses) {
+            if (expense.source == FundingSource.creditCard && expense.sourceId == oldName) {
+                expense.sourceId = newName;
+            }
+        }
+    }
+
+    void _redirectSources(FundingSource source, String id) {
+        for (final ExpenseItem expense in expenses) {
+            if (expense.source == source && expense.sourceId == id) {
+                expense.source = FundingSource.balance;
+                expense.sourceId = null;
+            }
+        }
+    }
+
+    // Update Balance with a typed balance: no account counts toward it anymore
+    // (as in the Java app), and currentBalance = [typed] + [extra].
+    void setBalanceTyped(double typed, double extra) {
+        for (final ManualAccountModel account in manualAccounts) {
+            account.countsTowardBalance = false;
+        }
+        balanceExtra = extra;
+        currentBalance = typed + extra;
+    }
+
+    // Update Balance "From Accounts": the accounts with [accountIds] count toward
+    // currentBalance, which becomes their total + [extra].
+    void setBalanceFromAccounts(Set<String> accountIds, double extra) {
+        for (final ManualAccountModel account in manualAccounts) {
+            account.countsTowardBalance = accountIds.contains(account.id);
+        }
+        balanceExtra = extra;
+        currentBalance = countedAccountsTotal + extra;
+    }
+
+    // "Paid from" choices: the balance, each manual account, and (for an expense,
+    // not a card) each card.
+    List<SourceOption> paymentOptions({required bool forCard}) => [
+        SourceOption.currentBalance,
+        for (final ManualAccountModel account in manualAccounts)
+            SourceOption(FundingSource.manualAccount, account.id, account.name),
+        if (!forCard)
+            for (final CreditModel card in creditCards)
+                SourceOption(FundingSource.creditCard, card.name, "${card.name} (card)"),
+    ];
+
+    // What pays [item], for display ("Current Balance", an account, "Visa (card)").
+    String paidFromLabel(ExpenseItem item) => switch (item.source) {
+        FundingSource.balance => "Current Balance",
+        FundingSource.manualAccount => manualAccount(item.sourceId)?.name ?? "Current Balance",
+        FundingSource.creditCard => _chargedTo(item) == null ? "Current Balance" : "${item.sourceId} (card)",
+    };
+
+    // The card [item] is charged to, or null if it isn't (or the card is gone).
+    CreditModel? _chargedTo(ExpenseItem item) {
+        if (item is CreditModel || item.source != FundingSource.creditCard) return null;
+        return card(item.sourceId);
+    }
+
+    // Whether [item]'s payments come out of currentBalance.
+    bool hitsBalance(ExpenseItem item) => switch (item.source) {
+        FundingSource.balance => true,
+        // A missing account falls back to the balance, as _payFrom does.
+        FundingSource.manualAccount => manualAccount(item.sourceId)?.countsTowardBalance ?? true,
+        FundingSource.creditCard => _chargedTo(item) == null,
+    };
+
+    // Takes a payment of [amount] for [item] from whatever pays for it.
+    void _payFrom(ExpenseItem item, double amount) {
+        if (amount == 0) return;
+        final ManualAccountModel? account =
+            item.source == FundingSource.manualAccount ? manualAccount(item.sourceId) : null;
+        final CreditModel? card = _chargedTo(item);
+        if (account != null) {
+            adjustAccount(account, -amount);
+        } else if (card != null) {
+            card.amount += amount;
+        } else {
+            currentBalance -= amount;
+        }
+    }
+
+    // The not-yet-applied charges to [card] between two dates (both inclusive).
+    ChargesBetween chargesTo(CreditModel card) => (DateTime from, DateTime to) {
+        double total = 0.00;
+        for (final ExpenseItem expense in expenses) {
+            if (identical(_chargedTo(expense), card)) {
+                total += expense.amount * expense.occurrencesBetween(from, to);
+            }
+        }
+        return total;
+    };
 
     // Methods
 
@@ -81,18 +231,31 @@ class BalanceModel {
         final DateTime day = dateOnly(today ?? todayDate());
         // Before anything is paid, so a card's balance lands in the period it was due.
         _recordEndedPeriods(day);
-        double change = 0.00;
+        final double before = currentBalance;
+        // Expenses first, collecting charges to cards with their dates...
+        final Map<CreditModel, List<Charge>> charges = {};
         for (final ExpenseItem expense in expenses) {
-            change -= expense.makeRecent(today: day);
+            if (expense is CreditModel) continue;
+            final CreditModel? card = _chargedTo(expense);
+            if (card == null) {
+                _payFrom(expense, expense.makeRecent(today: day));
+                continue;
+            }
+            final List<DateTime> dates = expense.occurrenceDatesBetween(expense.currentDueDate, addDays(day, -1));
+            expense.makeRecent(today: day);
+            charges.putIfAbsent(card, () => []).addAll(dates.map((date) => (date: date, amount: expense.amount)));
+        }
+        // ...then cards, so each due date pays the charges made before it.
+        for (final CreditModel card in creditCards) {
+            _payFrom(card, card.makeRecentWithCharges(charges[card] ?? const [], today: day));
         }
         if (day.isAfter(lastUpdated)) {
             for (final IncomeStreamModel income in incomeStreams) {
-                change += income.amountBetween(addDays(lastUpdated, 1), day);
+                currentBalance += income.amountBetween(addDays(lastUpdated, 1), day);
             }
             lastUpdated = day;
         }
-        currentBalance += change;
-        return change;
+        return currentBalance - before;
     }
 
     // Records a snapshot for every pay period of the active stream that ended since
@@ -125,12 +288,18 @@ class BalanceModel {
         return total;
     }
 
-    // Every expense and card falling in the half-open period [start, end), paid or
-    // not (history counts what happened, not what's still owed).
+    // Every expense and card payment falling in the half-open period [start, end),
+    // paid or not (history counts what happened, not what's still owed). Charges
+    // to a card count in the card's payment, not on their own dates.
     double periodExpenses(DateTime start, DateTime end) {
         double total = 0.00;
+        final DateTime last = addDays(end, -1);
         for (final ExpenseItem expense in expenses) {
-            total += expense.historicalAmountBetween(start, addDays(end, -1));
+            if (expense is CreditModel) {
+                total += expense.owedBetween(start, last, chargesTo(expense));
+            } else if (_chargedTo(expense) == null) {
+                total += expense.historicalAmountBetween(start, last);
+            }
         }
         return total;
     }
@@ -170,11 +339,15 @@ class BalanceModel {
         return total;
     }
 
-    // Total of every expense and credit card due in a check.
+    // Total due in a check that leaves currentBalance: expenses and card payments
+    // paid from the balance (or from an account that counts toward it).
     double expensesForCheck(CheckWindow check) {
         double total = 0.00;
         for (final ExpenseItem expense in expenses) {
-            total += expense.amountDueInCheck(check);
+            if (!hitsBalance(expense)) continue;
+            total += expense is CreditModel
+                ? expense.owedBetween(check.expensesFrom, check.expensesTo, chargesTo(expense))
+                : expense.amountDueInCheck(check);
         }
         return total;
     }
@@ -202,7 +375,11 @@ class BalanceModel {
     CheckSummary showCheck(int index, {DateTime? today}) {
         final CheckSummary summary = check(index, today: today);
         for (final ExpenseItem expense in expenses) {
-            expense.toCheck(summary.window);
+            if (expense is CreditModel) {
+                expense.showCheckWith(summary.window, chargesTo(expense));
+            } else {
+                expense.toCheck(summary.window);
+            }
         }
         for (final IncomeStreamModel income in incomeStreams) {
             income.periodAmount = summary.window.isCurrent

@@ -1,9 +1,11 @@
 // Saving and loading everything through a real (in-memory) database, and the
 // app's startup flow on top of it (AppState.open).
 import 'package:bujit/app_state.dart';
+import 'package:bujit/navigation_items/banking/manual_account_model.dart';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
+import 'package:bujit/navigation_items/expense_activity/funding_source.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'package:bujit/navigation_items/single_events/single_event_model.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
@@ -20,16 +22,21 @@ DateTime day(int offset) => addDays(today, offset);
 AppDataStore _memoryStore() => AppDataStore(AppDatabase(NativeDatabase.memory()));
 
 AppData _sampleData() {
-    final balance = BalanceModel(currentBalance: 1234.56, lastUpdated: today);
+    final balance = BalanceModel(currentBalance: 1234.56, lastUpdated: today, balanceExtra: 34.56);
+    final savings = ManualAccountModel(id: "acct-1", name: "Savings", accountType: "Savings",
+        balance: 900.0, countsTowardBalance: true);
+    balance.manualAccounts.addAll([savings, ManualAccountModel(id: "acct-2", name: "Wallet", accountType: "Cash", balance: 40.0)]);
     balance.expenses.addAll([
         ExpenseModel(
             name: "Gym", amount: 40.0, startDate: DateTime(2026, 1, 31), currentDueDate: day(30),
             frequency: 1, frequencyUnits: FrequencyUnit.monthly, endDate: DateTime(2027, 6, 30),
             category: "Health", googleTaskId: "task-gym", remindInTasks: false,
+            source: FundingSource.creditCard, sourceId: "Card",
         ),
         CreditModel(
             name: "Card", amount: 300.0, startDate: day(5), frequency: 1,
             frequencyUnits: FrequencyUnit.monthly, creditLimit: 2000.0,
+            source: FundingSource.manualAccount, sourceId: "acct-1",
         ),
     ]);
     final side = IncomeStreamModel(name: "Side", amount: 250.0, startDate: day(-35),
@@ -51,6 +58,8 @@ AppData _sampleData() {
         singleEvents: [
             SingleEventModel(name: "Dinner", amount: 60.0, isDebit: true, target: EventTarget.creditCard,
                 targetName: "Card", createdDate: day(-3), lastModifiedDate: day(-1)),
+            SingleEventModel(name: "Gift", amount: 25.0, isDebit: false, target: EventTarget.manualAccount,
+                targetId: "acct-2", targetName: "Wallet", createdDate: day(-2)),
         ],
     );
 }
@@ -79,6 +88,18 @@ void main() {
             expect(gym.endDate, DateTime(2027, 6, 30));
             expect(gym.category, "Health");
             expect(gym.googleTaskId, "task-gym");
+            expect(gym.source, FundingSource.creditCard);
+            expect(gym.sourceId, "Card");
+            expect(balance.expenses[1].source, FundingSource.manualAccount);
+            expect(balance.expenses[1].sourceId, "acct-1");
+            expect(balance.balanceExtra, 34.56);
+            expect(balance.manualAccounts.map((a) => a.id), ["acct-1", "acct-2"]);
+            final ManualAccountModel savings = balance.manualAccounts.first;
+            expect(savings.name, "Savings");
+            expect(savings.accountType, "Savings");
+            expect(savings.balance, 900.0);
+            expect(savings.countsTowardBalance, isTrue);
+            expect(balance.manualAccounts[1].countsTowardBalance, isFalse);
             expect(gym.remindInTasks, isFalse);
             expect(balance.expenses[1].googleTaskId, isNull);
             expect(balance.expenses[1].remindInTasks, isTrue);
@@ -103,7 +124,11 @@ void main() {
             expect(snapshot.totalExpenses, 410.5);
 
             expect(loaded.singleEventExpiryDays, 14);
-            final SingleEventModel event = loaded.singleEvents.single;
+            final SingleEventModel gift = loaded.singleEvents[1];
+            expect(gift.target, EventTarget.manualAccount);
+            expect(gift.targetId, "acct-2");
+            expect(gift.targetDisplayName, "Wallet");
+            final SingleEventModel event = loaded.singleEvents.first;
             expect(event.name, "Dinner");
             expect(event.isDebit, isTrue);
             expect(event.appliedAmount, -60.0);

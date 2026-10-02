@@ -2,21 +2,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/expense_activity/expense_model.dart';
+import '../navigation_items/expense_activity/funding_source.dart';
 import '../utils/category_manager.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
+import 'paid_from_field.dart';
 
 // Returns the created/edited ExpenseModel, or null if the dialog was cancelled
 // or the expense was deleted. [categories] are the user's categories ("Other"
 // and a "New Category" option are added). When editing, Delete asks for
 // confirmation and then calls [onDelete]. [showTasksOption] adds the Google
-// Tasks reminder switch (while Google Tasks sync is on).
+// Tasks reminder switch (while Google Tasks sync is on). [sources] are the
+// "Paid from" choices (BalanceModel.paymentOptions(forCard: false)).
 Future<ExpenseModel?> showRecurringExpenseDialog(
     BuildContext context, {
     ExpenseModel? existing,
     List<String> categories = const [],
     VoidCallback? onDelete,
     bool showTasksOption = false,
+    List<SourceOption> sources = const [SourceOption.currentBalance],
 }) {
     return showAdaptiveDialog<ExpenseModel>(
         context: context,
@@ -25,6 +29,7 @@ Future<ExpenseModel?> showRecurringExpenseDialog(
             categories: categories,
             onDelete: onDelete,
             showTasksOption: showTasksOption,
+            sources: sources,
         ),
     );
 }
@@ -36,11 +41,13 @@ class _RecurringExpenseDialog extends StatefulWidget {
     final List<String> categories;
     final VoidCallback? onDelete;
     final bool showTasksOption;
+    final List<SourceOption> sources;
     const _RecurringExpenseDialog({
         this.existing,
         required this.categories,
         this.onDelete,
         this.showTasksOption = false,
+        required this.sources,
     });
 
     @override
@@ -67,6 +74,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     // Optional last date (inclusive); null = never ends.
     late DateTime? _endDate = widget.existing?.endDate;
     late bool _remindInTasks = widget.existing?.remindInTasks ?? true;
+    late SourceOption _source = initialSource(widget.sources, widget.existing);
     // Categories added from this dialog ("New Category"), shown in the dropdown.
     final List<String> _addedCategories = [];
     String? _endDateError;
@@ -148,6 +156,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 category: _category,
                 googleTaskId: existing?.googleTaskId,
                 remindInTasks: _remindInTasks,
+                source: _source.source,
+                sourceId: _source.id,
             );
         }
 
@@ -326,6 +336,11 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                         });
                                     }
                                 },
+                            ),
+                            PaidFromField(
+                                options: widget.sources,
+                                value: _source,
+                                onChanged: (source) => setState(() => _source = source),
                             ),
                             if (widget.showTasksOption)
                                 SwitchListTile(

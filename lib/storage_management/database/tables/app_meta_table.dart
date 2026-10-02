@@ -24,6 +24,8 @@ class AppMetaRows extends Table {
   // rejects outright ("table has more than one primary key").
   IntColumn get id => integer().customConstraint('NOT NULL DEFAULT 0 CHECK (id = 0)')();
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
+  // Update Balance's "additional funds" (BalanceModel.balanceExtra).
+  RealColumn get balanceExtra => real().withDefault(const Constant(0.0))();
   DateTimeColumn get lastUpdated => dateTime()();
   // Settings: show "Next Check" (After This Check plus the next paycheck).
   BoolColumn get includeNextCheck => boolean().withDefault(const Constant(false))();

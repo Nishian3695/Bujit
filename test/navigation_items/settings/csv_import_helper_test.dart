@@ -172,8 +172,26 @@ void main() {
             expect(_rejected("budget,Food,500"), contains("unknown type"));
         });
 
-        test("manual accounts, until Linked Accounts exists", () {
-            expect(_rejected("manual_account,My Savings,Savings,0"), contains("aren't supported yet"));
+        test("a manual account without a balance", () {
+            expect(_rejected("manual_account,My Savings,Savings"), contains("manual_account,<name>,<type>,<balance>"));
+        });
+    });
+
+    group("manual_account rows", () {
+        test("add an account that doesn't count toward the balance yet", () {
+            final AppData data = _empty();
+            final result = CsvImportHelper.importInto(data,
+                "manual_account,My Savings,Savings,1500.25\nmanual_account,Wallet,,40", today: today);
+
+            expect(result.accountsAdded, 2);
+            expect(result.summary(), "2 manual account(s) added");
+            final savings = data.balance.manualAccounts[0];
+            expect(savings.name, "My Savings");
+            expect(savings.accountType, "Savings");
+            expect(savings.balance, 1500.25);
+            expect(savings.countsTowardBalance, isFalse);
+            expect(data.balance.manualAccounts[1].accountType, "Other"); // blank type
+            expect(data.balance.currentBalance, 1000.0); // unchanged
         });
     });
 
@@ -190,14 +208,15 @@ void main() {
         expect(result.errors.single, startsWith("Line 4: invalid amount"));
     });
 
-    test("the template imports everything except its manual account", () {
+    test("the template imports everything", () {
         final AppData data = _empty();
         final result = CsvImportHelper.importInto(data, CsvImportHelper.template, today: today);
 
+        expect(result.accountsAdded, 1);
         expect(result.expensesAdded, 2);
         expect(result.creditsAdded, 1);
         expect(result.streamsAdded, 1);
-        expect(result.skipped, 1);
+        expect(result.skipped, 0);
         expect(data.balance.makeRecent(today: today), 0.0); // past dates charge nothing
     });
 }

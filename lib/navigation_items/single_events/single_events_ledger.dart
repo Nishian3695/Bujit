@@ -4,12 +4,17 @@
 // clearing an expired event removes it from the list but keeps its effect.
 //
 // Targets:
-//   balance    -> currentBalance changes by the signed amount
-//   creditCard -> the card (found by name, as in the Java app) owes more for a
-//                 debit and less for a credit, never below 0
+//   balance       -> currentBalance changes by the signed amount
+//   creditCard    -> the card (found by name, as in the Java app) owes more for a
+//                    debit and less for a credit, never below 0
+//   manualAccount -> the account changes by the signed amount, and so does
+//                    currentBalance if the account counts toward it
+// A target that no longer exists is left alone.
 import '../../utils/date_utils.dart';
 import '../expense_activity/balance_model.dart';
+import '../banking/manual_account_model.dart';
 import '../expense_activity/credit_model.dart';
+import '../expense_activity/funding_source.dart';
 import 'single_event_model.dart';
 
 class SingleEventsLedger {
@@ -21,7 +26,7 @@ class SingleEventsLedger {
     // Applies a new event and lists it first.
     void add(SingleEventModel event) {
         event.appliedAmount = event.signedAmount;
-        _apply(event.target, event.targetName, event.appliedAmount);
+        _apply(event, event.appliedAmount);
         events.insert(0, event);
     }
 
@@ -33,24 +38,26 @@ class SingleEventsLedger {
         required bool isDebit,
         required EventTarget target,
         String? targetName,
+        String? targetId,
         DateTime? today,
     }) {
-        _apply(event.target, event.targetName, -event.appliedAmount);
+        _apply(event, -event.appliedAmount);
         event
             ..name = name
             ..amount = amount.abs()
             ..isDebit = isDebit
             ..target = target
             ..targetName = targetName
+            ..targetId = targetId
             ..lastModifiedDate = dateOnly(today ?? todayDate());
         event.appliedAmount = event.signedAmount;
-        _apply(event.target, event.targetName, event.appliedAmount);
+        _apply(event, event.appliedAmount);
         events.sort((a, b) => b.lastModifiedDate.compareTo(a.lastModifiedDate));
     }
 
     // Removes an event and undoes its effect.
     void remove(SingleEventModel event) {
-        _apply(event.target, event.targetName, -event.appliedAmount);
+        _apply(event, -event.appliedAmount);
         events.remove(event);
     }
 
@@ -62,24 +69,26 @@ class SingleEventsLedger {
         return before - events.length;
     }
 
-    // Credit cards an event can target, by name.
-    Iterable<String> get cardNames => balance.creditCards.map((card) => card.name);
+    // What an event can be applied to: the balance, manual accounts, then cards.
+    List<SourceOption> get targets => [
+        SourceOption.currentBalance,
+        for (final ManualAccountModel account in balance.manualAccounts)
+            SourceOption(FundingSource.manualAccount, account.id, account.name),
+        for (final CreditModel card in balance.creditCards)
+            SourceOption(FundingSource.creditCard, card.name, "${card.name} (card)"),
+    ];
 
-    void _apply(EventTarget target, String? targetName, double delta) {
-        switch (target) {
+    void _apply(SingleEventModel event, double delta) {
+        switch (event.target) {
             case EventTarget.balance:
                 balance.currentBalance += delta;
             case EventTarget.creditCard:
-                final CreditModel? card = _card(targetName);
+                final CreditModel? card = balance.card(event.targetName);
                 // A debit (negative delta) adds to what's owed; a credit pays it down.
                 if (card != null) card.amount = (card.amount - delta).clamp(0.0, double.infinity);
+            case EventTarget.manualAccount:
+                final ManualAccountModel? account = balance.manualAccount(event.targetId);
+                if (account != null) balance.adjustAccount(account, delta);
         }
-    }
-
-    CreditModel? _card(String? name) {
-        for (final CreditModel card in balance.creditCards) {
-            if (card.name == name) return card;
-        }
-        return null;
     }
 }

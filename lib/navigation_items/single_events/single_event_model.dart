@@ -5,8 +5,8 @@
 // list (its effect stays applied). See SingleEventsLedger for the effects.
 import '../../utils/date_utils.dart';
 
-// What an event is applied to. Manual accounts join when Linked Accounts is built.
-enum EventTarget { balance, creditCard }
+// What an event is applied to.
+enum EventTarget { balance, creditCard, manualAccount }
 
 class SingleEventModel {
     int? id; // Row id once persisted to the database
@@ -19,7 +19,10 @@ class SingleEventModel {
     // +amount for a credit. Kept so edits and removals can reverse it exactly.
     double appliedAmount;
     EventTarget target;
-    String? targetName; // The credit card's name for EventTarget.creditCard
+    // The card's name (EventTarget.creditCard, how cards are found), or the
+    // account's name for display (EventTarget.manualAccount).
+    String? targetName;
+    String? targetId; // The manual account's id for EventTarget.manualAccount
 
     SingleEventModel({
         this.id,
@@ -28,6 +31,7 @@ class SingleEventModel {
         required this.isDebit,
         this.target = EventTarget.balance,
         this.targetName,
+        this.targetId,
         DateTime? createdDate,
         DateTime? lastModifiedDate,
         double? appliedAmount,
@@ -50,6 +54,9 @@ class SingleEventModel {
     }
 
     // Where it was applied, for display.
-    String get targetDisplayName =>
-        target == EventTarget.creditCard ? "${targetName ?? "Card"} (card)" : "Current Balance";
+    String get targetDisplayName => switch (target) {
+        EventTarget.balance => "Current Balance",
+        EventTarget.creditCard => "${targetName ?? "Card"} (card)",
+        EventTarget.manualAccount => targetName ?? "Account",
+    };
 }

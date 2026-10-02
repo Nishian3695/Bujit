@@ -5,7 +5,7 @@
 //   expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>
 //   credit,<name>,<balance>,<credit_limit>,<due_date>
 //   income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>
-//   manual_account,<name>,<type>,<balance>   (skipped until Linked Accounts exists)
+//   manual_account,<name>,<type>,<balance>
 // Lines starting with # are comments. Rows are appended to (not merged with)
 // existing data. A malformed row is skipped with a line-numbered error; the
 // rest of the file still imports.
@@ -15,11 +15,14 @@
 // already happened outside the app: it moves to the next upcoming date without
 // charging anything, and a card keeps its imported balance. An income stream's
 // start date follows the usual crediting rule (a past one is already in the
-// balance; a future one is credited when it arrives).
+// balance; a future one is credited when it arrives). An imported manual
+// account doesn't count toward the current balance until it's picked in Update
+// Balance, as in the Java app.
 import '../../storage_management/app_data_store.dart';
 import '../../utils/category_manager.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/frequency_unit.dart';
+import '../banking/manual_account_model.dart';
 import '../expense_activity/credit_model.dart';
 import '../expense_activity/expense_model.dart';
 import '../income_streams/income_stream_model.dart';
@@ -29,13 +32,15 @@ class CsvImportResult {
     int expensesAdded = 0;
     int creditsAdded = 0;
     int streamsAdded = 0;
+    int accountsAdded = 0;
     int skipped = 0;
     final List<String> errors = [];
 
-    bool get hasData => expensesAdded + creditsAdded + streamsAdded > 0;
+    bool get hasData => expensesAdded + creditsAdded + streamsAdded + accountsAdded > 0;
 
     String summary() {
         final List<String> lines = [
+            if (accountsAdded > 0) "$accountsAdded manual account(s) added",
             if (expensesAdded > 0) "$expensesAdded expense(s) added",
             if (creditsAdded > 0) "$creditsAdded credit card(s) added",
             if (streamsAdded > 0) "$streamsAdded income stream(s) added",
@@ -61,8 +66,7 @@ class CsvImportHelper {
                     case "expense": parseExpense(parts, data, result, day);
                     case "credit": parseCredit(parts, data, result, day);
                     case "income_stream": parseIncomeStream(parts, data, result);
-                    case "manual_account":
-                        throw const FormatException("manual accounts aren't supported yet (coming with Linked Accounts)");
+                    case "manual_account": parseManualAccount(parts, data, result);
                     default:
                         throw FormatException("unknown type \"${parts[0].trim()}\"");
                 }
@@ -72,6 +76,15 @@ class CsvImportHelper {
             }
         }
         return result;
+    }
+
+    // manual_account,<name>,<type>,<balance>  (a blank type is "Other")
+    static void parseManualAccount(List<String> p, AppData data, CsvImportResult r) {
+        _require(p, 4, "manual_account,<name>,<type>,<balance>");
+        final String name = _nonEmpty(p[1], "name");
+        final String type = p[2].trim().isEmpty ? "Other" : p[2].trim();
+        data.balance.manualAccounts.add(ManualAccountModel(name: name, accountType: type, balance: _parseAmount(p[3])));
+        r.accountsAdded++;
     }
 
     // expense,<name>,<amount>,<due_date>,<frequency>,<unit>,<_category>,<_end_date>

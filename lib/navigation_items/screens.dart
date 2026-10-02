@@ -2,6 +2,7 @@
 import 'package:flutter/widgets.dart';
 import '../app_state.dart';
 import '../tutorial/tutorial_manager.dart';
+import 'banking/banking_activity.dart';
 import 'credit_util/credit_util_activity.dart';
 import 'income_streams/income_streams_activity.dart';
 import 'settings/settings_activity.dart';
@@ -12,6 +13,7 @@ import 'visuals/visuals_activity.dart';
 Widget screenFor(TutorialScreen screen, AppState state) => switch (screen) {
     TutorialScreen.incomeStreams => IncomeStreamsActivity(state: state),
     TutorialScreen.creditUtil => CreditUtilActivity(state: state),
+    TutorialScreen.linkedAccounts => BankingActivity(state: state),
     TutorialScreen.singleEvents => SingleEventsActivity(state: state),
     TutorialScreen.visuals => VisualsActivity(state: state),
     TutorialScreen.settings => SettingsActivity(state: state),

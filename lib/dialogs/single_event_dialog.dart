@@ -1,8 +1,9 @@
 // Add/edit dialog for a single event: name, amount, debit/credit, and what it
-// applies to (the Current Balance or a credit card). Returns an unapplied draft;
-// the caller applies it through SingleEventsLedger.
+// applies to (the Current Balance, a manual account or a credit card). Returns
+// an unapplied draft; the caller applies it through SingleEventsLedger.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../navigation_items/expense_activity/funding_source.dart';
 import '../navigation_items/single_events/single_event_model.dart';
 
 // Returns the draft, or null if cancelled or removed. When editing, Remove asks
@@ -10,41 +11,48 @@ import '../navigation_items/single_events/single_event_model.dart';
 Future<SingleEventModel?> showSingleEventDialog(
     BuildContext context, {
     SingleEventModel? existing,
-    required List<String> cardNames,
+    required List<SourceOption> targets,
     VoidCallback? onRemove,
 }) {
     return showAdaptiveDialog<SingleEventModel>(
         context: context,
-        builder: (context) => _SingleEventDialog(existing: existing, cardNames: cardNames, onRemove: onRemove),
+        builder: (context) => _SingleEventDialog(existing: existing, targets: targets, onRemove: onRemove),
     );
 }
 
 class _SingleEventDialog extends StatefulWidget {
     final SingleEventModel? existing;
-    final List<String> cardNames;
+    final List<SourceOption> targets; // SingleEventsLedger.targets
     final VoidCallback? onRemove;
-    const _SingleEventDialog({this.existing, required this.cardNames, this.onRemove});
+    const _SingleEventDialog({this.existing, required this.targets, this.onRemove});
 
     @override
     State<_SingleEventDialog> createState() => _SingleEventDialogState();
 }
 
 class _SingleEventDialogState extends State<_SingleEventDialog> {
-    static const String _balanceKey = ""; // Dropdown key for the Current Balance
-
     late final TextEditingController _name = TextEditingController(text: widget.existing?.name);
     late final TextEditingController _amount =
         TextEditingController(text: widget.existing?.amount.toStringAsFixed(2));
     final _formKey = GlobalKey<FormState>();
     late bool _isDebit = widget.existing?.isDebit ?? true;
-    // "" = Current Balance, otherwise a card name. A card that no longer exists falls back to the balance.
-    late String _target = _initialTarget();
+    // The chosen target. One that no longer exists falls back to the balance.
+    late SourceOption _target = _initialTarget();
 
-    String _initialTarget() {
+    static FundingSource _sourceOf(EventTarget target) => switch (target) {
+        EventTarget.balance => FundingSource.balance,
+        EventTarget.creditCard => FundingSource.creditCard,
+        EventTarget.manualAccount => FundingSource.manualAccount,
+    };
+
+    SourceOption _initialTarget() {
         final SingleEventModel? existing = widget.existing;
-        if (existing == null || existing.target != EventTarget.creditCard) return _balanceKey;
-        final String name = existing.targetName ?? "";
-        return widget.cardNames.contains(name) ? name : _balanceKey;
+        if (existing == null) return SourceOption.currentBalance;
+        final String? id = existing.target == EventTarget.manualAccount ? existing.targetId : existing.targetName;
+        return widget.targets.firstWhere(
+            (option) => option.matches(_sourceOf(existing.target), id),
+            orElse: () => SourceOption.currentBalance,
+        );
     }
 
     @override
@@ -58,8 +66,17 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
         name: _name.text.trim(),
         amount: double.parse(_amount.text.trim()),
         isDebit: _isDebit,
-        target: _target == _balanceKey ? EventTarget.balance : EventTarget.creditCard,
-        targetName: _target == _balanceKey ? null : _target,
+        target: switch (_target.source) {
+            FundingSource.balance => EventTarget.balance,
+            FundingSource.creditCard => EventTarget.creditCard,
+            FundingSource.manualAccount => EventTarget.manualAccount,
+        },
+        targetName: switch (_target.source) {
+            FundingSource.balance => null,
+            FundingSource.creditCard => _target.id,
+            FundingSource.manualAccount => _target.label,
+        },
+        targetId: _target.source == FundingSource.manualAccount ? _target.id : null,
     );
 
     Future<void> _remove() async {
@@ -118,14 +135,14 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
                                 onSelectionChanged: (selection) => setState(() => _isDebit = selection.first),
                             ),
                             DropdownButtonFormField<String>(
-                                initialValue: _target,
+                                initialValue: _target.key,
                                 decoration: const InputDecoration(labelText: "Apply to"),
                                 items: [
-                                    const DropdownMenuItem(value: _balanceKey, child: Text("Current Balance")),
-                                    for (final String card in widget.cardNames)
-                                        DropdownMenuItem(value: card, child: Text("$card (card)")),
+                                    for (final SourceOption option in widget.targets)
+                                        DropdownMenuItem(value: option.key, child: Text(option.label)),
                                 ],
-                                onChanged: (value) => setState(() => _target = value ?? _balanceKey),
+                                onChanged: (key) => setState(() => _target = widget.targets
+                                    .firstWhere((o) => o.key == key, orElse: () => SourceOption.currentBalance)),
                             ),
                         ],
                     ),

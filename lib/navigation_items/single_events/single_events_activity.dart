@@ -27,7 +27,7 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
 
     Future<void> _add() async {
         final SingleEventModel? draft = await showSingleEventDialog(
-            context, cardNames: _ledger.cardNames.toList());
+            context, targets: _ledger.targets);
         if (draft == null) return;
         _ledger.add(draft);
         await _save();
@@ -37,7 +37,7 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
         final SingleEventModel? draft = await showSingleEventDialog(
             context,
             existing: event,
-            cardNames: _ledger.cardNames.toList(),
+            targets: _ledger.targets,
             onRemove: () {
                 _ledger.remove(event);
                 _save();
@@ -51,6 +51,7 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
             isDebit: draft.isDebit,
             target: draft.target,
             targetName: draft.targetName,
+            targetId: draft.targetId,
         );
         await _save();
     }

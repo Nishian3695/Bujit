@@ -4,12 +4,11 @@
 // dismissed. Progress (AppData.tutorialStep/tutorialSeen) is saved, so the
 // tutorial resumes where it left off and can be replayed from Settings.
 //
-// Texts are adapted to what this app does so far; the Java app's two Linked
-// Accounts steps join when that screen is built.
+// Texts are adapted to what this app does so far.
 import 'package:flutter/widgets.dart';
 
 // Screens the tutorial visits (each wraps its Scaffold in a TutorialOverlay).
-enum TutorialScreen { home, incomeStreams, creditUtil, singleEvents, visuals, settings }
+enum TutorialScreen { home, incomeStreams, creditUtil, linkedAccounts, singleEvents, visuals, settings }
 
 class TutorialStep {
     final TutorialScreen screen;
@@ -27,8 +26,9 @@ class TutorialManager {
             "◀ and ▶ step through your paychecks. Tap ▶ to project your balance forward through "
             "upcoming checks; the + button becomes 🏠 to bring you back to this one."),
         TutorialStep(TutorialScreen.home, "balance_card", "Balance at a glance",
-            "Left: your current balance. Right: what you'll have left after every expense due "
-            "this check is paid -- including anything due on payday itself."),
+            "Left: your current balance. Tap it to update it, choose which of your accounts make "
+            "it up, or add funds you track elsewhere.\nRight: what you'll have left after every "
+            "expense due this check is paid -- including anything due on payday itself."),
         TutorialStep(TutorialScreen.home, "expense_list", "Expense list",
             "Recurring expenses and credit cards appear here with their due date and the amount "
             "due this check. Tap any row to edit or delete it."),
@@ -48,6 +48,13 @@ class TutorialManager {
         TutorialStep(TutorialScreen.creditUtil, "credit_list", "Credit Utilization",
             "Track your credit card balances against their limits:\n✅ under 30%: good\n"
             "⚠️ 30-70%: moderate\n❌ 70% and up: high",
+            TutorialScreen.linkedAccounts),
+        TutorialStep(TutorialScreen.linkedAccounts, "connect_bank", "Link your bank or credit card",
+            "Soon you'll be able to connect your bank securely through Plaid, to sync your balance "
+            "and card amounts automatically. Bujit never sees your login."),
+        TutorialStep(TutorialScreen.linkedAccounts, "manual_accounts", "My Accounts",
+            "Track savings, cash or any account by hand here. Choose which ones make up your "
+            "balance with \"From Accounts\" when you update it, and pay expenses from them.",
             TutorialScreen.singleEvents),
         TutorialStep(TutorialScreen.singleEvents, "single_events_list", "Single Events",
             "One-off expenses or income: a surprise bill, splitting dinner, a friend paying you "

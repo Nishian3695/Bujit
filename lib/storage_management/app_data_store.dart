@@ -2,6 +2,7 @@
 // Kept free of platform code (no secure storage, no file paths) so it can be
 // tested with an in-memory database; StorageManager does the platform setup.
 import 'package:drift/drift.dart';
+import '../navigation_items/banking/manual_account_model.dart';
 import '../navigation_items/expense_activity/balance_model.dart';
 import '../navigation_items/income_streams/income_stream_model.dart';
 import '../utils/category_manager.dart';
@@ -45,8 +46,25 @@ class AppData {
          singleEvents = singleEvents ?? [],
          syncedTasks = syncedTasks ?? {};
 
-    // Single events applied against this data's balance and cards.
+    // Single events applied against this data's balance, accounts and cards.
     SingleEventsLedger get singleEventsLedger => SingleEventsLedger(balance, singleEvents);
+
+    // After a card is renamed: what's charged to it and single events on it follow.
+    void renameCard(String oldName, String newName) {
+        balance.renameCard(oldName, newName);
+        for (final SingleEventModel event in singleEvents) {
+            if (event.target == EventTarget.creditCard && event.targetName == oldName) event.targetName = newName;
+        }
+    }
+
+    // After an account is renamed: single events on it show the new name.
+    void accountRenamed(ManualAccountModel account) {
+        for (final SingleEventModel event in singleEvents) {
+            if (event.target == EventTarget.manualAccount && event.targetId == account.id) {
+                event.targetName = account.name;
+            }
+        }
+    }
 }
 
 class AppDataStore {
@@ -64,7 +82,18 @@ class AppDataStore {
         final BalanceModel balance = BalanceModel(
             currentBalance: meta.currentBalance,
             lastUpdated: meta.lastUpdated,
+            balanceExtra: meta.balanceExtra,
         );
+        final accountRows = await (db.select(db.manualAccountRows)
+              ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+            .get();
+        balance.manualAccounts.addAll(accountRows.map((row) => ManualAccountModel(
+            id: row.id,
+            name: row.name,
+            accountType: row.accountType,
+            balance: row.balance,
+            countsTowardBalance: row.countsTowardBalance,
+        )));
         final expenseRows = await (db.select(db.expenseItemRows)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
@@ -133,6 +162,18 @@ class AppDataStore {
             for (final SingleEventModel event in data.singleEvents) {
                 event.id = await db.into(db.singleEventRows).insert(event.toInsertCompanion());
             }
+            await db.delete(db.manualAccountRows).go();
+            for (int i = 0; i < balance.manualAccounts.length; i++) {
+                final ManualAccountModel account = balance.manualAccounts[i];
+                await db.into(db.manualAccountRows).insert(ManualAccountRowsCompanion.insert(
+                    id: account.id,
+                    position: i,
+                    name: account.name,
+                    accountType: account.accountType,
+                    balance: account.balance,
+                    countsTowardBalance: Value(account.countsTowardBalance),
+                ));
+            }
             await db.delete(db.syncedTaskRows).go();
             for (final MapEntry<String, String> task in data.syncedTasks.entries) {
                 await db.into(db.syncedTaskRows).insert(
@@ -141,6 +182,7 @@ class AppDataStore {
             await db.into(db.appMetaRows).insertOnConflictUpdate(AppMetaRowsCompanion.insert(
                 id: const Value(0),
                 currentBalance: Value(balance.currentBalance),
+                balanceExtra: Value(balance.balanceExtra),
                 lastUpdated: balance.lastUpdated,
                 includeNextCheck: Value(data.includeNextCheck),
                 singleEventExpiryDays: Value(data.singleEventExpiryDays),

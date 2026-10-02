@@ -166,6 +166,27 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     defaultValue: const Constant(true),
   );
   @override
+  late final GeneratedColumnWithTypeConverter<FundingSource, String> source =
+      GeneratedColumn<String>(
+        'source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(FundingSource.balance.name),
+      ).withConverter<FundingSource>($ExpenseItemRowsTable.$convertersource);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     name,
@@ -180,6 +201,8 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     creditLimit,
     googleTaskId,
     remindInTasks,
+    source,
+    sourceId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -284,6 +307,12 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         ),
       );
     }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
     return context;
   }
 
@@ -347,6 +376,16 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         DriftSqlType.bool,
         data['${effectivePrefix}remind_in_tasks'],
       )!,
+      source: $ExpenseItemRowsTable.$convertersource.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}source'],
+        )!,
+      ),
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
     );
   }
 
@@ -359,6 +398,8 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
   $converterfrequencyUnits = const EnumNameConverter<FrequencyUnit>(
     FrequencyUnit.values,
   );
+  static JsonTypeConverter2<FundingSource, String, String> $convertersource =
+      const EnumNameConverter<FundingSource>(FundingSource.values);
 }
 
 class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
@@ -375,6 +416,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final double? creditLimit;
   final String? googleTaskId;
   final bool remindInTasks;
+  final FundingSource source;
+  final String? sourceId;
   const ExpenseItemRow({
     required this.id,
     required this.name,
@@ -389,6 +432,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     this.creditLimit,
     this.googleTaskId,
     required this.remindInTasks,
+    required this.source,
+    this.sourceId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -416,6 +461,14 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       map['google_task_id'] = Variable<String>(googleTaskId);
     }
     map['remind_in_tasks'] = Variable<bool>(remindInTasks);
+    {
+      map['source'] = Variable<String>(
+        $ExpenseItemRowsTable.$convertersource.toSql(source),
+      );
+    }
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
     return map;
   }
 
@@ -440,6 +493,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ? const Value.absent()
           : Value(googleTaskId),
       remindInTasks: Value(remindInTasks),
+      source: Value(source),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
     );
   }
 
@@ -464,6 +521,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       creditLimit: serializer.fromJson<double?>(json['creditLimit']),
       googleTaskId: serializer.fromJson<String?>(json['googleTaskId']),
       remindInTasks: serializer.fromJson<bool>(json['remindInTasks']),
+      source: $ExpenseItemRowsTable.$convertersource.fromJson(
+        serializer.fromJson<String>(json['source']),
+      ),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
     );
   }
   @override
@@ -485,6 +546,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       'creditLimit': serializer.toJson<double?>(creditLimit),
       'googleTaskId': serializer.toJson<String?>(googleTaskId),
       'remindInTasks': serializer.toJson<bool>(remindInTasks),
+      'source': serializer.toJson<String>(
+        $ExpenseItemRowsTable.$convertersource.toJson(source),
+      ),
+      'sourceId': serializer.toJson<String?>(sourceId),
     };
   }
 
@@ -502,6 +567,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     Value<double?> creditLimit = const Value.absent(),
     Value<String?> googleTaskId = const Value.absent(),
     bool? remindInTasks,
+    FundingSource? source,
+    Value<String?> sourceId = const Value.absent(),
   }) => ExpenseItemRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -516,6 +583,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
     googleTaskId: googleTaskId.present ? googleTaskId.value : this.googleTaskId,
     remindInTasks: remindInTasks ?? this.remindInTasks,
+    source: source ?? this.source,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
   );
   ExpenseItemRow copyWithCompanion(ExpenseItemRowsCompanion data) {
     return ExpenseItemRow(
@@ -542,6 +611,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       remindInTasks: data.remindInTasks.present
           ? data.remindInTasks.value
           : this.remindInTasks,
+      source: data.source.present ? data.source.value : this.source,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
     );
   }
 
@@ -560,7 +631,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
           ..write('googleTaskId: $googleTaskId, ')
-          ..write('remindInTasks: $remindInTasks')
+          ..write('remindInTasks: $remindInTasks, ')
+          ..write('source: $source, ')
+          ..write('sourceId: $sourceId')
           ..write(')'))
         .toString();
   }
@@ -580,6 +653,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     creditLimit,
     googleTaskId,
     remindInTasks,
+    source,
+    sourceId,
   );
   @override
   bool operator ==(Object other) =>
@@ -597,7 +672,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.isCredit == this.isCredit &&
           other.creditLimit == this.creditLimit &&
           other.googleTaskId == this.googleTaskId &&
-          other.remindInTasks == this.remindInTasks);
+          other.remindInTasks == this.remindInTasks &&
+          other.source == this.source &&
+          other.sourceId == this.sourceId);
 }
 
 class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
@@ -614,6 +691,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<double?> creditLimit;
   final Value<String?> googleTaskId;
   final Value<bool> remindInTasks;
+  final Value<FundingSource> source;
+  final Value<String?> sourceId;
   const ExpenseItemRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -628,6 +707,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.creditLimit = const Value.absent(),
     this.googleTaskId = const Value.absent(),
     this.remindInTasks = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceId = const Value.absent(),
   });
   ExpenseItemRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -643,6 +724,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.creditLimit = const Value.absent(),
     this.googleTaskId = const Value.absent(),
     this.remindInTasks = const Value.absent(),
+    this.source = const Value.absent(),
+    this.sourceId = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        startDate = Value(startDate),
@@ -663,6 +746,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<double>? creditLimit,
     Expression<String>? googleTaskId,
     Expression<bool>? remindInTasks,
+    Expression<String>? source,
+    Expression<String>? sourceId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -678,6 +763,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (creditLimit != null) 'credit_limit': creditLimit,
       if (googleTaskId != null) 'google_task_id': googleTaskId,
       if (remindInTasks != null) 'remind_in_tasks': remindInTasks,
+      if (source != null) 'source': source,
+      if (sourceId != null) 'source_id': sourceId,
     });
   }
 
@@ -695,6 +782,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<double?>? creditLimit,
     Value<String?>? googleTaskId,
     Value<bool>? remindInTasks,
+    Value<FundingSource>? source,
+    Value<String?>? sourceId,
   }) {
     return ExpenseItemRowsCompanion(
       id: id ?? this.id,
@@ -710,6 +799,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       creditLimit: creditLimit ?? this.creditLimit,
       googleTaskId: googleTaskId ?? this.googleTaskId,
       remindInTasks: remindInTasks ?? this.remindInTasks,
+      source: source ?? this.source,
+      sourceId: sourceId ?? this.sourceId,
     );
   }
 
@@ -759,6 +850,14 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     if (remindInTasks.present) {
       map['remind_in_tasks'] = Variable<bool>(remindInTasks.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(
+        $ExpenseItemRowsTable.$convertersource.toSql(source.value),
+      );
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
     return map;
   }
 
@@ -777,7 +876,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
           ..write('googleTaskId: $googleTaskId, ')
-          ..write('remindInTasks: $remindInTasks')
+          ..write('remindInTasks: $remindInTasks, ')
+          ..write('source: $source, ')
+          ..write('sourceId: $sourceId')
           ..write(')'))
         .toString();
   }
@@ -1533,6 +1634,18 @@ class $AppMetaRowsTable extends AppMetaRows
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _balanceExtraMeta = const VerificationMeta(
+    'balanceExtra',
+  );
+  @override
+  late final GeneratedColumn<double> balanceExtra = GeneratedColumn<double>(
+    'balance_extra',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _lastUpdatedMeta = const VerificationMeta(
     'lastUpdated',
   );
@@ -1638,6 +1751,7 @@ class $AppMetaRowsTable extends AppMetaRows
   List<GeneratedColumn> get $columns => [
     id,
     currentBalance,
+    balanceExtra,
     lastUpdated,
     includeNextCheck,
     singleEventExpiryDays,
@@ -1668,6 +1782,15 @@ class $AppMetaRowsTable extends AppMetaRows
         currentBalance.isAcceptableOrUnknown(
           data['current_balance']!,
           _currentBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_extra')) {
+      context.handle(
+        _balanceExtraMeta,
+        balanceExtra.isAcceptableOrUnknown(
+          data['balance_extra']!,
+          _balanceExtraMeta,
         ),
       );
     }
@@ -1762,6 +1885,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.double,
         data['${effectivePrefix}current_balance'],
       )!,
+      balanceExtra: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance_extra'],
+      )!,
       lastUpdated: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_updated'],
@@ -1806,6 +1933,7 @@ class $AppMetaRowsTable extends AppMetaRows
 class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final int id;
   final double currentBalance;
+  final double balanceExtra;
   final DateTime lastUpdated;
   final bool includeNextCheck;
   final int singleEventExpiryDays;
@@ -1817,6 +1945,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
+    required this.balanceExtra,
     required this.lastUpdated,
     required this.includeNextCheck,
     required this.singleEventExpiryDays,
@@ -1831,6 +1960,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['current_balance'] = Variable<double>(currentBalance);
+    map['balance_extra'] = Variable<double>(balanceExtra);
     map['last_updated'] = Variable<DateTime>(lastUpdated);
     map['include_next_check'] = Variable<bool>(includeNextCheck);
     map['single_event_expiry_days'] = Variable<int>(singleEventExpiryDays);
@@ -1850,6 +1980,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     return AppMetaRowsCompanion(
       id: Value(id),
       currentBalance: Value(currentBalance),
+      balanceExtra: Value(balanceExtra),
       lastUpdated: Value(lastUpdated),
       includeNextCheck: Value(includeNextCheck),
       singleEventExpiryDays: Value(singleEventExpiryDays),
@@ -1873,6 +2004,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     return AppMetaRow(
       id: serializer.fromJson<int>(json['id']),
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
+      balanceExtra: serializer.fromJson<double>(json['balanceExtra']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
       includeNextCheck: serializer.fromJson<bool>(json['includeNextCheck']),
       singleEventExpiryDays: serializer.fromJson<int>(
@@ -1891,6 +2023,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'currentBalance': serializer.toJson<double>(currentBalance),
+      'balanceExtra': serializer.toJson<double>(balanceExtra),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
       'includeNextCheck': serializer.toJson<bool>(includeNextCheck),
       'singleEventExpiryDays': serializer.toJson<int>(singleEventExpiryDays),
@@ -1905,6 +2038,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   AppMetaRow copyWith({
     int? id,
     double? currentBalance,
+    double? balanceExtra,
     DateTime? lastUpdated,
     bool? includeNextCheck,
     int? singleEventExpiryDays,
@@ -1916,6 +2050,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
+    balanceExtra: balanceExtra ?? this.balanceExtra,
     lastUpdated: lastUpdated ?? this.lastUpdated,
     includeNextCheck: includeNextCheck ?? this.includeNextCheck,
     singleEventExpiryDays: singleEventExpiryDays ?? this.singleEventExpiryDays,
@@ -1931,6 +2066,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       currentBalance: data.currentBalance.present
           ? data.currentBalance.value
           : this.currentBalance,
+      balanceExtra: data.balanceExtra.present
+          ? data.balanceExtra.value
+          : this.balanceExtra,
       lastUpdated: data.lastUpdated.present
           ? data.lastUpdated.value
           : this.lastUpdated,
@@ -1963,6 +2101,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     return (StringBuffer('AppMetaRow(')
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
+          ..write('balanceExtra: $balanceExtra, ')
           ..write('lastUpdated: $lastUpdated, ')
           ..write('includeNextCheck: $includeNextCheck, ')
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
@@ -1979,6 +2118,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   int get hashCode => Object.hash(
     id,
     currentBalance,
+    balanceExtra,
     lastUpdated,
     includeNextCheck,
     singleEventExpiryDays,
@@ -1994,6 +2134,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       (other is AppMetaRow &&
           other.id == this.id &&
           other.currentBalance == this.currentBalance &&
+          other.balanceExtra == this.balanceExtra &&
           other.lastUpdated == this.lastUpdated &&
           other.includeNextCheck == this.includeNextCheck &&
           other.singleEventExpiryDays == this.singleEventExpiryDays &&
@@ -2007,6 +2148,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<int> id;
   final Value<double> currentBalance;
+  final Value<double> balanceExtra;
   final Value<DateTime> lastUpdated;
   final Value<bool> includeNextCheck;
   final Value<int> singleEventExpiryDays;
@@ -2018,6 +2160,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
+    this.balanceExtra = const Value.absent(),
     this.lastUpdated = const Value.absent(),
     this.includeNextCheck = const Value.absent(),
     this.singleEventExpiryDays = const Value.absent(),
@@ -2030,6 +2173,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
+    this.balanceExtra = const Value.absent(),
     required DateTime lastUpdated,
     this.includeNextCheck = const Value.absent(),
     this.singleEventExpiryDays = const Value.absent(),
@@ -2042,6 +2186,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
     Expression<double>? currentBalance,
+    Expression<double>? balanceExtra,
     Expression<DateTime>? lastUpdated,
     Expression<bool>? includeNextCheck,
     Expression<int>? singleEventExpiryDays,
@@ -2054,6 +2199,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (currentBalance != null) 'current_balance': currentBalance,
+      if (balanceExtra != null) 'balance_extra': balanceExtra,
       if (lastUpdated != null) 'last_updated': lastUpdated,
       if (includeNextCheck != null) 'include_next_check': includeNextCheck,
       if (singleEventExpiryDays != null)
@@ -2069,6 +2215,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   AppMetaRowsCompanion copyWith({
     Value<int>? id,
     Value<double>? currentBalance,
+    Value<double>? balanceExtra,
     Value<DateTime>? lastUpdated,
     Value<bool>? includeNextCheck,
     Value<int>? singleEventExpiryDays,
@@ -2081,6 +2228,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
       currentBalance: currentBalance ?? this.currentBalance,
+      balanceExtra: balanceExtra ?? this.balanceExtra,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       includeNextCheck: includeNextCheck ?? this.includeNextCheck,
       singleEventExpiryDays:
@@ -2101,6 +2249,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     }
     if (currentBalance.present) {
       map['current_balance'] = Variable<double>(currentBalance.value);
+    }
+    if (balanceExtra.present) {
+      map['balance_extra'] = Variable<double>(balanceExtra.value);
     }
     if (lastUpdated.present) {
       map['last_updated'] = Variable<DateTime>(lastUpdated.value);
@@ -2136,6 +2287,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     return (StringBuffer('AppMetaRowsCompanion(')
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
+          ..write('balanceExtra: $balanceExtra, ')
           ..write('lastUpdated: $lastUpdated, ')
           ..write('includeNextCheck: $includeNextCheck, ')
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
@@ -2258,6 +2410,17 @@ class $SingleEventRowsTable extends SingleEventRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2269,6 +2432,7 @@ class $SingleEventRowsTable extends SingleEventRows
     appliedAmount,
     target,
     targetName,
+    targetId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2348,6 +2512,12 @@ class $SingleEventRowsTable extends SingleEventRows
         targetName.isAcceptableOrUnknown(data['target_name']!, _targetNameMeta),
       );
     }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2395,6 +2565,10 @@ class $SingleEventRowsTable extends SingleEventRows
         DriftSqlType.string,
         data['${effectivePrefix}target_name'],
       ),
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      ),
     );
   }
 
@@ -2417,6 +2591,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
   final double appliedAmount;
   final EventTarget target;
   final String? targetName;
+  final String? targetId;
   const SingleEventRow({
     required this.id,
     required this.name,
@@ -2427,6 +2602,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
     required this.appliedAmount,
     required this.target,
     this.targetName,
+    this.targetId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2446,6 +2622,9 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
     if (!nullToAbsent || targetName != null) {
       map['target_name'] = Variable<String>(targetName);
     }
+    if (!nullToAbsent || targetId != null) {
+      map['target_id'] = Variable<String>(targetId);
+    }
     return map;
   }
 
@@ -2462,6 +2641,9 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
       targetName: targetName == null && nullToAbsent
           ? const Value.absent()
           : Value(targetName),
+      targetId: targetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetId),
     );
   }
 
@@ -2482,6 +2664,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
         serializer.fromJson<String>(json['target']),
       ),
       targetName: serializer.fromJson<String?>(json['targetName']),
+      targetId: serializer.fromJson<String?>(json['targetId']),
     );
   }
   @override
@@ -2499,6 +2682,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
         $SingleEventRowsTable.$convertertarget.toJson(target),
       ),
       'targetName': serializer.toJson<String?>(targetName),
+      'targetId': serializer.toJson<String?>(targetId),
     };
   }
 
@@ -2512,6 +2696,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
     double? appliedAmount,
     EventTarget? target,
     Value<String?> targetName = const Value.absent(),
+    Value<String?> targetId = const Value.absent(),
   }) => SingleEventRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -2522,6 +2707,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
     appliedAmount: appliedAmount ?? this.appliedAmount,
     target: target ?? this.target,
     targetName: targetName.present ? targetName.value : this.targetName,
+    targetId: targetId.present ? targetId.value : this.targetId,
   );
   SingleEventRow copyWithCompanion(SingleEventRowsCompanion data) {
     return SingleEventRow(
@@ -2542,6 +2728,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
       targetName: data.targetName.present
           ? data.targetName.value
           : this.targetName,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
     );
   }
 
@@ -2556,7 +2743,8 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
           ..write('lastModifiedDate: $lastModifiedDate, ')
           ..write('appliedAmount: $appliedAmount, ')
           ..write('target: $target, ')
-          ..write('targetName: $targetName')
+          ..write('targetName: $targetName, ')
+          ..write('targetId: $targetId')
           ..write(')'))
         .toString();
   }
@@ -2572,6 +2760,7 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
     appliedAmount,
     target,
     targetName,
+    targetId,
   );
   @override
   bool operator ==(Object other) =>
@@ -2585,7 +2774,8 @@ class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
           other.lastModifiedDate == this.lastModifiedDate &&
           other.appliedAmount == this.appliedAmount &&
           other.target == this.target &&
-          other.targetName == this.targetName);
+          other.targetName == this.targetName &&
+          other.targetId == this.targetId);
 }
 
 class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
@@ -2598,6 +2788,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
   final Value<double> appliedAmount;
   final Value<EventTarget> target;
   final Value<String?> targetName;
+  final Value<String?> targetId;
   const SingleEventRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -2608,6 +2799,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
     this.appliedAmount = const Value.absent(),
     this.target = const Value.absent(),
     this.targetName = const Value.absent(),
+    this.targetId = const Value.absent(),
   });
   SingleEventRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2619,6 +2811,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
     required double appliedAmount,
     required EventTarget target,
     this.targetName = const Value.absent(),
+    this.targetId = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        isDebit = Value(isDebit),
@@ -2636,6 +2829,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
     Expression<double>? appliedAmount,
     Expression<String>? target,
     Expression<String>? targetName,
+    Expression<String>? targetId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2647,6 +2841,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
       if (appliedAmount != null) 'applied_amount': appliedAmount,
       if (target != null) 'target': target,
       if (targetName != null) 'target_name': targetName,
+      if (targetId != null) 'target_id': targetId,
     });
   }
 
@@ -2660,6 +2855,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
     Value<double>? appliedAmount,
     Value<EventTarget>? target,
     Value<String?>? targetName,
+    Value<String?>? targetId,
   }) {
     return SingleEventRowsCompanion(
       id: id ?? this.id,
@@ -2671,6 +2867,7 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
       appliedAmount: appliedAmount ?? this.appliedAmount,
       target: target ?? this.target,
       targetName: targetName ?? this.targetName,
+      targetId: targetId ?? this.targetId,
     );
   }
 
@@ -2706,6 +2903,9 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
     if (targetName.present) {
       map['target_name'] = Variable<String>(targetName.value);
     }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
     return map;
   }
 
@@ -2720,7 +2920,8 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
           ..write('lastModifiedDate: $lastModifiedDate, ')
           ..write('appliedAmount: $appliedAmount, ')
           ..write('target: $target, ')
-          ..write('targetName: $targetName')
+          ..write('targetName: $targetName, ')
+          ..write('targetId: $targetId')
           ..write(')'))
         .toString();
   }
@@ -3244,6 +3445,438 @@ class SyncedTaskRowsCompanion extends UpdateCompanion<SyncedTaskRow> {
   }
 }
 
+class $ManualAccountRowsTable extends ManualAccountRows
+    with TableInfo<$ManualAccountRowsTable, ManualAccountRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ManualAccountRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 200,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountTypeMeta = const VerificationMeta(
+    'accountType',
+  );
+  @override
+  late final GeneratedColumn<String> accountType = GeneratedColumn<String>(
+    'account_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceMeta = const VerificationMeta(
+    'balance',
+  );
+  @override
+  late final GeneratedColumn<double> balance = GeneratedColumn<double>(
+    'balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countsTowardBalanceMeta =
+      const VerificationMeta('countsTowardBalance');
+  @override
+  late final GeneratedColumn<bool> countsTowardBalance = GeneratedColumn<bool>(
+    'counts_toward_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("counts_toward_balance" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    position,
+    name,
+    accountType,
+    balance,
+    countsTowardBalance,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manual_account_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ManualAccountRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('account_type')) {
+      context.handle(
+        _accountTypeMeta,
+        accountType.isAcceptableOrUnknown(
+          data['account_type']!,
+          _accountTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_accountTypeMeta);
+    }
+    if (data.containsKey('balance')) {
+      context.handle(
+        _balanceMeta,
+        balance.isAcceptableOrUnknown(data['balance']!, _balanceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_balanceMeta);
+    }
+    if (data.containsKey('counts_toward_balance')) {
+      context.handle(
+        _countsTowardBalanceMeta,
+        countsTowardBalance.isAcceptableOrUnknown(
+          data['counts_toward_balance']!,
+          _countsTowardBalanceMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ManualAccountRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ManualAccountRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      accountType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_type'],
+      )!,
+      balance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance'],
+      )!,
+      countsTowardBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}counts_toward_balance'],
+      )!,
+    );
+  }
+
+  @override
+  $ManualAccountRowsTable createAlias(String alias) {
+    return $ManualAccountRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ManualAccountRow extends DataClass
+    implements Insertable<ManualAccountRow> {
+  final String id;
+  final int position;
+  final String name;
+  final String accountType;
+  final double balance;
+  final bool countsTowardBalance;
+  const ManualAccountRow({
+    required this.id,
+    required this.position,
+    required this.name,
+    required this.accountType,
+    required this.balance,
+    required this.countsTowardBalance,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['position'] = Variable<int>(position);
+    map['name'] = Variable<String>(name);
+    map['account_type'] = Variable<String>(accountType);
+    map['balance'] = Variable<double>(balance);
+    map['counts_toward_balance'] = Variable<bool>(countsTowardBalance);
+    return map;
+  }
+
+  ManualAccountRowsCompanion toCompanion(bool nullToAbsent) {
+    return ManualAccountRowsCompanion(
+      id: Value(id),
+      position: Value(position),
+      name: Value(name),
+      accountType: Value(accountType),
+      balance: Value(balance),
+      countsTowardBalance: Value(countsTowardBalance),
+    );
+  }
+
+  factory ManualAccountRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ManualAccountRow(
+      id: serializer.fromJson<String>(json['id']),
+      position: serializer.fromJson<int>(json['position']),
+      name: serializer.fromJson<String>(json['name']),
+      accountType: serializer.fromJson<String>(json['accountType']),
+      balance: serializer.fromJson<double>(json['balance']),
+      countsTowardBalance: serializer.fromJson<bool>(
+        json['countsTowardBalance'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'position': serializer.toJson<int>(position),
+      'name': serializer.toJson<String>(name),
+      'accountType': serializer.toJson<String>(accountType),
+      'balance': serializer.toJson<double>(balance),
+      'countsTowardBalance': serializer.toJson<bool>(countsTowardBalance),
+    };
+  }
+
+  ManualAccountRow copyWith({
+    String? id,
+    int? position,
+    String? name,
+    String? accountType,
+    double? balance,
+    bool? countsTowardBalance,
+  }) => ManualAccountRow(
+    id: id ?? this.id,
+    position: position ?? this.position,
+    name: name ?? this.name,
+    accountType: accountType ?? this.accountType,
+    balance: balance ?? this.balance,
+    countsTowardBalance: countsTowardBalance ?? this.countsTowardBalance,
+  );
+  ManualAccountRow copyWithCompanion(ManualAccountRowsCompanion data) {
+    return ManualAccountRow(
+      id: data.id.present ? data.id.value : this.id,
+      position: data.position.present ? data.position.value : this.position,
+      name: data.name.present ? data.name.value : this.name,
+      accountType: data.accountType.present
+          ? data.accountType.value
+          : this.accountType,
+      balance: data.balance.present ? data.balance.value : this.balance,
+      countsTowardBalance: data.countsTowardBalance.present
+          ? data.countsTowardBalance.value
+          : this.countsTowardBalance,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualAccountRow(')
+          ..write('id: $id, ')
+          ..write('position: $position, ')
+          ..write('name: $name, ')
+          ..write('accountType: $accountType, ')
+          ..write('balance: $balance, ')
+          ..write('countsTowardBalance: $countsTowardBalance')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    position,
+    name,
+    accountType,
+    balance,
+    countsTowardBalance,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ManualAccountRow &&
+          other.id == this.id &&
+          other.position == this.position &&
+          other.name == this.name &&
+          other.accountType == this.accountType &&
+          other.balance == this.balance &&
+          other.countsTowardBalance == this.countsTowardBalance);
+}
+
+class ManualAccountRowsCompanion extends UpdateCompanion<ManualAccountRow> {
+  final Value<String> id;
+  final Value<int> position;
+  final Value<String> name;
+  final Value<String> accountType;
+  final Value<double> balance;
+  final Value<bool> countsTowardBalance;
+  final Value<int> rowid;
+  const ManualAccountRowsCompanion({
+    this.id = const Value.absent(),
+    this.position = const Value.absent(),
+    this.name = const Value.absent(),
+    this.accountType = const Value.absent(),
+    this.balance = const Value.absent(),
+    this.countsTowardBalance = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ManualAccountRowsCompanion.insert({
+    required String id,
+    required int position,
+    required String name,
+    required String accountType,
+    required double balance,
+    this.countsTowardBalance = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       position = Value(position),
+       name = Value(name),
+       accountType = Value(accountType),
+       balance = Value(balance);
+  static Insertable<ManualAccountRow> custom({
+    Expression<String>? id,
+    Expression<int>? position,
+    Expression<String>? name,
+    Expression<String>? accountType,
+    Expression<double>? balance,
+    Expression<bool>? countsTowardBalance,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (position != null) 'position': position,
+      if (name != null) 'name': name,
+      if (accountType != null) 'account_type': accountType,
+      if (balance != null) 'balance': balance,
+      if (countsTowardBalance != null)
+        'counts_toward_balance': countsTowardBalance,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ManualAccountRowsCompanion copyWith({
+    Value<String>? id,
+    Value<int>? position,
+    Value<String>? name,
+    Value<String>? accountType,
+    Value<double>? balance,
+    Value<bool>? countsTowardBalance,
+    Value<int>? rowid,
+  }) {
+    return ManualAccountRowsCompanion(
+      id: id ?? this.id,
+      position: position ?? this.position,
+      name: name ?? this.name,
+      accountType: accountType ?? this.accountType,
+      balance: balance ?? this.balance,
+      countsTowardBalance: countsTowardBalance ?? this.countsTowardBalance,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (accountType.present) {
+      map['account_type'] = Variable<String>(accountType.value);
+    }
+    if (balance.present) {
+      map['balance'] = Variable<double>(balance.value);
+    }
+    if (countsTowardBalance.present) {
+      map['counts_toward_balance'] = Variable<bool>(countsTowardBalance.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualAccountRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('position: $position, ')
+          ..write('name: $name, ')
+          ..write('accountType: $accountType, ')
+          ..write('balance: $balance, ')
+          ..write('countsTowardBalance: $countsTowardBalance, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3260,6 +3893,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PeriodSnapshotRowsTable periodSnapshotRows =
       $PeriodSnapshotRowsTable(this);
   late final $SyncedTaskRowsTable syncedTaskRows = $SyncedTaskRowsTable(this);
+  late final $ManualAccountRowsTable manualAccountRows =
+      $ManualAccountRowsTable(this);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3273,6 +3908,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     singleEventRows,
     periodSnapshotRows,
     syncedTaskRows,
+    manualAccountRows,
   ];
 }
 
@@ -3291,6 +3927,8 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       Value<double?> creditLimit,
       Value<String?> googleTaskId,
       Value<bool> remindInTasks,
+      Value<FundingSource> source,
+      Value<String?> sourceId,
     });
 typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
     ExpenseItemRowsCompanion Function({
@@ -3307,6 +3945,8 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<double?> creditLimit,
       Value<String?> googleTaskId,
       Value<bool> remindInTasks,
+      Value<FundingSource> source,
+      Value<String?> sourceId,
     });
 
 class $$ExpenseItemRowsTableFilterComposer
@@ -3381,6 +4021,17 @@ class $$ExpenseItemRowsTableFilterComposer
 
   ColumnFilters<bool> get remindInTasks => $composableBuilder(
     column: $table.remindInTasks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<FundingSource, FundingSource, String>
+  get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3458,6 +4109,16 @@ class $$ExpenseItemRowsTableOrderingComposer
     column: $table.remindInTasks,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpenseItemRowsTableAnnotationComposer
@@ -3518,6 +4179,12 @@ class $$ExpenseItemRowsTableAnnotationComposer
     column: $table.remindInTasks,
     builder: (column) => column,
   );
+
+  GeneratedColumnWithTypeConverter<FundingSource, String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
 }
 
 class $$ExpenseItemRowsTableTableManager
@@ -3570,6 +4237,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<double?> creditLimit = const Value.absent(),
                 Value<String?> googleTaskId = const Value.absent(),
                 Value<bool> remindInTasks = const Value.absent(),
+                Value<FundingSource> source = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
               }) => ExpenseItemRowsCompanion(
                 id: id,
                 name: name,
@@ -3584,6 +4253,8 @@ class $$ExpenseItemRowsTableTableManager
                 creditLimit: creditLimit,
                 googleTaskId: googleTaskId,
                 remindInTasks: remindInTasks,
+                source: source,
+                sourceId: sourceId,
               ),
           createCompanionCallback:
               ({
@@ -3600,6 +4271,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<double?> creditLimit = const Value.absent(),
                 Value<String?> googleTaskId = const Value.absent(),
                 Value<bool> remindInTasks = const Value.absent(),
+                Value<FundingSource> source = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
               }) => ExpenseItemRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -3614,6 +4287,8 @@ class $$ExpenseItemRowsTableTableManager
                 creditLimit: creditLimit,
                 googleTaskId: googleTaskId,
                 remindInTasks: remindInTasks,
+                source: source,
+                sourceId: sourceId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4043,6 +4718,7 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
     AppMetaRowsCompanion Function({
       Value<int> id,
       Value<double> currentBalance,
+      Value<double> balanceExtra,
       required DateTime lastUpdated,
       Value<bool> includeNextCheck,
       Value<int> singleEventExpiryDays,
@@ -4056,6 +4732,7 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
       Value<int> id,
       Value<double> currentBalance,
+      Value<double> balanceExtra,
       Value<DateTime> lastUpdated,
       Value<bool> includeNextCheck,
       Value<int> singleEventExpiryDays,
@@ -4082,6 +4759,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<double> get currentBalance => $composableBuilder(
     column: $table.currentBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balanceExtra => $composableBuilder(
+    column: $table.balanceExtra,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4145,6 +4827,11 @@ class $$AppMetaRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get balanceExtra => $composableBuilder(
+    column: $table.balanceExtra,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastUpdated => $composableBuilder(
     column: $table.lastUpdated,
     builder: (column) => ColumnOrderings(column),
@@ -4200,6 +4887,11 @@ class $$AppMetaRowsTableAnnotationComposer
 
   GeneratedColumn<double> get currentBalance => $composableBuilder(
     column: $table.currentBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get balanceExtra => $composableBuilder(
+    column: $table.balanceExtra,
     builder: (column) => column,
   );
 
@@ -4277,6 +4969,7 @@ class $$AppMetaRowsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
+                Value<double> balanceExtra = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
                 Value<bool> includeNextCheck = const Value.absent(),
                 Value<int> singleEventExpiryDays = const Value.absent(),
@@ -4288,6 +4981,7 @@ class $$AppMetaRowsTableTableManager
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
+                balanceExtra: balanceExtra,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
                 singleEventExpiryDays: singleEventExpiryDays,
@@ -4301,6 +4995,7 @@ class $$AppMetaRowsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
+                Value<double> balanceExtra = const Value.absent(),
                 required DateTime lastUpdated,
                 Value<bool> includeNextCheck = const Value.absent(),
                 Value<int> singleEventExpiryDays = const Value.absent(),
@@ -4312,6 +5007,7 @@ class $$AppMetaRowsTableTableManager
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
+                balanceExtra: balanceExtra,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
                 singleEventExpiryDays: singleEventExpiryDays,
@@ -4357,6 +5053,7 @@ typedef $$SingleEventRowsTableCreateCompanionBuilder =
       required double appliedAmount,
       required EventTarget target,
       Value<String?> targetName,
+      Value<String?> targetId,
     });
 typedef $$SingleEventRowsTableUpdateCompanionBuilder =
     SingleEventRowsCompanion Function({
@@ -4369,6 +5066,7 @@ typedef $$SingleEventRowsTableUpdateCompanionBuilder =
       Value<double> appliedAmount,
       Value<EventTarget> target,
       Value<String?> targetName,
+      Value<String?> targetId,
     });
 
 class $$SingleEventRowsTableFilterComposer
@@ -4423,6 +5121,11 @@ class $$SingleEventRowsTableFilterComposer
 
   ColumnFilters<String> get targetName => $composableBuilder(
     column: $table.targetName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4480,6 +5183,11 @@ class $$SingleEventRowsTableOrderingComposer
     column: $table.targetName,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SingleEventRowsTableAnnotationComposer
@@ -4525,6 +5233,9 @@ class $$SingleEventRowsTableAnnotationComposer
     column: $table.targetName,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
 }
 
 class $$SingleEventRowsTableTableManager
@@ -4573,6 +5284,7 @@ class $$SingleEventRowsTableTableManager
                 Value<double> appliedAmount = const Value.absent(),
                 Value<EventTarget> target = const Value.absent(),
                 Value<String?> targetName = const Value.absent(),
+                Value<String?> targetId = const Value.absent(),
               }) => SingleEventRowsCompanion(
                 id: id,
                 name: name,
@@ -4583,6 +5295,7 @@ class $$SingleEventRowsTableTableManager
                 appliedAmount: appliedAmount,
                 target: target,
                 targetName: targetName,
+                targetId: targetId,
               ),
           createCompanionCallback:
               ({
@@ -4595,6 +5308,7 @@ class $$SingleEventRowsTableTableManager
                 required double appliedAmount,
                 required EventTarget target,
                 Value<String?> targetName = const Value.absent(),
+                Value<String?> targetId = const Value.absent(),
               }) => SingleEventRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -4605,6 +5319,7 @@ class $$SingleEventRowsTableTableManager
                 appliedAmount: appliedAmount,
                 target: target,
                 targetName: targetName,
+                targetId: targetId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4968,6 +5683,242 @@ typedef $$SyncedTaskRowsTableProcessedTableManager =
       SyncedTaskRow,
       PrefetchHooks Function()
     >;
+typedef $$ManualAccountRowsTableCreateCompanionBuilder =
+    ManualAccountRowsCompanion Function({
+      required String id,
+      required int position,
+      required String name,
+      required String accountType,
+      required double balance,
+      Value<bool> countsTowardBalance,
+      Value<int> rowid,
+    });
+typedef $$ManualAccountRowsTableUpdateCompanionBuilder =
+    ManualAccountRowsCompanion Function({
+      Value<String> id,
+      Value<int> position,
+      Value<String> name,
+      Value<String> accountType,
+      Value<double> balance,
+      Value<bool> countsTowardBalance,
+      Value<int> rowid,
+    });
+
+class $$ManualAccountRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ManualAccountRowsTable> {
+  $$ManualAccountRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountType => $composableBuilder(
+    column: $table.accountType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ManualAccountRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ManualAccountRowsTable> {
+  $$ManualAccountRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountType => $composableBuilder(
+    column: $table.accountType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ManualAccountRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ManualAccountRowsTable> {
+  $$ManualAccountRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get accountType => $composableBuilder(
+    column: $table.accountType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get balance =>
+      $composableBuilder(column: $table.balance, builder: (column) => column);
+
+  GeneratedColumn<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => column,
+  );
+}
+
+class $$ManualAccountRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ManualAccountRowsTable,
+          ManualAccountRow,
+          $$ManualAccountRowsTableFilterComposer,
+          $$ManualAccountRowsTableOrderingComposer,
+          $$ManualAccountRowsTableAnnotationComposer,
+          $$ManualAccountRowsTableCreateCompanionBuilder,
+          $$ManualAccountRowsTableUpdateCompanionBuilder,
+          (
+            ManualAccountRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ManualAccountRowsTable,
+              ManualAccountRow
+            >,
+          ),
+          ManualAccountRow,
+          PrefetchHooks Function()
+        > {
+  $$ManualAccountRowsTableTableManager(
+    _$AppDatabase db,
+    $ManualAccountRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ManualAccountRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ManualAccountRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ManualAccountRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> accountType = const Value.absent(),
+                Value<double> balance = const Value.absent(),
+                Value<bool> countsTowardBalance = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ManualAccountRowsCompanion(
+                id: id,
+                position: position,
+                name: name,
+                accountType: accountType,
+                balance: balance,
+                countsTowardBalance: countsTowardBalance,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required int position,
+                required String name,
+                required String accountType,
+                required double balance,
+                Value<bool> countsTowardBalance = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ManualAccountRowsCompanion.insert(
+                id: id,
+                position: position,
+                name: name,
+                accountType: accountType,
+                balance: balance,
+                countsTowardBalance: countsTowardBalance,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ManualAccountRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ManualAccountRowsTable,
+      ManualAccountRow,
+      $$ManualAccountRowsTableFilterComposer,
+      $$ManualAccountRowsTableOrderingComposer,
+      $$ManualAccountRowsTableAnnotationComposer,
+      $$ManualAccountRowsTableCreateCompanionBuilder,
+      $$ManualAccountRowsTableUpdateCompanionBuilder,
+      (
+        ManualAccountRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ManualAccountRowsTable,
+          ManualAccountRow
+        >,
+      ),
+      ManualAccountRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4986,4 +5937,6 @@ class $AppDatabaseManager {
       $$PeriodSnapshotRowsTableTableManager(_db, _db.periodSnapshotRows);
   $$SyncedTaskRowsTableTableManager get syncedTaskRows =>
       $$SyncedTaskRowsTableTableManager(_db, _db.syncedTaskRows);
+  $$ManualAccountRowsTableTableManager get manualAccountRows =>
+      $$ManualAccountRowsTableTableManager(_db, _db.manualAccountRows);
 }

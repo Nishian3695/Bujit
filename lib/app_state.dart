@@ -3,6 +3,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
+import 'navigation_items/expense_activity/credit_model.dart';
+import 'navigation_items/expense_activity/expense_item.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
 import 'storage_management/app_data_store.dart';
 import 'tutorial/tutorial_manager.dart';
@@ -61,6 +63,27 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         syncTasks();
         return save();
+    }
+
+    // ── Expenses and cards ──────────────────────────────────────────────────
+
+    // Swaps in an edited copy of an expense or card (dialogs return new objects).
+    // A date entered in the past rolls forward to the next one without paying
+    // anything, as when adding. A renamed card keeps what's charged to it.
+    Future<void> replaceItem(ExpenseItem old, ExpenseItem edited) {
+        edited.skipToNextDueDate();
+        if (old is CreditModel) data.renameCard(old.name, edited.name);
+        final int index = balance.expenses.indexOf(old);
+        if (index >= 0) balance.expenses[index] = edited;
+        return changed();
+    }
+
+    // Deletes an expense or card. What was charged to a deleted card is paid from
+    // the balance from then on.
+    Future<void> removeItem(ExpenseItem item) {
+        balance.expenses.remove(item);
+        if (item is CreditModel) balance.cardRemoved(item.name);
+        return changed();
     }
 
     // ── Google Tasks ────────────────────────────────────────────────────────

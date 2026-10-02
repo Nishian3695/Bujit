@@ -69,9 +69,9 @@ void main() {
 
     testWidgets("Single Events shows examples during its step only", (tester) async {
         final int eventsStep = TutorialManager.steps.indexWhere((s) => s.targetId == "single_events_list");
-        final int beforeEvents = eventsStep - 1; // Credit Utilization, which opens Single Events
+        final int beforeEvents = eventsStep - 1; // The step that opens Single Events
         final AppState state = _freshState(step: beforeEvents);
-        await tester.pumpWidget(MaterialApp(home: screenFor(TutorialScreen.creditUtil, state)));
+        await tester.pumpWidget(MaterialApp(home: screenFor(TutorialManager.steps[beforeEvents].screen, state)));
         await tester.pumpAndSettle();
         expect(find.text("Spontaneous concert tickets"), findsNothing);
 

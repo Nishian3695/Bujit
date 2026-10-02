@@ -27,6 +27,8 @@ extension ExpenseRowMapper on ExpenseItemRow {
           creditLimit: creditLimit ?? 0.0,
           googleTaskId: googleTaskId,
           remindInTasks: remindInTasks,
+          source: source,
+          sourceId: sourceId,
         )
       : ExpenseModel(
           id: id,
@@ -40,6 +42,8 @@ extension ExpenseRowMapper on ExpenseItemRow {
           category: category,
           googleTaskId: googleTaskId,
           remindInTasks: remindInTasks,
+          source: source,
+          sourceId: sourceId,
         );
 }
 
@@ -67,6 +71,8 @@ extension ExpenseItemMapper on ExpenseItem {
       creditLimit: Value(card?.creditLimit),
       googleTaskId: Value(googleTaskId),
       remindInTasks: Value(remindInTasks),
+      source: Value(source),
+      sourceId: Value(sourceId),
     );
   }
 }
