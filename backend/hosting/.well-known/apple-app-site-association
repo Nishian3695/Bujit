@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.io.github.nishian3695.bujit"],
+        "components": [
+          {"/": "/plaid-oauth*", "comment": "Plaid OAuth redirects back into Bujit"}
+        ]
+      }
+    ]
+  }
+}

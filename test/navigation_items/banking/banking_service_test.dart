@@ -17,6 +17,7 @@ import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/database/app_database.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -297,6 +298,21 @@ void main() {
                 containsAllInOrder(["Current Balance", "Chase Checking …1111", "Chase Savings …2222"]));
             expect(data.balance.paidFromLabel(rent), "Chase Checking …1111");
         });
+    });
+
+    test("the link token request names the platform (iOS gets an OAuth redirect from the backend)", () async {
+        await service.linkBank(data, now: noon);
+        final http.Request android = backend.requests.firstWhere((r) => r.url.path == "/plaid/link/token");
+        expect(jsonDecode(android.body), {"platform": "android"});
+
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        try {
+            await service.backend.createLinkToken();
+        } finally {
+            debugDefaultTargetPlatformOverride = null;
+        }
+        final http.Request ios = backend.requests.lastWhere((r) => r.url.path == "/plaid/link/token");
+        expect(jsonDecode(ios.body), {"platform": "ios"});
     });
 
     test("the backend's errors", () async {

@@ -3,7 +3,7 @@
 // client id and secret. Every request carries a Firebase ID token
 // (Authorization: Bearer) and a Firebase App Check token (X-Firebase-AppCheck);
 // calls about one bank login also carry its access token (X-Plaid-Token).
-//   POST /plaid/link/token -> {link_token}       start Plaid Link
+//   POST /plaid/link/token {platform} -> {link_token}   start Plaid Link
 //   POST /plaid/exchange   {public_token} -> {access_token}
 //   GET  /plaid/accounts   -> [{id, name, type, subtype, mask, institution_name, ledger, available, limit}]
 //   POST /plaid/remove     revoke the access token with Plaid
@@ -11,6 +11,7 @@
 // (BankingAuthException); on other calls, the backend refused the app itself
 // (e.g. "Missing App Check token"), which is a BankingException.
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'bank_account_model.dart';
 import 'banking_auth_exception.dart';
@@ -31,8 +32,11 @@ class PlaidBackendClient {
     PlaidBackendClient({required this.host, required this.auth, http.Client? client})
         : _client = client ?? http.Client();
 
-    Future<String> createLinkToken() async =>
-        (await _post("/plaid/link/token", {}))["link_token"] as String;
+    // The backend sets up Plaid Link for this platform (iOS needs a redirect URI for
+    // banks that log in on their own site).
+    Future<String> createLinkToken() async => (await _post("/plaid/link/token", {
+        "platform": defaultTargetPlatform == TargetPlatform.iOS ? "ios" : "android",
+    }))["link_token"] as String;
 
     Future<String> exchangePublicToken(String publicToken) async =>
         (await _post("/plaid/exchange", {"public_token": publicToken}))["access_token"] as String;

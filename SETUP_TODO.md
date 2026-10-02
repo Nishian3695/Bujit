@@ -54,72 +54,66 @@ in [ios/Runner/Info.plist](ios/Runner/Info.plist)).
 
 ## Linked Accounts (Plaid)
 
-The app talks to Plaid the same way the Java app did: through your Cloud Run
-backend (`tellerproxy-kswzrkdipq-uc.a.run.app`, set in
-[lib/config/firebase_config.dart](lib/config/firebase_config.dart)). The backend
-holds the Plaid keys and checks each request for two things:
-- a **Firebase ID token** (the app signs in anonymously);
-- a **Firebase App Check** token.
+The app reaches Plaid through the Bujit backend, a Firebase Cloud Function (Cloud
+Run URL `tellerproxy-kswzrkdipq-uc.a.run.app`). Its source now lives in this repo,
+under [backend/](backend/), copied from the Java repo. The backend holds the Plaid
+keys (in Secret Manager) and checks each request for a Firebase ID token and an
+App Check token.
 
-The Flutter app uses the same Firebase project, **`bujit-89ac6`**.
+**Done (Android):**
+- Firebase settings are in [lib/firebase_options.dart](lib/firebase_options.dart).
+- Anonymous sign-in works.
+- This phone's App Check debug token is registered. Delete it when you're done
+  testing debug builds, and add a new one for any other test device.
+- Android release builds prove they're genuine the way the Java app did: a Play
+  Integrity token exchanged at the backend. Play Console is already linked for
+  this, since the Java app's Play version links banks.
 
-### 1. Connect the app to Firebase
-**Done:** [lib/firebase_options.dart](lib/firebase_options.dart) has the Android
-app's settings (from the Java app's `google-services.json`, the same Firebase app)
-and the iOS app's (from its `GoogleService-Info.plist`).
-- [ ] Firebase console → **Authentication → Sign-in method**: make sure
-      **Anonymous** is enabled (the Java app uses it too).
+### iOS bank logins (OAuth: Chase, Capital One, Wells Fargo, …)
+After logging in on the bank's own site, Plaid sends iOS users to
+`https://bujit-89ac6.web.app/plaid-oauth`, which opens Bujit (a universal link).
+The code for this is ready; these steps aren't:
+1. [ ] **Apple Team ID.** Find it in your Apple developer account under
+       *Membership*. Replace `TEAMID` in
+       [backend/hosting/.well-known/apple-app-site-association](backend/hosting/.well-known/apple-app-site-association)
+       with it, or send it to me.
+2. [ ] **Plaid dashboard → Developers → API → Allowed redirect URIs:** add
+       `https://bujit-89ac6.web.app/plaid-oauth`.
+3. [ ] **Deploy the backend and the hosting** (see "Deploying the backend" below).
+       This also publishes the app-link file and the redirect page.
+4. [ ] **Apple developer account → Identifiers → io.github.nishian3695.bujit:**
+       turn on **Associated Domains** and **App Attest**. The app already asks for
+       both in [ios/Runner/Runner.entitlements](ios/Runner/Runner.entitlements).
+5. [ ] **Firebase console → App Check:** register the iOS app with **App Attest**
+       (with DeviceCheck as the fallback, which needs a key from your Apple
+       developer account).
 
-### 2. App Check
-- [ ] **Debug builds** use the App Check *debug provider*. On the first bank
-      request, the debug console prints a line like "Enter this debug secret into
-      the allow list…".
-  - Android: look in Logcat. iOS: look in the Xcode console.
-  - Add that token in Firebase console → **App Check → Apps → ⋮ → Manage debug
-    tokens**. Each device or emulator has its own token.
-- [ ] **Android release builds** use Play Integrity, like the Java app.
-  - In App Check, the Android app must list the **SHA-256** of the signing key
-    (Play's app signing key, if Play signs the app).
-  - This only works once release builds use your real key (see "Release signing"
-    below).
-- [ ] **iOS release builds** use App Attest, falling back to DeviceCheck.
-  - In Xcode: **Runner → Signing & Capabilities → + Capability → App Attest**.
-  - Register the iOS app under App Check with App Attest and DeviceCheck. DeviceCheck
-    needs a key from your Apple developer account.
+Android needs none of this. Its link token names the app's package, as before.
 
-### 3. Backend and Plaid
-- [ ] Check that the Cloud Run backend is still deployed and that its Plaid keys
-      point at the environment you want (Sandbox for testing, Production for real
-      banks).
-- [ ] Android needs nothing new. The backend's link token names the package
-      `io.github.nishian3695.bujit`, the same as the Java app, and the Plaid
-      dashboard already allows it.
-- [ ] **iOS banks that log in on their own site (OAuth: Chase, Capital One, Wells
-      Fargo, …) need a redirect URI:**
-  - the backend must send `redirect_uri` when creating link tokens for iOS;
-  - the URI must be registered in the Plaid dashboard (*Developers → API → Allowed
-    redirect URIs*);
-  - it must be a universal link to a domain you control, with Associated Domains
-    set up in Xcode.
+### Deploying the backend
+The backend's source is in [backend/](backend/), and the Java repo's copy can be
+retired with it. Deploying from here sends the same `tellerProxy` function, plus
+the iOS redirect change and Firebase Hosting.
+1. [ ] Install the Firebase CLI once: `npm install -g firebase-tools`, then
+       `firebase login`. Node 24 is already on this PC.
+2. [ ] `cd backend/functions` then `npm ci`.
+3. [ ] `cd ..` (into `backend/`) then `firebase deploy --only functions,hosting`.
+4. [ ] Check that `https://bujit-89ac6.web.app/.well-known/apple-app-site-association`
+       shows the JSON with your Team ID.
 
-  Without it, those banks can't be linked on iOS; other banks still work. This
-  needs a backend change, so tell me when you're ready.
-
-### 4. Try it (in Sandbox)
+### Try it (in Sandbox)
 - [ ] Linked Accounts → **Link a bank or credit card**. In Plaid's sandbox, pick
-      any bank and log in with `user_good` / `pass_good`. Its accounts show up
-      under the bank's name.
+      any bank and log in with `user_good` / `pass_good`.
 - [ ] Home → tap **Current Balance → From Accounts**, pick the checking account,
       then Save. The balance becomes that account's balance (plus any additional
       funds).
-- [ ] Pull down on the home screen. It syncs right away. Otherwise it syncs on
+- [ ] Pull down on the home screen to sync right away. Otherwise it syncs on
       opening, at most every 15 minutes.
-- [ ] Add a credit card or expense with **From connected account**. Its amount
-      (and a card's limit) follows the bank's.
 
 | Symptom | Usual cause |
 |---|---|
-| "Failed to start bank connection" | Firebase isn't set up (step 1), App Check rejected the request (step 2, often a missing debug token), or the backend is down |
+| "Bujit's server refused the request (Missing App Check token)" | A debug build on a device whose App Check debug token isn't registered |
+| "Failed to start bank connection" (another cause) | The backend is down, or Plaid refused the request (the log says which) |
 | A bank says "connection expired" | Its login changed or access was revoked. Use **Reconnect** under the bank's name. |
 
 ### Differences from the Java app
@@ -128,6 +122,8 @@ and the iOS app's (from its `GoogleService-Info.plist`).
 - **Reconnecting an expired bank keeps settings.** Which accounts count toward
   the balance, and what's paid from or synced with them, carries over to the
   reconnected accounts.
+- **Linking a bank offers to add its credit cards,** asking for what the bank
+  can't share: due dates, and limits the bank doesn't report.
 - **Only Plaid is ported.** The Java app's Teller option isn't, since Plaid was
   the one in use.
 
@@ -139,8 +135,7 @@ The tip buttons sell the Java app's one-time products: `tip_small`, `tip_medium`
 and `tip_large`. Until the store returns them, the buttons show $0.99, $2.99 and
 $4.99, and tapping one says "Store unavailable".
 - [ ] **Google Play:** these products already exist for the Java app. Purchases
-      only work in builds installed from Play (internal testing track or later)
-      and signed with your release key (see below).
+      only work in builds installed from Play (internal testing track or later).
 - [ ] **App Store:** in App Store Connect, create three **Consumable** in-app
       purchases with the same product IDs, and accept the Paid Apps agreement.
 - [ ] **Rate Bujit** opens the Play Store and only shows on Android. Once the app
@@ -149,9 +144,35 @@ $4.99, and tapping one says "Store unavailable".
 
 ---
 
-## Release signing for Android (not done yet)
-Release builds of the Flutter app are still signed with the debug key. To ship as
-an update to the Java app on Play, and for Google sign-in and App Check to
-recognize release builds, they must use your existing release key. I can port the
-Java app's `keystore.properties` setup. You'd then copy your `keystore.properties`
-into `android/`, where it stays out of git.
+## Releasing on Android
+
+**Done:**
+- **Signing.** Release builds are signed with the Java app's keystore, so Play
+  accepts them as an update. Locally, the values come from
+  `android/keystore.properties` (copied from the Java repo; never committed; see
+  `android/keystore.properties.example`).
+- **Version.** It's `1.0.0`, with version code 10000. The Java app's last release
+  was 3016.
+- **Workflows.** [.github/workflows/release.yml](.github/workflows/release.yml)
+  builds, signs and uploads to Play when you push a tag like `v1.0.0`. CI analyzes
+  and tests every push.
+- **Database.** The layout is frozen as version 1 (see the steps in
+  [app_database.dart](lib/storage_management/database/app_database.dart)), so from
+  now on updates migrate data instead of needing a reinstall.
+- **Data from the Java app** is imported on the first launch after updating over
+  it. That covers its data, settings, counted accounts and bank logins. Google
+  Tasks needs signing in again.
+
+**For you:**
+- [ ] **Repository secrets.** Add the Java repo's release secrets to the repository
+      that will run the release workflow: `KEYSTORE_BASE64`, `STORE_PASSWORD`,
+      `KEY_ALIAS`, `KEY_PASSWORD` and `SERVICE_ACCOUNT_JSON` (GitHub → Settings →
+      Secrets and variables → Actions). The Firebase settings are committed, so
+      `GOOGLE_SERVICES_JSON` and `TELLER_APP_ID` aren't needed.
+- [ ] **Test the update path once** before releasing:
+  1. install the Java app's Play version on a test device and use it;
+  2. install the Flutter app's release build over it (the internal testing track
+     does this);
+  3. check that the data, settings and linked banks came across.
+- [ ] Edit [play/whatsnew/whatsnew-en-US](play/whatsnew/whatsnew-en-US) (the Play
+      release notes) as you like.
