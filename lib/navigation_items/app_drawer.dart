@@ -7,6 +7,7 @@ import 'income_streams/income_streams_activity.dart';
 import 'not_built_yet.dart';
 import 'settings/settings_activity.dart';
 import 'single_events/single_events_activity.dart';
+import 'visuals/visuals_activity.dart';
 
 class AppDrawer extends StatelessWidget {
     final AppState state;
@@ -39,7 +40,7 @@ class AppDrawer extends StatelessWidget {
                     item(Icons.credit_card, "Credit Utilization", CreditUtilActivity(state: state)),
                     item(Icons.account_balance, "Linked Accounts", const NotBuiltYet(title: "Linked Accounts")),
                     item(Icons.event, "Single Events", SingleEventsActivity(state: state)),
-                    item(Icons.bar_chart, "Visuals", const NotBuiltYet(title: "Visuals")),
+                    item(Icons.bar_chart, "Visuals", VisualsActivity(state: state)),
                     const Divider(),
                     item(Icons.settings, "Settings", SettingsActivity(state: state)),
                 ],

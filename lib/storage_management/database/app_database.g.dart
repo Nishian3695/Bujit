@@ -2297,6 +2297,316 @@ class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
   }
 }
 
+class $PeriodSnapshotRowsTable extends PeriodSnapshotRows
+    with TableInfo<$PeriodSnapshotRowsTable, PeriodSnapshotRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PeriodSnapshotRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _startMeta = const VerificationMeta('start');
+  @override
+  late final GeneratedColumn<DateTime> start = GeneratedColumn<DateTime>(
+    'start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _totalIncomeMeta = const VerificationMeta(
+    'totalIncome',
+  );
+  @override
+  late final GeneratedColumn<double> totalIncome = GeneratedColumn<double>(
+    'total_income',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _totalExpensesMeta = const VerificationMeta(
+    'totalExpenses',
+  );
+  @override
+  late final GeneratedColumn<double> totalExpenses = GeneratedColumn<double>(
+    'total_expenses',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, start, totalIncome, totalExpenses];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'period_snapshot_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PeriodSnapshotRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('start')) {
+      context.handle(
+        _startMeta,
+        start.isAcceptableOrUnknown(data['start']!, _startMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMeta);
+    }
+    if (data.containsKey('total_income')) {
+      context.handle(
+        _totalIncomeMeta,
+        totalIncome.isAcceptableOrUnknown(
+          data['total_income']!,
+          _totalIncomeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_totalIncomeMeta);
+    }
+    if (data.containsKey('total_expenses')) {
+      context.handle(
+        _totalExpensesMeta,
+        totalExpenses.isAcceptableOrUnknown(
+          data['total_expenses']!,
+          _totalExpensesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_totalExpensesMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PeriodSnapshotRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PeriodSnapshotRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      start: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start'],
+      )!,
+      totalIncome: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_income'],
+      )!,
+      totalExpenses: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_expenses'],
+      )!,
+    );
+  }
+
+  @override
+  $PeriodSnapshotRowsTable createAlias(String alias) {
+    return $PeriodSnapshotRowsTable(attachedDatabase, alias);
+  }
+}
+
+class PeriodSnapshotRow extends DataClass
+    implements Insertable<PeriodSnapshotRow> {
+  final int id;
+  final DateTime start;
+  final double totalIncome;
+  final double totalExpenses;
+  const PeriodSnapshotRow({
+    required this.id,
+    required this.start,
+    required this.totalIncome,
+    required this.totalExpenses,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['start'] = Variable<DateTime>(start);
+    map['total_income'] = Variable<double>(totalIncome);
+    map['total_expenses'] = Variable<double>(totalExpenses);
+    return map;
+  }
+
+  PeriodSnapshotRowsCompanion toCompanion(bool nullToAbsent) {
+    return PeriodSnapshotRowsCompanion(
+      id: Value(id),
+      start: Value(start),
+      totalIncome: Value(totalIncome),
+      totalExpenses: Value(totalExpenses),
+    );
+  }
+
+  factory PeriodSnapshotRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PeriodSnapshotRow(
+      id: serializer.fromJson<int>(json['id']),
+      start: serializer.fromJson<DateTime>(json['start']),
+      totalIncome: serializer.fromJson<double>(json['totalIncome']),
+      totalExpenses: serializer.fromJson<double>(json['totalExpenses']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'start': serializer.toJson<DateTime>(start),
+      'totalIncome': serializer.toJson<double>(totalIncome),
+      'totalExpenses': serializer.toJson<double>(totalExpenses),
+    };
+  }
+
+  PeriodSnapshotRow copyWith({
+    int? id,
+    DateTime? start,
+    double? totalIncome,
+    double? totalExpenses,
+  }) => PeriodSnapshotRow(
+    id: id ?? this.id,
+    start: start ?? this.start,
+    totalIncome: totalIncome ?? this.totalIncome,
+    totalExpenses: totalExpenses ?? this.totalExpenses,
+  );
+  PeriodSnapshotRow copyWithCompanion(PeriodSnapshotRowsCompanion data) {
+    return PeriodSnapshotRow(
+      id: data.id.present ? data.id.value : this.id,
+      start: data.start.present ? data.start.value : this.start,
+      totalIncome: data.totalIncome.present
+          ? data.totalIncome.value
+          : this.totalIncome,
+      totalExpenses: data.totalExpenses.present
+          ? data.totalExpenses.value
+          : this.totalExpenses,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PeriodSnapshotRow(')
+          ..write('id: $id, ')
+          ..write('start: $start, ')
+          ..write('totalIncome: $totalIncome, ')
+          ..write('totalExpenses: $totalExpenses')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, start, totalIncome, totalExpenses);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PeriodSnapshotRow &&
+          other.id == this.id &&
+          other.start == this.start &&
+          other.totalIncome == this.totalIncome &&
+          other.totalExpenses == this.totalExpenses);
+}
+
+class PeriodSnapshotRowsCompanion extends UpdateCompanion<PeriodSnapshotRow> {
+  final Value<int> id;
+  final Value<DateTime> start;
+  final Value<double> totalIncome;
+  final Value<double> totalExpenses;
+  const PeriodSnapshotRowsCompanion({
+    this.id = const Value.absent(),
+    this.start = const Value.absent(),
+    this.totalIncome = const Value.absent(),
+    this.totalExpenses = const Value.absent(),
+  });
+  PeriodSnapshotRowsCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime start,
+    required double totalIncome,
+    required double totalExpenses,
+  }) : start = Value(start),
+       totalIncome = Value(totalIncome),
+       totalExpenses = Value(totalExpenses);
+  static Insertable<PeriodSnapshotRow> custom({
+    Expression<int>? id,
+    Expression<DateTime>? start,
+    Expression<double>? totalIncome,
+    Expression<double>? totalExpenses,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (start != null) 'start': start,
+      if (totalIncome != null) 'total_income': totalIncome,
+      if (totalExpenses != null) 'total_expenses': totalExpenses,
+    });
+  }
+
+  PeriodSnapshotRowsCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? start,
+    Value<double>? totalIncome,
+    Value<double>? totalExpenses,
+  }) {
+    return PeriodSnapshotRowsCompanion(
+      id: id ?? this.id,
+      start: start ?? this.start,
+      totalIncome: totalIncome ?? this.totalIncome,
+      totalExpenses: totalExpenses ?? this.totalExpenses,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (start.present) {
+      map['start'] = Variable<DateTime>(start.value);
+    }
+    if (totalIncome.present) {
+      map['total_income'] = Variable<double>(totalIncome.value);
+    }
+    if (totalExpenses.present) {
+      map['total_expenses'] = Variable<double>(totalExpenses.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PeriodSnapshotRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('start: $start, ')
+          ..write('totalIncome: $totalIncome, ')
+          ..write('totalExpenses: $totalExpenses')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2310,6 +2620,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SingleEventRowsTable singleEventRows = $SingleEventRowsTable(
     this,
   );
+  late final $PeriodSnapshotRowsTable periodSnapshotRows =
+      $PeriodSnapshotRowsTable(this);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2321,6 +2633,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categoryRows,
     appMetaRows,
     singleEventRows,
+    periodSnapshotRows,
   ];
 }
 
@@ -3511,6 +3824,198 @@ typedef $$SingleEventRowsTableProcessedTableManager =
       SingleEventRow,
       PrefetchHooks Function()
     >;
+typedef $$PeriodSnapshotRowsTableCreateCompanionBuilder =
+    PeriodSnapshotRowsCompanion Function({
+      Value<int> id,
+      required DateTime start,
+      required double totalIncome,
+      required double totalExpenses,
+    });
+typedef $$PeriodSnapshotRowsTableUpdateCompanionBuilder =
+    PeriodSnapshotRowsCompanion Function({
+      Value<int> id,
+      Value<DateTime> start,
+      Value<double> totalIncome,
+      Value<double> totalExpenses,
+    });
+
+class $$PeriodSnapshotRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $PeriodSnapshotRowsTable> {
+  $$PeriodSnapshotRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalIncome => $composableBuilder(
+    column: $table.totalIncome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalExpenses => $composableBuilder(
+    column: $table.totalExpenses,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PeriodSnapshotRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PeriodSnapshotRowsTable> {
+  $$PeriodSnapshotRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalIncome => $composableBuilder(
+    column: $table.totalIncome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalExpenses => $composableBuilder(
+    column: $table.totalExpenses,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PeriodSnapshotRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PeriodSnapshotRowsTable> {
+  $$PeriodSnapshotRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get start =>
+      $composableBuilder(column: $table.start, builder: (column) => column);
+
+  GeneratedColumn<double> get totalIncome => $composableBuilder(
+    column: $table.totalIncome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get totalExpenses => $composableBuilder(
+    column: $table.totalExpenses,
+    builder: (column) => column,
+  );
+}
+
+class $$PeriodSnapshotRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PeriodSnapshotRowsTable,
+          PeriodSnapshotRow,
+          $$PeriodSnapshotRowsTableFilterComposer,
+          $$PeriodSnapshotRowsTableOrderingComposer,
+          $$PeriodSnapshotRowsTableAnnotationComposer,
+          $$PeriodSnapshotRowsTableCreateCompanionBuilder,
+          $$PeriodSnapshotRowsTableUpdateCompanionBuilder,
+          (
+            PeriodSnapshotRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PeriodSnapshotRowsTable,
+              PeriodSnapshotRow
+            >,
+          ),
+          PeriodSnapshotRow,
+          PrefetchHooks Function()
+        > {
+  $$PeriodSnapshotRowsTableTableManager(
+    _$AppDatabase db,
+    $PeriodSnapshotRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PeriodSnapshotRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PeriodSnapshotRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PeriodSnapshotRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> start = const Value.absent(),
+                Value<double> totalIncome = const Value.absent(),
+                Value<double> totalExpenses = const Value.absent(),
+              }) => PeriodSnapshotRowsCompanion(
+                id: id,
+                start: start,
+                totalIncome: totalIncome,
+                totalExpenses: totalExpenses,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime start,
+                required double totalIncome,
+                required double totalExpenses,
+              }) => PeriodSnapshotRowsCompanion.insert(
+                id: id,
+                start: start,
+                totalIncome: totalIncome,
+                totalExpenses: totalExpenses,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PeriodSnapshotRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PeriodSnapshotRowsTable,
+      PeriodSnapshotRow,
+      $$PeriodSnapshotRowsTableFilterComposer,
+      $$PeriodSnapshotRowsTableOrderingComposer,
+      $$PeriodSnapshotRowsTableAnnotationComposer,
+      $$PeriodSnapshotRowsTableCreateCompanionBuilder,
+      $$PeriodSnapshotRowsTableUpdateCompanionBuilder,
+      (
+        PeriodSnapshotRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PeriodSnapshotRowsTable,
+          PeriodSnapshotRow
+        >,
+      ),
+      PeriodSnapshotRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3525,4 +4030,6 @@ class $AppDatabaseManager {
       $$AppMetaRowsTableTableManager(_db, _db.appMetaRows);
   $$SingleEventRowsTableTableManager get singleEventRows =>
       $$SingleEventRowsTableTableManager(_db, _db.singleEventRows);
+  $$PeriodSnapshotRowsTableTableManager get periodSnapshotRows =>
+      $$PeriodSnapshotRowsTableTableManager(_db, _db.periodSnapshotRows);
 }

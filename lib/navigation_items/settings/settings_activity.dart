@@ -1,7 +1,12 @@
 // Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app.
-// So far: the Next Check setting and resetting to the tutorial's sample data.
+// So far: the Next Check setting, single-event expiry, CSV import and its
+// template, and resetting to the tutorial's sample data.
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
+import 'csv_import_helper.dart';
 
 class SettingsActivity extends StatefulWidget {
     final AppState state;
@@ -12,6 +17,43 @@ class SettingsActivity extends StatefulWidget {
 }
 
 class _SettingsActivityState extends State<SettingsActivity> {
+    // Picks a CSV file, imports it, saves, and shows what was added and any skipped rows.
+    Future<void> _importCsv() async {
+        // Any type: CSVs arrive with several MIME types; the importer judges the contents.
+        final PlatformFile? picked = await FilePicker.pickFile(dialogTitle: "Import CSV");
+        if (picked == null) return;
+        final Uint8List bytes = await picked.readAsBytes();
+        final CsvImportResult result = CsvImportHelper.importInto(
+            widget.state.data, utf8.decode(bytes, allowMalformed: true));
+        if (result.hasData) await widget.state.changed();
+        if (!mounted) return;
+        final String errors = result.errors.map((e) => "• $e").join("\n");
+        await showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: Text(result.hasData ? "Import complete" : "Import failed"),
+                content: SingleChildScrollView(child: Text([
+                    if (result.hasData) result.summary(),
+                    if (errors.isNotEmpty) "${result.hasData ? "Warnings" : "Errors"}:\n$errors",
+                    if (!result.hasData && errors.isEmpty) "No importable data found in the file.",
+                ].join("\n\n"))),
+                actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("OK"))],
+            ),
+        );
+    }
+
+    Future<void> _saveCsvTemplate() async {
+        final Uri? saved = await FilePicker.saveFile(
+            dialogTitle: "Save CSV template",
+            fileName: "bujit_import_template.csv",
+            mimeType: "text/csv",
+            bytes: Uint8List.fromList(utf8.encode(CsvImportHelper.template)),
+        );
+        if (saved != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Template saved")));
+        }
+    }
+
     // Asks how many days a single event stays listed after its last change (at least 1).
     Future<void> _editExpiryDays() async {
         final TextEditingController controller =
@@ -79,6 +121,17 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         title: const Text("Clear single events after"),
                         subtitle: Text("${widget.state.data.singleEventExpiryDays} days since they were last changed"),
                         onTap: _editExpiryDays,
+                    ),
+                    const Divider(),
+                    ListTile(
+                        title: const Text("Import CSV"),
+                        subtitle: const Text("Add expenses, credit cards and income streams from a file"),
+                        onTap: _importCsv,
+                    ),
+                    ListTile(
+                        title: const Text("Save CSV template"),
+                        subtitle: const Text("An example file showing the format"),
+                        onTap: _saveCsvTemplate,
                     ),
                     const Divider(),
                     ListTile(

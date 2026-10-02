@@ -41,6 +41,11 @@ class CreditModel extends ExpenseItem {
         return dueInRange ? amount : 0.00;
     }
 
+    // A card's history is its balance on its next due date (the only due date with
+    // a known amount), as in the Java app's period totals.
+    @override
+    double historicalAmountBetween(DateTime from, DateTime to) => amountDueBetween(from, to);
+
     // If the due date has passed, pays the whole balance once, resets it to 0 and
     // moves to the next due date on or after [today]. Returns the amount paid.
     @override

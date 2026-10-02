@@ -79,6 +79,16 @@ class ExpenseItem {
     // Total due in a check (see CheckWindow for which days that covers).
     double amountDueInCheck(CheckWindow check) => amountDueBetween(check.expensesFrom, check.expensesTo);
 
+    // Total of every occurrence from [from] through [to] (inclusive), paid or not --
+    // for history and the Visuals charts, which show what falls in a period rather
+    // than what's still owed. Bounded by startDate and endDate.
+    double historicalAmountBetween(DateTime from, DateTime to) {
+        final DateTime lo = maxDate(dateOnly(from), startDate);
+        final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
+        if (lo.isAfter(hi)) return 0.00;
+        return amount * _projector.countBetween(lo, hi);
+    }
+
     // Brings the item up to [today] (default: now), paying every occurrence that
     // fell before it, and returns the total paid so the caller can deduct it
     // from the balance. An occurrence due today is still unpaid. Stops at the

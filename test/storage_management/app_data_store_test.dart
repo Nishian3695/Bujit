@@ -8,6 +8,7 @@ import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'package:bujit/navigation_items/single_events/single_event_model.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/database/app_database.dart';
+import 'package:bujit/storage_management/period_snapshot.dart';
 import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:drift/native.dart';
@@ -37,6 +38,7 @@ AppData _sampleData() {
         frequency: 2, frequencyUnits: FrequencyUnit.weekly);
     balance.incomeStreams.addAll([side, job]);
     balance.activeIncome = job;
+    balance.snapshots.add(PeriodSnapshot(start: day(-14), totalIncome: 1250.0, totalExpenses: 410.5));
     return AppData(
         balance: balance,
         categories: ["Housing", "Health"],
@@ -81,6 +83,11 @@ void main() {
             expect(balance.incomeStreams.map((s) => s.name), ["Side", "Job"]);
             expect(balance.activeIncome!.name, "Job");
             expect(balance.activeIncome!.frequencyUnits, FrequencyUnit.weekly);
+
+            final snapshot = balance.snapshots.single;
+            expect(snapshot.start, day(-14));
+            expect(snapshot.totalIncome, 1250.0);
+            expect(snapshot.totalExpenses, 410.5);
 
             expect(loaded.singleEventExpiryDays, 14);
             final SingleEventModel event = loaded.singleEvents.single;

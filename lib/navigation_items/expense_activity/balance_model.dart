@@ -15,6 +15,7 @@
 // scratch, so paging forward and back can't accumulate drift or double counting.
 import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
+import 'package:bujit/storage_management/period_snapshot.dart';
 import 'check_window.dart';
 import 'credit_model.dart';
 import 'expense_item.dart';
@@ -52,6 +53,8 @@ class BalanceModel {
     final List<ExpenseItem> expenses = []; // Expenses and credit cards
     final List<IncomeStreamModel> incomeStreams = [];
     IncomeStreamModel? activeIncome; // The income stream whose paydays define the checks
+    // Totals of pay periods that have ended, recorded by makeRecent, for Visuals.
+    final List<PeriodSnapshot> snapshots = [];
 
     BalanceModel({
         required this.currentBalance,
@@ -76,6 +79,8 @@ class BalanceModel {
     // affects future paydays. Same rule as the Java app's incomeArrivedSince.
     double makeRecent({DateTime? today}) {
         final DateTime day = dateOnly(today ?? todayDate());
+        // Before anything is paid, so a card's balance lands in the period it was due.
+        _recordEndedPeriods(day);
         double change = 0.00;
         for (final ExpenseItem expense in expenses) {
             change -= expense.makeRecent(today: day);
@@ -88,6 +93,46 @@ class BalanceModel {
         }
         currentBalance += change;
         return change;
+    }
+
+    // Records a snapshot for every pay period of the active stream that ended since
+    // lastUpdated (its closing payday is after lastUpdated, on or before [day]),
+    // once per period, as the Java app does when it rolls a pay period over.
+    void _recordEndedPeriods(DateTime day) {
+        final IncomeStreamModel? income = activeIncome;
+        if (income == null || !day.isAfter(lastUpdated)) return;
+        DateTime end = income.paydayAfter(lastUpdated);
+        int safety = 0;
+        while (!end.isAfter(day) && safety++ < 3650) {
+            final DateTime? start = income.paydayOnOrBefore(addDays(end, -1));
+            if (start != null && !snapshots.any((s) => s.start == start)) {
+                snapshots.add(PeriodSnapshot(
+                    start: start,
+                    totalIncome: periodIncome(start, end),
+                    totalExpenses: periodExpenses(start, end),
+                ));
+            }
+            end = income.paydayAfter(end);
+        }
+    }
+
+    // Every stream's income in the half-open period [start, end).
+    double periodIncome(DateTime start, DateTime end) {
+        double total = 0.00;
+        for (final IncomeStreamModel income in incomeStreams) {
+            total += income.amountInPeriod(start, end);
+        }
+        return total;
+    }
+
+    // Every expense and card falling in the half-open period [start, end), paid or
+    // not (history counts what happened, not what's still owed).
+    double periodExpenses(DateTime start, DateTime end) {
+        double total = 0.00;
+        for (final ExpenseItem expense in expenses) {
+            total += expense.historicalAmountBetween(start, addDays(end, -1));
+        }
+        return total;
     }
 
     // The payday check [index] opens on (index 0 = the current check).

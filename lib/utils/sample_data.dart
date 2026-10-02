@@ -60,4 +60,5 @@ void seedSampleData(BalanceModel balance, {DateTime? today}) {
     // Starting balance so the dashboard looks healthy from day one
     balance.currentBalance = 3500.00;
     balance.lastUpdated = day;
+    balance.snapshots.clear();
 }

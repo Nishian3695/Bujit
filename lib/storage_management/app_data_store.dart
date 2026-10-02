@@ -11,6 +11,7 @@ import 'database/mappers/income_stream_mapper.dart';
 import 'database/mappers/single_event_mapper.dart';
 import '../navigation_items/single_events/single_event_model.dart';
 import '../navigation_items/single_events/single_events_ledger.dart';
+import 'period_snapshot.dart';
 
 // Everything the app persists, in domain form.
 class AppData {
@@ -58,6 +59,11 @@ class AppDataStore {
             .get();
         balance.incomeStreams.addAll(streamRows.map((row) => row.toDomain()));
         balance.activeIncome = _activeStream(balance.incomeStreams);
+        final snapshotRows = await (db.select(db.periodSnapshotRows)
+              ..orderBy([(t) => OrderingTerm.asc(t.start)]))
+            .get();
+        balance.snapshots.addAll(snapshotRows.map((row) => PeriodSnapshot(
+            start: row.start, totalIncome: row.totalIncome, totalExpenses: row.totalExpenses)));
 
         final categoryRows = await (db.select(db.categoryRows)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
@@ -92,6 +98,14 @@ class AppDataStore {
             for (final String name in data.categories.toSet()) {
                 if (name == otherCategory || name == newCategory) continue;
                 await db.into(db.categoryRows).insert(CategoryRowsCompanion.insert(name: name));
+            }
+            await db.delete(db.periodSnapshotRows).go();
+            for (final PeriodSnapshot snapshot in balance.snapshots) {
+                await db.into(db.periodSnapshotRows).insert(PeriodSnapshotRowsCompanion.insert(
+                    start: snapshot.start,
+                    totalIncome: snapshot.totalIncome,
+                    totalExpenses: snapshot.totalExpenses,
+                ), mode: InsertMode.insertOrReplace);
             }
             await db.delete(db.singleEventRows).go();
             for (final SingleEventModel event in data.singleEvents) {
