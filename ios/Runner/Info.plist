@@ -14,6 +14,8 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Bujit uses Face ID to unlock when App lock is on.</string>
 	<key>CFBundleName</key>
 	<string>bujit</string>
 	<key>CFBundlePackageType</key>

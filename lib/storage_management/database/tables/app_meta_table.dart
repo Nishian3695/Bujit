@@ -34,6 +34,9 @@ class AppMetaRows extends Table {
   // Tutorial progress: the next step to show, and whether it was finished or skipped.
   IntColumn get tutorialStep => integer().withDefault(const Constant(0))();
   BoolColumn get tutorialSeen => boolean().withDefault(const Constant(false))();
+  // Settings: thousands separators in amounts, and asking to unlock on opening.
+  BoolColumn get useCommaSeparators => boolean().withDefault(const Constant(false))();
+  BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
   // Google Tasks: sync turned on, the "Bujit" task list's id, and the signed-in
   // account's email (for display).
   BoolColumn get tasksSyncEnabled => boolean().withDefault(const Constant(false))();

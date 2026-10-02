@@ -2,6 +2,7 @@
 // every credit card's balance, limit and utilization, with add/edit/delete.
 // Cards live in BalanceModel.expenses alongside regular expenses.
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -94,8 +95,8 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                             subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                    Text("\$${card.displayBalance.toStringAsFixed(2)} of "
-                                        "\$${card.creditLimit.toStringAsFixed(2)} · "
+                                    Text("${Money.format(card.displayBalance)} of "
+                                        "${Money.format(card.creditLimit)} · "
                                         "${(utilization * 100).toStringAsFixed(0)}% · "
                                         "due ${card.currentDueDate.toString().split(' ')[0]}"),
                                     LinearProgressIndicator(

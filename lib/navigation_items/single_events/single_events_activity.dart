@@ -2,6 +2,7 @@
 // one-off debits/credits applied immediately to the balance or a credit card.
 // Effects are applied through SingleEventsLedger.
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/single_event_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -88,7 +89,7 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
                             title: Text(event.name),
                             subtitle: Text("${event.targetDisplayName} · clears in $daysLeft "
                                 "day${daysLeft == 1 ? "" : "s"}"),
-                            trailing: Text("$sign\$${event.amount.toStringAsFixed(2)}"),
+                            trailing: Text("$sign${Money.format(event.amount)}"),
                             onTap: showExamples ? null : () => _edit(event),
                         );
                     },

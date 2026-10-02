@@ -2,6 +2,7 @@
 // add, edit and delete income streams, and choose the active one (whose paydays
 // set the pay periods on the home screen).
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/income_stream_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -83,7 +84,7 @@ class _IncomeStreamsActivityState extends State<IncomeStreamsActivity> {
                             return ListTile(
                                 leading: Radio<IncomeStreamModel>(value: stream),
                                 title: Text(stream.name),
-                                subtitle: Text("\$${stream.amount.toStringAsFixed(2)} · ${stream.displayString()}"
+                                subtitle: Text("${Money.format(stream.amount)} · ${stream.displayString()}"
                                     " · next ${next.toString().split(' ')[0]}"),
                                 onTap: () => _edit(index),
                             );

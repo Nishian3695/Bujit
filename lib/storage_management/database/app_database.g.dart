@@ -1710,6 +1710,35 @@ class $AppMetaRowsTable extends AppMetaRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _useCommaSeparatorsMeta =
+      const VerificationMeta('useCommaSeparators');
+  @override
+  late final GeneratedColumn<bool> useCommaSeparators = GeneratedColumn<bool>(
+    'use_comma_separators',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_comma_separators" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _appLockEnabledMeta = const VerificationMeta(
+    'appLockEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> appLockEnabled = GeneratedColumn<bool>(
+    'app_lock_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("app_lock_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _tasksSyncEnabledMeta = const VerificationMeta(
     'tasksSyncEnabled',
   );
@@ -1757,6 +1786,8 @@ class $AppMetaRowsTable extends AppMetaRows
     singleEventExpiryDays,
     tutorialStep,
     tutorialSeen,
+    useCommaSeparators,
+    appLockEnabled,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -1841,6 +1872,24 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('use_comma_separators')) {
+      context.handle(
+        _useCommaSeparatorsMeta,
+        useCommaSeparators.isAcceptableOrUnknown(
+          data['use_comma_separators']!,
+          _useCommaSeparatorsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('app_lock_enabled')) {
+      context.handle(
+        _appLockEnabledMeta,
+        appLockEnabled.isAcceptableOrUnknown(
+          data['app_lock_enabled']!,
+          _appLockEnabledMeta,
+        ),
+      );
+    }
     if (data.containsKey('tasks_sync_enabled')) {
       context.handle(
         _tasksSyncEnabledMeta,
@@ -1909,6 +1958,14 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.bool,
         data['${effectivePrefix}tutorial_seen'],
       )!,
+      useCommaSeparators: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_comma_separators'],
+      )!,
+      appLockEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}app_lock_enabled'],
+      )!,
       tasksSyncEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}tasks_sync_enabled'],
@@ -1939,6 +1996,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final int singleEventExpiryDays;
   final int tutorialStep;
   final bool tutorialSeen;
+  final bool useCommaSeparators;
+  final bool appLockEnabled;
   final bool tasksSyncEnabled;
   final String? tasksListId;
   final String? tasksAccount;
@@ -1951,6 +2010,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.singleEventExpiryDays,
     required this.tutorialStep,
     required this.tutorialSeen,
+    required this.useCommaSeparators,
+    required this.appLockEnabled,
     required this.tasksSyncEnabled,
     this.tasksListId,
     this.tasksAccount,
@@ -1966,6 +2027,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['single_event_expiry_days'] = Variable<int>(singleEventExpiryDays);
     map['tutorial_step'] = Variable<int>(tutorialStep);
     map['tutorial_seen'] = Variable<bool>(tutorialSeen);
+    map['use_comma_separators'] = Variable<bool>(useCommaSeparators);
+    map['app_lock_enabled'] = Variable<bool>(appLockEnabled);
     map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled);
     if (!nullToAbsent || tasksListId != null) {
       map['tasks_list_id'] = Variable<String>(tasksListId);
@@ -1986,6 +2049,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       singleEventExpiryDays: Value(singleEventExpiryDays),
       tutorialStep: Value(tutorialStep),
       tutorialSeen: Value(tutorialSeen),
+      useCommaSeparators: Value(useCommaSeparators),
+      appLockEnabled: Value(appLockEnabled),
       tasksSyncEnabled: Value(tasksSyncEnabled),
       tasksListId: tasksListId == null && nullToAbsent
           ? const Value.absent()
@@ -2012,6 +2077,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       ),
       tutorialStep: serializer.fromJson<int>(json['tutorialStep']),
       tutorialSeen: serializer.fromJson<bool>(json['tutorialSeen']),
+      useCommaSeparators: serializer.fromJson<bool>(json['useCommaSeparators']),
+      appLockEnabled: serializer.fromJson<bool>(json['appLockEnabled']),
       tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
       tasksListId: serializer.fromJson<String?>(json['tasksListId']),
       tasksAccount: serializer.fromJson<String?>(json['tasksAccount']),
@@ -2029,6 +2096,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'singleEventExpiryDays': serializer.toJson<int>(singleEventExpiryDays),
       'tutorialStep': serializer.toJson<int>(tutorialStep),
       'tutorialSeen': serializer.toJson<bool>(tutorialSeen),
+      'useCommaSeparators': serializer.toJson<bool>(useCommaSeparators),
+      'appLockEnabled': serializer.toJson<bool>(appLockEnabled),
       'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
       'tasksListId': serializer.toJson<String?>(tasksListId),
       'tasksAccount': serializer.toJson<String?>(tasksAccount),
@@ -2044,6 +2113,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     int? singleEventExpiryDays,
     int? tutorialStep,
     bool? tutorialSeen,
+    bool? useCommaSeparators,
+    bool? appLockEnabled,
     bool? tasksSyncEnabled,
     Value<String?> tasksListId = const Value.absent(),
     Value<String?> tasksAccount = const Value.absent(),
@@ -2056,6 +2127,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     singleEventExpiryDays: singleEventExpiryDays ?? this.singleEventExpiryDays,
     tutorialStep: tutorialStep ?? this.tutorialStep,
     tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+    useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
+    appLockEnabled: appLockEnabled ?? this.appLockEnabled,
     tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
     tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
     tasksAccount: tasksAccount.present ? tasksAccount.value : this.tasksAccount,
@@ -2084,6 +2157,12 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: data.tutorialSeen.present
           ? data.tutorialSeen.value
           : this.tutorialSeen,
+      useCommaSeparators: data.useCommaSeparators.present
+          ? data.useCommaSeparators.value
+          : this.useCommaSeparators,
+      appLockEnabled: data.appLockEnabled.present
+          ? data.appLockEnabled.value
+          : this.appLockEnabled,
       tasksSyncEnabled: data.tasksSyncEnabled.present
           ? data.tasksSyncEnabled.value
           : this.tasksSyncEnabled,
@@ -2107,6 +2186,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
           ..write('tutorialStep: $tutorialStep, ')
           ..write('tutorialSeen: $tutorialSeen, ')
+          ..write('useCommaSeparators: $useCommaSeparators, ')
+          ..write('appLockEnabled: $appLockEnabled, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -2124,6 +2205,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     singleEventExpiryDays,
     tutorialStep,
     tutorialSeen,
+    useCommaSeparators,
+    appLockEnabled,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -2140,6 +2223,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.singleEventExpiryDays == this.singleEventExpiryDays &&
           other.tutorialStep == this.tutorialStep &&
           other.tutorialSeen == this.tutorialSeen &&
+          other.useCommaSeparators == this.useCommaSeparators &&
+          other.appLockEnabled == this.appLockEnabled &&
           other.tasksSyncEnabled == this.tasksSyncEnabled &&
           other.tasksListId == this.tasksListId &&
           other.tasksAccount == this.tasksAccount);
@@ -2154,6 +2239,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<int> singleEventExpiryDays;
   final Value<int> tutorialStep;
   final Value<bool> tutorialSeen;
+  final Value<bool> useCommaSeparators;
+  final Value<bool> appLockEnabled;
   final Value<bool> tasksSyncEnabled;
   final Value<String?> tasksListId;
   final Value<String?> tasksAccount;
@@ -2166,6 +2253,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.singleEventExpiryDays = const Value.absent(),
     this.tutorialStep = const Value.absent(),
     this.tutorialSeen = const Value.absent(),
+    this.useCommaSeparators = const Value.absent(),
+    this.appLockEnabled = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2179,6 +2268,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.singleEventExpiryDays = const Value.absent(),
     this.tutorialStep = const Value.absent(),
     this.tutorialSeen = const Value.absent(),
+    this.useCommaSeparators = const Value.absent(),
+    this.appLockEnabled = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2192,6 +2283,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<int>? singleEventExpiryDays,
     Expression<int>? tutorialStep,
     Expression<bool>? tutorialSeen,
+    Expression<bool>? useCommaSeparators,
+    Expression<bool>? appLockEnabled,
     Expression<bool>? tasksSyncEnabled,
     Expression<String>? tasksListId,
     Expression<String>? tasksAccount,
@@ -2206,6 +2299,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
         'single_event_expiry_days': singleEventExpiryDays,
       if (tutorialStep != null) 'tutorial_step': tutorialStep,
       if (tutorialSeen != null) 'tutorial_seen': tutorialSeen,
+      if (useCommaSeparators != null)
+        'use_comma_separators': useCommaSeparators,
+      if (appLockEnabled != null) 'app_lock_enabled': appLockEnabled,
       if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
       if (tasksListId != null) 'tasks_list_id': tasksListId,
       if (tasksAccount != null) 'tasks_account': tasksAccount,
@@ -2221,6 +2317,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<int>? singleEventExpiryDays,
     Value<int>? tutorialStep,
     Value<bool>? tutorialSeen,
+    Value<bool>? useCommaSeparators,
+    Value<bool>? appLockEnabled,
     Value<bool>? tasksSyncEnabled,
     Value<String?>? tasksListId,
     Value<String?>? tasksAccount,
@@ -2235,6 +2333,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           singleEventExpiryDays ?? this.singleEventExpiryDays,
       tutorialStep: tutorialStep ?? this.tutorialStep,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+      useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
+      appLockEnabled: appLockEnabled ?? this.appLockEnabled,
       tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
       tasksListId: tasksListId ?? this.tasksListId,
       tasksAccount: tasksAccount ?? this.tasksAccount,
@@ -2270,6 +2370,12 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (tutorialSeen.present) {
       map['tutorial_seen'] = Variable<bool>(tutorialSeen.value);
     }
+    if (useCommaSeparators.present) {
+      map['use_comma_separators'] = Variable<bool>(useCommaSeparators.value);
+    }
+    if (appLockEnabled.present) {
+      map['app_lock_enabled'] = Variable<bool>(appLockEnabled.value);
+    }
     if (tasksSyncEnabled.present) {
       map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled.value);
     }
@@ -2293,6 +2399,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
           ..write('tutorialStep: $tutorialStep, ')
           ..write('tutorialSeen: $tutorialSeen, ')
+          ..write('useCommaSeparators: $useCommaSeparators, ')
+          ..write('appLockEnabled: $appLockEnabled, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -4724,6 +4832,8 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<int> singleEventExpiryDays,
       Value<int> tutorialStep,
       Value<bool> tutorialSeen,
+      Value<bool> useCommaSeparators,
+      Value<bool> appLockEnabled,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -4738,6 +4848,8 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<int> singleEventExpiryDays,
       Value<int> tutorialStep,
       Value<bool> tutorialSeen,
+      Value<bool> useCommaSeparators,
+      Value<bool> appLockEnabled,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -4789,6 +4901,16 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<bool> get tutorialSeen => $composableBuilder(
     column: $table.tutorialSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useCommaSeparators => $composableBuilder(
+    column: $table.useCommaSeparators,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get appLockEnabled => $composableBuilder(
+    column: $table.appLockEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4857,6 +4979,16 @@ class $$AppMetaRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get useCommaSeparators => $composableBuilder(
+    column: $table.useCommaSeparators,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get appLockEnabled => $composableBuilder(
+    column: $table.appLockEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => ColumnOrderings(column),
@@ -4920,6 +5052,16 @@ class $$AppMetaRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get useCommaSeparators => $composableBuilder(
+    column: $table.useCommaSeparators,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get appLockEnabled => $composableBuilder(
+    column: $table.appLockEnabled,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => column,
@@ -4975,6 +5117,8 @@ class $$AppMetaRowsTableTableManager
                 Value<int> singleEventExpiryDays = const Value.absent(),
                 Value<int> tutorialStep = const Value.absent(),
                 Value<bool> tutorialSeen = const Value.absent(),
+                Value<bool> useCommaSeparators = const Value.absent(),
+                Value<bool> appLockEnabled = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -4987,6 +5131,8 @@ class $$AppMetaRowsTableTableManager
                 singleEventExpiryDays: singleEventExpiryDays,
                 tutorialStep: tutorialStep,
                 tutorialSeen: tutorialSeen,
+                useCommaSeparators: useCommaSeparators,
+                appLockEnabled: appLockEnabled,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
@@ -5001,6 +5147,8 @@ class $$AppMetaRowsTableTableManager
                 Value<int> singleEventExpiryDays = const Value.absent(),
                 Value<int> tutorialStep = const Value.absent(),
                 Value<bool> tutorialSeen = const Value.absent(),
+                Value<bool> useCommaSeparators = const Value.absent(),
+                Value<bool> appLockEnabled = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -5013,6 +5161,8 @@ class $$AppMetaRowsTableTableManager
                 singleEventExpiryDays: singleEventExpiryDays,
                 tutorialStep: tutorialStep,
                 tutorialSeen: tutorialSeen,
+                useCommaSeparators: useCommaSeparators,
+                appLockEnabled: appLockEnabled,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,

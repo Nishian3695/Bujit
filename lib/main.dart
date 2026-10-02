@@ -6,6 +6,7 @@ import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/expense_activity.dart';
 import 'navigation_items/settings/google_tasks_account.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
+import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/storage_manager.dart';
 import 'utils/sample_data.dart';
@@ -21,19 +22,23 @@ void main() {
 // If storage can't be opened, falls back to the sample data without saving,
 // so the app still runs; the home screen warns that changes won't be kept.
 Future<AppState> openAppState() async {
+  final DeviceAuth deviceAuth = LocalDeviceAuth();
   try {
     final storage = await StorageManager.create(await getApplicationDocumentsDirectory());
-    return await AppState.open(storage.store, tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())));
+    final AppState state =
+        await AppState.open(storage.store, tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())));
+    return state..deviceAuth = deviceAuth;
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);
     final AppData data = AppData(balance: BalanceModel(currentBalance: 0.00));
     seedSampleData(data.balance);
-    return AppState(data);
+    return AppState(data)..deviceAuth = deviceAuth;
   }
 }
 
 // App root: shows a loading screen until the data is ready, then the home screen
-// (ExpenseActivity, which mirrors the Java app's main screen).
+// (ExpenseActivity, which mirrors the Java app's main screen). The app lock, when
+// on, covers every screen (see AppLockGate).
 class BujitApp extends StatefulWidget {
   const BujitApp({super.key});
 
@@ -42,22 +47,27 @@ class BujitApp extends StatefulWidget {
 }
 
 class _BujitAppState extends State<BujitApp> {
-  late final Future<AppState> _state = openAppState();
+  AppState? _state;
+
+  @override
+  void initState() {
+    super.initState();
+    openAppState().then((state) {
+      if (mounted) setState(() => _state = state);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final AppState? state = _state;
     return MaterialApp(
       title: 'Bujit',
-      home: FutureBuilder<AppState>(
-        future: _state,
-        builder: (context, snapshot) {
-          final AppState? state = snapshot.data;
-          if (state == null) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          }
-          return ExpenseActivity(state: state);
-        },
-      ),
+      home: state == null
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : ExpenseActivity(state: state),
+      builder: (context, child) => state == null
+          ? child!
+          : AppLockGate(state: state, auth: state.deviceAuth ?? LocalDeviceAuth(), child: child!),
     );
   }
 }

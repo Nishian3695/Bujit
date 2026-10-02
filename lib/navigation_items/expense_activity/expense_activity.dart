@@ -5,6 +5,7 @@
 // displays the result. Data changes go through AppState, which saves them.
 // The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/projection_settings_dialog.dart';
@@ -209,7 +210,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         if (await showUpdateBalanceDialog(context, _balance)) await _state.changed();
     }
 
-    static String _money(double value) => "\$${value.toStringAsFixed(2)}";
+    static String _money(double value) => Money.format(value);
     static String _date(DateTime date) => date.toString().split(' ')[0];
 
     // Balance summary Card. With the Next Check setting on, the right-hand figure

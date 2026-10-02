@@ -4,6 +4,7 @@
 // Which accounts make up the current balance is chosen in Update Balance on the
 // home screen ("From Accounts"), as in the Java app.
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/manual_account_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -65,7 +66,7 @@ class _BankingActivityState extends State<BankingActivity> {
         await _save();
     }
 
-    static String _money(double value) => "\$${value.toStringAsFixed(2)}";
+    static String _money(double value) => Money.format(value);
 
     @override
     Widget build(BuildContext context) {

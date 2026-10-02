@@ -4,6 +4,7 @@
 // cards). The numbers come from VisualsData; styling is a placeholder.
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
@@ -30,7 +31,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
         Colors.indigo, Colors.brown, Colors.cyan, Colors.lime, Colors.deepOrange,
     ];
 
-    static String _money(double value) => "\$${value.toStringAsFixed(2)}";
+    static String _money(double value) => Money.format(value);
     static String _shortDate(DateTime date) => "${date.month}/${date.day}";
 
     @override

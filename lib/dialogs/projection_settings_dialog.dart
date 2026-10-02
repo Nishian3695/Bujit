@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../navigation_items/expense_activity/projection_settings.dart';
 import '../navigation_items/income_streams/income_stream_model.dart';
 import '../utils/frequency_unit.dart';
+import '../utils/money.dart';
 
 // null = cancelled; a null [settings] = Reset (back to the real paydays).
 typedef ProjectionChoice = ({ProjectionSettings? settings});
@@ -66,7 +67,7 @@ class _ProjectionSettingsDialogState extends State<_ProjectionSettingsDialog> {
     }
 
     static String _label(IncomeStreamModel s) =>
-        "${s.name} · \$${s.amount.toStringAsFixed(2)} · ${s.displayString()}";
+        "${s.name} · ${Money.format(s.amount)} · ${s.displayString()}";
 
     void _apply() {
         if (!_formKey.currentState!.validate()) return;

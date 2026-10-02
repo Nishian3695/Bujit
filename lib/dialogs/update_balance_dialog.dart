@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/banking/manual_account_model.dart';
 import '../navigation_items/expense_activity/balance_model.dart';
+import '../utils/money.dart';
 
 // Updates [balance] and returns true if saved.
 Future<bool> showUpdateBalanceDialog(BuildContext context, BalanceModel balance) async {
@@ -70,7 +71,7 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
                                     CheckboxListTile(
                                         value: picked.contains(account.id),
                                         title: Text(account.name),
-                                        subtitle: Text("${account.accountType} · \$${account.balance.toStringAsFixed(2)}"),
+                                        subtitle: Text("${account.accountType} · ${Money.format(account.balance)}"),
                                         onChanged: (on) => setDialogState(() {
                                             if (on == true) {
                                                 picked.add(account.id);

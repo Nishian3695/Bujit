@@ -3,6 +3,8 @@
 // tested with an in-memory database; StorageManager does the platform setup.
 import 'package:drift/drift.dart';
 import '../navigation_items/banking/manual_account_model.dart';
+import '../navigation_items/expense_activity/credit_model.dart';
+import '../navigation_items/expense_activity/expense_item.dart';
 import '../navigation_items/expense_activity/balance_model.dart';
 import '../navigation_items/income_streams/income_stream_model.dart';
 import '../utils/category_manager.dart';
@@ -23,6 +25,8 @@ class AppData {
     int singleEventExpiryDays; // Settings: days after its last change a single event is cleared
     int tutorialStep; // Next tutorial step to show
     bool tutorialSeen; // Tutorial finished or skipped
+    bool useCommaSeparators; // Settings: "$1,234.56" instead of "$1234.56"
+    bool appLockEnabled; // Settings: unlock with biometrics/device credential on opening
     bool tasksSyncEnabled; // Settings: sync expenses and paychecks to Google Tasks
     String? tasksListId; // The "Bujit" list in Google Tasks
     String? tasksAccount; // Email of the Google account synced to (for display)
@@ -38,6 +42,8 @@ class AppData {
         this.singleEventExpiryDays = 30,
         this.tutorialStep = 0,
         this.tutorialSeen = false,
+        this.useCommaSeparators = false,
+        this.appLockEnabled = false,
         this.tasksSyncEnabled = false,
         this.tasksListId,
         this.tasksAccount,
@@ -48,6 +54,57 @@ class AppData {
 
     // Single events applied against this data's balance, accounts and cards.
     SingleEventsLedger get singleEventsLedger => SingleEventsLedger(balance, singleEvents);
+
+    // Replaces everything with [other]'s data (restoring a backup, clearing data),
+    // keeping this device's Google Tasks connection and app lock.
+    void replaceWith(AppData other) {
+        final BalanceModel b = other.balance;
+        balance
+            ..currentBalance = b.currentBalance
+            ..lastUpdated = b.lastUpdated
+            ..balanceExtra = b.balanceExtra
+            ..activeIncome = b.activeIncome
+            ..projection = null;
+        balance.expenses
+            ..clear()
+            ..addAll(b.expenses);
+        balance.incomeStreams
+            ..clear()
+            ..addAll(b.incomeStreams);
+        balance.snapshots
+            ..clear()
+            ..addAll(b.snapshots);
+        balance.manualAccounts
+            ..clear()
+            ..addAll(b.manualAccounts);
+        categories
+            ..clear()
+            ..addAll(other.categories);
+        singleEvents
+            ..clear()
+            ..addAll(other.singleEvents);
+        includeNextCheck = other.includeNextCheck;
+        singleEventExpiryDays = other.singleEventExpiryDays;
+        useCommaSeparators = other.useCommaSeparators;
+        tutorialStep = other.tutorialStep;
+        tutorialSeen = other.tutorialSeen;
+    }
+
+    // Categories (the Java app's category manager). Names are unique ignoring
+    // case, and "Other" is built in.
+    bool hasCategory(String name) =>
+        name.toLowerCase() == otherCategory.toLowerCase() ||
+        categories.any((c) => c.toLowerCase() == name.toLowerCase());
+
+    // Removes a category; expenses in it move to "Other".
+    void removeCategory(String name) {
+        categories.remove(name);
+        for (final ExpenseItem expense in balance.expenses) {
+            if (expense is! CreditModel && expense.category.toLowerCase() == name.toLowerCase()) {
+                expense.category = otherCategory;
+            }
+        }
+    }
 
     // After a card is renamed: what's charged to it and single events on it follow.
     void renameCard(String oldName, String newName) {
@@ -124,6 +181,8 @@ class AppDataStore {
             singleEventExpiryDays: meta.singleEventExpiryDays,
             tutorialStep: meta.tutorialStep,
             tutorialSeen: meta.tutorialSeen,
+            useCommaSeparators: meta.useCommaSeparators,
+            appLockEnabled: meta.appLockEnabled,
             tasksSyncEnabled: meta.tasksSyncEnabled,
             tasksListId: meta.tasksListId,
             tasksAccount: meta.tasksAccount,
@@ -188,6 +247,8 @@ class AppDataStore {
                 singleEventExpiryDays: Value(data.singleEventExpiryDays),
                 tutorialStep: Value(data.tutorialStep),
                 tutorialSeen: Value(data.tutorialSeen),
+                useCommaSeparators: Value(data.useCommaSeparators),
+                appLockEnabled: Value(data.appLockEnabled),
                 tasksSyncEnabled: Value(data.tasksSyncEnabled),
                 tasksListId: Value(data.tasksListId),
                 tasksAccount: Value(data.tasksAccount),

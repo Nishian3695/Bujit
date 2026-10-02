@@ -6,8 +6,10 @@ import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/credit_model.dart';
 import 'navigation_items/expense_activity/expense_item.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
+import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'tutorial/tutorial_manager.dart';
+import 'utils/money.dart';
 import 'utils/sample_data.dart';
 
 class AppState extends ChangeNotifier {
@@ -18,8 +20,12 @@ class AppState extends ChangeNotifier {
 
     // Google Tasks sync; null = not available (tests, or storage failed to open).
     GoogleTasksSync? tasks;
+    // Asks for the fingerprint/face/PIN (the app lock); null in tests unless faked.
+    DeviceAuth? deviceAuth;
 
-    AppState(this.data, [this._store]);
+    AppState(this.data, [this._store]) {
+        Money.useCommaSeparators = data.useCommaSeparators;
+    }
 
     BalanceModel get balance => data.balance;
 
@@ -60,6 +66,7 @@ class AppState extends ChangeNotifier {
 
     // Call after changing anything in [data]: rebuilds listening screens and saves.
     Future<void> changed() {
+        Money.useCommaSeparators = data.useCommaSeparators;
         notifyListeners();
         syncTasks();
         return save();
@@ -168,6 +175,35 @@ class AppState extends ChangeNotifier {
     Future<void> replayTutorial() {
         data.tutorialStep = 0;
         data.tutorialSeen = false;
+        return changed();
+    }
+
+    // Replaces everything with a restored backup's data (Settings), then brings it
+    // up to [today] -- paying what came due since the backup and crediting
+    // paychecks -- as opening the app does.
+    Future<void> restoreBackup(AppData restored, {DateTime? today}) {
+        data.replaceWith(restored);
+        data.balance.makeRecent(today: today);
+        data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
+        return changed();
+    }
+
+    // Settings' Clear All Data (the Java app's performClearData): every setting
+    // back to its default, Google Tasks disconnected (its tasks are left alone) and
+    // the app lock off, then the tutorial's sample data and the tutorial again --
+    // what the Java app shows after clearing.
+    Future<void> clearAllData({DateTime? today}) async {
+        if (tasks != null && data.tasksSyncEnabled) await disconnectTasks(removeTasks: false);
+        final AppData fresh = AppData(balance: BalanceModel(currentBalance: 0.00));
+        seedSampleData(fresh.balance, today: today);
+        data.replaceWith(fresh);
+        data
+            ..appLockEnabled = false
+            ..tasksSyncEnabled = false
+            ..tasksListId = null
+            ..tasksAccount = null
+            ..syncedTasks.clear();
+        lastTasksSync = null;
         return changed();
     }
 

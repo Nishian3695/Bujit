@@ -1,13 +1,18 @@
-// Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app.
-// So far: the Next Check setting, single-event expiry, Google Tasks sync, CSV
-// import and its template, and resetting to the tutorial's sample data.
+// Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app:
+// display options, single-event expiry, Google Tasks sync, categories, CSV
+// import, encrypted backups, the app lock, the tutorial, and resetting or
+// clearing data. (Theme colors, tips and the about links come with the UI pass.)
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../app_state.dart';
+import '../../dialogs/text_prompt_dialog.dart';
+import '../../prefs/app_lock_prefs.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
+import 'backup_flow.dart';
+import 'category_manager_activity.dart';
 import 'csv_import_helper.dart';
 import 'google_tasks_helper.dart';
 
@@ -59,27 +64,20 @@ class _SettingsActivityState extends State<SettingsActivity> {
 
     // Asks how many days a single event stays listed after its last change (at least 1).
     Future<void> _editExpiryDays() async {
-        final TextEditingController controller =
-            TextEditingController(text: widget.state.data.singleEventExpiryDays.toString());
-        final int? days = await showDialog<int>(
-            context: context,
-            builder: (context) => AlertDialog(
-                title: const Text("Clear single events after"),
-                content: TextField(
-                    controller: controller,
+        final List<String>? values = await showTextPrompt(
+            context,
+            title: "Clear single events after",
+            fields: [
+                PromptField("Days",
+                    initialValue: widget.state.data.singleEventExpiryDays.toString(),
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(suffixText: "days"),
-                ),
-                actions: [
-                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-                    TextButton(
-                        onPressed: () => Navigator.of(context).pop(int.tryParse(controller.text.trim())),
-                        child: const Text("Save"),
-                    ),
-                ],
-            ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    suffixText: "days"),
+            ],
+            confirmLabel: "Save",
+            validate: (values) => (int.tryParse(values.first.trim()) ?? 0) < 1 ? "At least 1 day" : null,
         );
-        controller.dispose();
+        final int? days = values == null ? null : int.tryParse(values.first.trim());
         if (days == null || days < 1) return;
         setState(() => widget.state.data.singleEventExpiryDays = days);
         await widget.state.changed();
@@ -157,6 +155,43 @@ class _SettingsActivityState extends State<SettingsActivity> {
         );
     }
 
+    // Turning the lock on needs a screen lock on the device and a successful
+    // unlock first, as in the Java app; turning it off doesn't.
+    Future<void> _toggleAppLock(bool enable) async {
+        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        if (enable) {
+            final DeviceAuth? auth = widget.state.deviceAuth;
+            if (auth == null || !await auth.isAvailable()) {
+                messenger.showSnackBar(const SnackBar(content: Text(
+                    "No screen lock set up. Enable a PIN, pattern, or biometric in device settings first.")));
+                return;
+            }
+            if (!await auth.authenticate("Confirm your identity to enable lock")) return;
+        }
+        setState(() => widget.state.data.appLockEnabled = enable);
+        await widget.state.changed();
+    }
+
+    Future<void> _clearAllData() async {
+        final NavigatorState navigator = Navigator.of(context);
+        final bool? confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: const Text("Clear All Data"),
+                content: const Text("This will permanently delete all expenses, your balance, accounts and "
+                    "settings, and disconnect Google Tasks. Bujit starts over with the tutorial's sample "
+                    "data. This cannot be undone."),
+                actions: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Clear Everything")),
+                ],
+            ),
+        );
+        if (confirmed != true) return;
+        await widget.state.clearAllData();
+        navigator.popUntil((route) => route.isFirst); // The tutorial starts on the home screen
+    }
+
     Future<void> _resetToSampleData() async {
         final bool? confirmed = await showDialog<bool>(
             context: context,
@@ -195,6 +230,24 @@ class _SettingsActivityState extends State<SettingsActivity> {
                             widget.state.changed();
                         },
                     ),
+                    SwitchListTile(
+                        title: const Text("Comma separators"),
+                        subtitle: const Text("Show amounts like \$1,234.56"),
+                        value: widget.state.data.useCommaSeparators,
+                        onChanged: (enabled) {
+                            setState(() => widget.state.data.useCommaSeparators = enabled);
+                            widget.state.changed();
+                        },
+                    ),
+                    ListTile(
+                        title: const Text("Manage categories"),
+                        subtitle: const Text("Add, remove and reorder spending categories"),
+                        onTap: () async {
+                            await Navigator.of(context).push(MaterialPageRoute<void>(
+                                builder: (_) => CategoryManagerActivity(state: widget.state)));
+                            if (mounted) setState(() {});
+                        },
+                    ),
                     ListTile(
                         title: const Text("Clear single events after"),
                         subtitle: Text("${widget.state.data.singleEventExpiryDays} days since they were last changed"),
@@ -216,6 +269,23 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         subtitle: const Text("An example file showing the format"),
                         onTap: _saveCsvTemplate,
                     ),
+                    ListTile(
+                        title: const Text("Export backup"),
+                        subtitle: const Text("An encrypted file of all your data, to restore later or on another phone"),
+                        onTap: () => exportBackup(context, widget.state),
+                    ),
+                    ListTile(
+                        title: const Text("Import backup"),
+                        subtitle: const Text("Restore a Bujit backup (including one from the old Android app)"),
+                        onTap: () => importBackup(context, widget.state),
+                    ),
+                    const Divider(),
+                    SwitchListTile(
+                        title: const Text("App lock"),
+                        subtitle: const Text("Unlock with your fingerprint, face or screen lock when opening Bujit"),
+                        value: widget.state.data.appLockEnabled,
+                        onChanged: _toggleAppLock,
+                    ),
                     const Divider(),
                     TutorialTarget(
                         id: "replay_tutorial",
@@ -231,8 +301,13 @@ class _SettingsActivityState extends State<SettingsActivity> {
                     ),
                     ListTile(
                         title: const Text("Reset to sample data"),
-                        subtitle: const Text("Replace everything with the tutorial's example data"),
+                        subtitle: const Text("Replace your data with the tutorial's example data, keeping settings"),
                         onTap: _resetToSampleData,
+                    ),
+                    ListTile(
+                        title: const Text("Clear all data"),
+                        subtitle: const Text("Delete everything and start over"),
+                        onTap: _clearAllData,
                     ),
                 ],
             ),
