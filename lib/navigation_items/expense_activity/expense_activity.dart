@@ -5,6 +5,8 @@
 // displays the result. Data changes go through AppState, which saves them.
 // The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
+import '../../utils/frequency_unit.dart';
+import '../../utils/legal.dart';
 import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
@@ -51,11 +53,87 @@ class ExpenseActivityState extends State<ExpenseActivity> {
 
     bool get _onHomeScreen => _checkIndex == 0;
 
+    // Multi-select (the Java app's selection mode): the rows ticked, or null when
+    // not selecting.
+    Set<ExpenseItem>? _selected;
+    bool get _selecting => _selected != null;
+
     @override
     void initState() {
         super.initState();
         // Any screen changing data (income streams, cards, settings) rebuilds this one.
         _state.addListener(_refresh);
+        // A fresh install shows the disclaimer first; the tutorial follows it.
+        if (!_state.data.disclaimerAccepted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _showDisclaimer());
+        }
+    }
+
+    // The Java app's "Before You Begin" dialog; it can only be accepted.
+    Future<void> _showDisclaimer() async {
+        if (!mounted) return;
+        await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => PopScope(
+                canPop: false,
+                child: AlertDialog(
+                    title: const Text("Before You Begin"),
+                    content: const SingleChildScrollView(child: Text("$disclaimerText\n\n$disclaimerAcknowledgement")),
+                    actions: [
+                        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("I Understand")),
+                    ],
+                ),
+            ),
+        );
+        await _state.acceptDisclaimer();
+    }
+
+    // ── Multi-select ────────────────────────────────────────────────────────
+
+    void _startSelecting() => setState(() => _selected = Set.identity());
+
+    void _stopSelecting() => setState(() => _selected = null);
+
+    // Ticking the last row off ends selecting, as in the Java app.
+    void _toggleSelected(ExpenseItem item) {
+        final Set<ExpenseItem> selected = _selected!;
+        setState(() {
+            if (!selected.remove(item)) selected.add(item);
+            if (selected.isEmpty) _selected = null;
+        });
+    }
+
+    // Select All, or none if everything is already selected.
+    void _toggleSelectAll() {
+        final Set<ExpenseItem> selected = _selected!;
+        setState(() {
+            if (selected.length == _balance.expenses.length) {
+                selected.clear();
+            } else {
+                selected.addAll(_balance.expenses);
+            }
+        });
+    }
+
+    Future<void> _deleteSelected() async {
+        final Set<ExpenseItem> selected = _selected!;
+        if (selected.isEmpty) return;
+        final int count = selected.length;
+        final bool? confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: const Text("Delete Expenses"),
+                content: Text("Delete $count expense${count == 1 ? "" : "s"}? This cannot be undone."),
+                actions: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Delete")),
+                ],
+            ),
+        );
+        if (confirmed != true) return;
+        _stopSelecting();
+        await _state.removeItems(selected);
     }
 
     @override
@@ -72,6 +150,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
 
     // Projection paging, like swiping between checks in the Java app.
     void _nextCheck() {
+        if (_selecting) return;
         _checkIndex++;
         _refresh();
     }
@@ -229,6 +308,19 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     static String _money(double value) => Money.format(value);
     static String _date(DateTime date) => date.toString().split(' ')[0];
 
+    // "Synced today at 3:04 PM" / "Synced Oct 2 at 3:04 PM" under the balance, while
+    // linked accounts make it up (the Java app's sync label).
+    String? get _syncLabel {
+        final DateTime? time = _state.data.lastBankSync;
+        if (time == null || !_balance.linkedAccounts.any((a) => a.countsTowardBalance)) return null;
+        final DateTime now = DateTime.now();
+        final int hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+        final String clock = "$hour:${time.minute.toString().padLeft(2, "0")} ${time.hour < 12 ? "AM" : "PM"}";
+        const List<String> months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        final bool today = time.year == now.year && time.month == now.month && time.day == now.day;
+        return today ? "Synced today at $clock" : "Synced ${months[time.month - 1]} ${time.day} at $clock";
+    }
+
     // Balance summary Card. With the Next Check setting on, the right-hand figure
     // adds the next paycheck and is labelled "NEXT CHECK", as in the Java app.
     // On this check, tapping the current balance updates it.
@@ -262,6 +354,24 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         );
     }
 
+    // The app bar while selecting: how many, Select All and Delete (the Java app's action mode).
+    AppBar get _selectionAppBar => AppBar(
+        leading: IconButton(onPressed: _stopSelecting, icon: const Icon(Icons.close), tooltip: "Done"),
+        title: Text("${_selected!.length} selected"),
+        actions: [
+            IconButton(
+                onPressed: _toggleSelectAll,
+                icon: Icon(_selected!.length == _balance.expenses.length ? Icons.deselect : Icons.select_all),
+                tooltip: "Select All",
+            ),
+            IconButton(
+                onPressed: _selected!.isEmpty ? null : _deleteSelected,
+                icon: const Icon(Icons.delete),
+                tooltip: "Delete",
+            ),
+        ],
+    );
+
     // Define the appBar and its actions
     AppBar get appBar => AppBar(
         // An explicit menu button (same as the default) so the tutorial can spotlight it.
@@ -282,6 +392,12 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             ],
         ),
         actions: [
+            if (_onHomeScreen && _balance.expenses.isNotEmpty)
+                IconButton(
+                    onPressed: _startSelecting,
+                    icon: const Icon(Icons.checklist),
+                    tooltip: "Select",
+                ),
             IconButton(
                 onPressed: _openProjectionSettings,
                 icon: const Icon(Icons.tune),
@@ -319,19 +435,72 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // One row of the expense list.
+    // The Java app's Rate column: the amount per period ("$15.99/mo", "$40.00/2wk");
+    // for a card, its balance as of this check.
+    static String _rate(ExpenseItem expense) {
+        final int f = expense.frequency;
+        final String unit = switch (expense.frequencyUnits) {
+            FrequencyUnit.daily => f == 1 ? "day" : "${f}d",
+            FrequencyUnit.weekly => f == 1 ? "wk" : "${f}wk",
+            FrequencyUnit.biweekly => "${2 * f}wk",
+            FrequencyUnit.monthly => f == 1 ? "mo" : "${f}mo",
+            FrequencyUnit.yearly => f == 1 ? "yr" : "${f}yr",
+        };
+        final double amount = expense is CreditModel ? expense.displayBalance : expense.amount;
+        return "${_money(amount)}/$unit";
+    }
+
+    // One row of the expense list, as in the Java app: name; due date (or when it
+    // ended); rate (and end date); what pays for it; a link icon when its amount
+    // syncs from a bank; a card's utilization bar; and the amount due this check.
     Widget _expenseRow(ExpenseItem expense) {
         final String paidFrom = _balance.paidFromLabel(expense);
+        final DateTime? end = expense.endDate;
+        final bool ended = end != null && expense.shownDate.isAfter(end);
+        final Set<ExpenseItem>? selected = _selected;
         return ListTile(
             key: ObjectKey(expense),
-            title: Text(expense.name),
-            subtitle: Text([
-                expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}",
-                if (paidFrom != "Current Balance") "from $paidFrom",
-            ].join(" · ")),
+            leading: selected == null
+                ? null
+                : Checkbox(value: selected.contains(expense), onChanged: (_) => _toggleSelected(expense)),
+            title: Row(
+                children: [
+                    Flexible(child: Text(expense.name)),
+                    if (_balance.linkedAccount(expense.linkedAccountId) != null)
+                        const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.link, size: 16, semanticLabel: "Synced from a bank"),
+                        ),
+                ],
+            ),
+            subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                    Text([
+                        ended ? "Ended ${_date(end)}" : "Due ${_date(expense.shownDate)}",
+                        _rate(expense) + (end != null && !ended ? " · until ${_date(end)}" : ""),
+                        if (paidFrom != "Current Balance") "from $paidFrom",
+                    ].join(" · ")),
+                    if (expense is CreditModel)
+                        LinearProgressIndicator(
+                            value: expense.creditUtilization.clamp(0.0, 1.0),
+                            color: _utilizationColor(expense.creditUtilization),
+                        ),
+                ],
+            ),
             trailing: Text(_money(expense.periodAmount)),
-            onTap: _onHomeScreen ? () => _editItem(expense) : null,
+            onTap: selected != null
+                ? () => _toggleSelected(expense)
+                : _onHomeScreen ? () => _editItem(expense) : null,
+            onLongPress: selected != null ? () => _toggleSelected(expense) : null,
         );
+    }
+
+    // Green under 30%, amber under 70%, red from 70%, as in the Java app.
+    static Color _utilizationColor(double utilization) {
+        if (utilization < 0.30) return Colors.green;
+        if (utilization < 0.70) return Colors.amber;
+        return Colors.red;
     }
 
     // Expense list for the check on screen. Rows can be edited and dragged into
@@ -339,7 +508,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     // are read-only).
     Widget get expenseList => RefreshIndicator(
         onRefresh: _syncBanks,
-        child: _onHomeScreen
+        child: _onHomeScreen && !_selecting
             ? ReorderableListView.builder(
                 itemCount: _balance.expenses.length,
                 onReorderItem: _reorder,
@@ -361,6 +530,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                     actions: [SizedBox.shrink()],
                 ),
             TutorialTarget(id: "balance_card", child: balanceSummary),
+            if (_syncLabel != null) Text(_syncLabel!, style: const TextStyle(fontSize: 12)),
             expenseListHeader,
             const Divider(), // Divider between header and list
             // Expanded gives the ListView a bounded height; a scrollable list
@@ -377,26 +547,32 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     @override
     Widget build(BuildContext context) {
         // Back steps back through projected checks before leaving, as in the Java app.
+        // Back ends selecting first.
         return PopScope(
-            canPop: _onHomeScreen,
+            canPop: _onHomeScreen && !_selecting,
             onPopInvokedWithResult: (didPop, _) {
-                if (!didPop) _previousCheck();
+                if (didPop) return;
+                if (_selecting) {
+                    _stopSelecting();
+                } else {
+                    _previousCheck();
+                }
             },
             child: TutorialOverlay(
             state: _state,
             screen: TutorialScreen.home,
             child: Scaffold(
-                appBar: appBar,
+                appBar: _selecting ? _selectionAppBar : appBar,
                 drawer: AppDrawer(state: _state, onReturn: _refresh),
                 body: mainActivity,
                 // Adds a recurring expense or single event on the current check; while
-                // viewing a projected check it becomes a home button that returns to it.
+                // viewing a projected check, or selecting, it becomes a home button.
                 floatingActionButton: TutorialTarget(
                     id: "add_button",
                     child: FloatingActionButton(
-                        onPressed: _onHomeScreen ? _openAddMenu : _goHome,
-                        tooltip: _onHomeScreen ? "Add" : "Back to this check",
-                        child: Icon(_onHomeScreen ? Icons.add : Icons.home),
+                        onPressed: _selecting ? _stopSelecting : _onHomeScreen ? _openAddMenu : _goHome,
+                        tooltip: _selecting ? "Done" : _onHomeScreen ? "Add" : "Back to this check",
+                        child: Icon(_onHomeScreen && !_selecting ? Icons.add : Icons.home),
                     ),
                 ),
             ),

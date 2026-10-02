@@ -1,20 +1,27 @@
-// Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app:
-// display options, single-event expiry, Google Tasks sync, categories, CSV
-// import, encrypted backups, the app lock, the tutorial, and resetting or
-// clearing data. (Theme colors, tips and the about links come with the UI pass.)
+// Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app,
+// in its sections: display options, Google Tasks, categories, the app lock,
+// single-event expiry, support (help, tutorial, rating), the tip jar, data (CSV
+// import and template, resetting or clearing), encrypted backups, and the
+// website and legal links. (Theme colors come with the UI pass; Java's "Transfer
+// to New Device" was only a "coming soon" row.)
+import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../app_state.dart';
 import '../../dialogs/text_prompt_dialog.dart';
 import '../../prefs/app_lock_prefs.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
+import '../../utils/legal.dart';
+import '../../storage_management/app_data_store.dart';
 import 'backup_flow.dart';
 import 'category_manager_activity.dart';
 import 'csv_import_helper.dart';
 import 'google_tasks_helper.dart';
+import 'tip_jar.dart';
 
 class SettingsActivity extends StatefulWidget {
     final AppState state;
@@ -212,105 +219,247 @@ class _SettingsActivityState extends State<SettingsActivity> {
         }
     }
 
+    // ── Support, data and legal (the Java app's remaining Settings rows) ────
+
+    // Get CSV Template: save it to the device, or share it, as in the Java app.
+    Future<void> _csvTemplate() async {
+        final String? choice = await showDialog<String>(
+            context: context,
+            builder: (context) => SimpleDialog(
+                title: const Text("CSV Template"),
+                children: [
+                    SimpleDialogOption(onPressed: () => Navigator.of(context).pop("save"), child: const Text("Save to device")),
+                    SimpleDialogOption(onPressed: () => Navigator.of(context).pop("share"), child: const Text("Share")),
+                ],
+            ),
+        );
+        if (choice == "save") await _saveCsvTemplate();
+        if (choice == "share") await _shareCsvTemplate();
+    }
+
+    Future<void> _shareCsvTemplate() async {
+        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        try {
+            await SharePlus.instance.share(ShareParams(
+                subject: "Bujit Import Template",
+                files: [
+                    XFile.fromData(Uint8List.fromList(utf8.encode(CsvImportHelper.template)),
+                        mimeType: "text/csv", name: "bujit_import_template.csv"),
+                ],
+                fileNameOverrides: const ["bujit_import_template.csv"],
+            ));
+        } catch (e) {
+            messenger.showSnackBar(SnackBar(content: Text("Could not share template: $e")));
+        }
+    }
+
+    Future<void> _showDisclaimer() => showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+            title: const Text("Disclaimer"),
+            content: const SingleChildScrollView(child: Text(disclaimerText)),
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("OK"))],
+        ),
+    );
+
+    Future<void> _tip(TipJar jar, Tip tip) async {
+        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        if (!await jar.give(tip)) {
+            // Replaces any message showing, as the Java app's toasts did.
+            messenger
+                ..hideCurrentSnackBar()
+                ..showSnackBar(const SnackBar(content: Text("Store unavailable — try again later")));
+        }
+    }
+
+    // Three tip buttons with the store's prices (defaults until they arrive).
+    Widget _tipJarSection() {
+        final TipJar? jar = widget.state.tipJar;
+        return ListenableBuilder(
+            listenable: jar ?? widget.state,
+            builder: (context, _) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                        const Text("Bujit is free and has no ads. Leave a tip if you're feeling generous."),
+                        const SizedBox(height: 8),
+                        Wrap(
+                            spacing: 8,
+                            children: [
+                                for (final Tip tip in Tip.values)
+                                    OutlinedButton(
+                                        onPressed: jar == null ? null : () => _tip(jar, tip),
+                                        child: Text("${tip.emoji}  ${jar?.price(tip) ?? tip.defaultPrice}"),
+                                    ),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
+        );
+    }
+
+    static Widget _header(String title) => ListTile(dense: true, title: Text(title));
+
+    ListTile _link(String title, String subtitle, String url) => ListTile(
+        title: Text(title),
+        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+        trailing: const Icon(Icons.open_in_new, size: 18),
+        onTap: () => Links.open(context, url),
+    );
+
+    @override
+    void initState() {
+        super.initState();
+        _thanks = widget.state.tipJar?.thanks.listen((_) {
+            if (mounted) {
+                ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(const SnackBar(content: Text("Thank you for your support!")));
+            }
+        });
+    }
+
+    StreamSubscription<void>? _thanks;
+
+    @override
+    void dispose() {
+        _thanks?.cancel();
+        super.dispose();
+    }
+
     @override
     Widget build(BuildContext context) {
+        final AppData data = widget.state.data;
         return TutorialOverlay(
             state: widget.state,
             screen: TutorialScreen.settings,
             child: Scaffold(
-            appBar: AppBar(title: const Text("Settings")),
-            body: ListView(
-                children: [
-                    SwitchListTile(
-                        title: const Text("Show Next Check"),
-                        subtitle: const Text("Add your next paycheck to the after-check balance"),
-                        value: widget.state.data.includeNextCheck,
-                        onChanged: (enabled) {
-                            setState(() => widget.state.data.includeNextCheck = enabled);
-                            widget.state.changed();
-                        },
-                    ),
-                    SwitchListTile(
-                        title: const Text("Comma separators"),
-                        subtitle: const Text("Show amounts like \$1,234.56"),
-                        value: widget.state.data.useCommaSeparators,
-                        onChanged: (enabled) {
-                            setState(() => widget.state.data.useCommaSeparators = enabled);
-                            widget.state.changed();
-                        },
-                    ),
-                    ListTile(
-                        title: const Text("Manage categories"),
-                        subtitle: const Text("Add, remove and reorder spending categories"),
-                        onTap: () async {
-                            await Navigator.of(context).push(MaterialPageRoute<void>(
-                                builder: (_) => CategoryManagerActivity(state: widget.state)));
-                            if (mounted) setState(() {});
-                        },
-                    ),
-                    ListTile(
-                        title: const Text("Clear single events after"),
-                        subtitle: Text("${widget.state.data.singleEventExpiryDays} days since they were last changed"),
-                        onTap: _editExpiryDays,
-                    ),
-                    const Divider(),
-                    _googleTasksSection(),
-                    const Divider(),
-                    TutorialTarget(
-                        id: "import_csv",
-                        child: ListTile(
-                            title: const Text("Import CSV"),
-                            subtitle: const Text("Add expenses, credit cards and income streams from a file"),
-                            onTap: _importCsv,
-                        ),
-                    ),
-                    ListTile(
-                        title: const Text("Save CSV template"),
-                        subtitle: const Text("An example file showing the format"),
-                        onTap: _saveCsvTemplate,
-                    ),
-                    ListTile(
-                        title: const Text("Export backup"),
-                        subtitle: const Text("An encrypted file of all your data, to restore later or on another phone"),
-                        onTap: () => exportBackup(context, widget.state),
-                    ),
-                    ListTile(
-                        title: const Text("Import backup"),
-                        subtitle: const Text("Restore a Bujit backup (including one from the old Android app)"),
-                        onTap: () => importBackup(context, widget.state),
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                        title: const Text("App lock"),
-                        subtitle: const Text("Unlock with your fingerprint, face or screen lock when opening Bujit"),
-                        value: widget.state.data.appLockEnabled,
-                        onChanged: _toggleAppLock,
-                    ),
-                    const Divider(),
-                    TutorialTarget(
-                        id: "replay_tutorial",
-                        child: ListTile(
-                            title: const Text("Replay tutorial"),
-                            subtitle: const Text("Walk through Bujit's features again"),
-                            onTap: () async {
-                                final NavigatorState navigator = Navigator.of(context);
-                                await widget.state.replayTutorial();
-                                navigator.popUntil((route) => route.isFirst); // it starts on the home screen
+                appBar: AppBar(title: const Text("Settings")),
+                body: ListView(
+                    children: [
+                        _header("APPEARANCE"),
+                        SwitchListTile(
+                            title: const Text("Comma separators"),
+                            subtitle: const Text("Show amounts like \$3,000.00 instead of \$3000.00"),
+                            value: data.useCommaSeparators,
+                            onChanged: (enabled) {
+                                setState(() => data.useCommaSeparators = enabled);
+                                widget.state.changed();
                             },
                         ),
-                    ),
-                    ListTile(
-                        title: const Text("Reset to sample data"),
-                        subtitle: const Text("Replace your data with the tutorial's example data, keeping settings"),
-                        onTap: _resetToSampleData,
-                    ),
-                    ListTile(
-                        title: const Text("Clear all data"),
-                        subtitle: const Text("Delete everything and start over"),
-                        onTap: _clearAllData,
-                    ),
-                ],
-            ),
+                        SwitchListTile(
+                            title: const Text("Show Next Check"),
+                            subtitle: const Text("Add your next check's income to the after-check balance"),
+                            value: data.includeNextCheck,
+                            onChanged: (enabled) {
+                                setState(() => data.includeNextCheck = enabled);
+                                widget.state.changed();
+                            },
+                        ),
+                        const Divider(),
+                        _header("INTEGRATIONS"),
+                        _googleTasksSection(),
+                        const Divider(),
+                        _header("CATEGORIES"),
+                        ListTile(
+                            title: const Text("Manage categories"),
+                            subtitle: const Text("Add, remove, or reorder spending categories"),
+                            onTap: () async {
+                                await Navigator.of(context).push(MaterialPageRoute<void>(
+                                    builder: (_) => CategoryManagerActivity(state: widget.state)));
+                                if (mounted) setState(() {});
+                            },
+                        ),
+                        const Divider(),
+                        _header("SECURITY"),
+                        SwitchListTile(
+                            title: const Text("App lock"),
+                            subtitle: const Text("Unlock with your fingerprint, face or screen lock when opening Bujit"),
+                            value: data.appLockEnabled,
+                            onChanged: _toggleAppLock,
+                        ),
+                        const Divider(),
+                        _header("SINGLE EVENTS"),
+                        ListTile(
+                            title: const Text("Clear single events after"),
+                            subtitle: Text("${data.singleEventExpiryDays} days since they were last changed"),
+                            onTap: _editExpiryDays,
+                        ),
+                        const Divider(),
+                        _header("SUPPORT"),
+                        _link("Help / Suggestions", "Send feedback or report an issue", Links.helpSuggestions),
+                        TutorialTarget(
+                            id: "replay_tutorial",
+                            child: ListTile(
+                                title: const Text("Replay tutorial"),
+                                subtitle: const Text("Walk through Bujit's features again"),
+                                onTap: () async {
+                                    final NavigatorState navigator = Navigator.of(context);
+                                    await widget.state.replayTutorial();
+                                    navigator.popUntil((route) => route.isFirst); // it starts on the home screen
+                                },
+                            ),
+                        ),
+                        if (Links.canRate)
+                            ListTile(
+                                title: const Text("Rate Bujit"),
+                                subtitle: const Text("Leave a rating on the Play Store"),
+                                onTap: () => Links.rate(context),
+                            ),
+                        const Divider(),
+                        _header("SUPPORT DEVELOPMENT"),
+                        _tipJarSection(),
+                        const Divider(),
+                        _header("DATA"),
+                        TutorialTarget(
+                            id: "import_csv",
+                            child: ListTile(
+                                title: const Text("Import from CSV"),
+                                subtitle: const Text("Bulk-import expenses, cards, income streams and accounts from a file"),
+                                onTap: _importCsv,
+                            ),
+                        ),
+                        ListTile(
+                            title: const Text("Get CSV template"),
+                            subtitle: const Text("Share or save the import template"),
+                            onTap: _csvTemplate,
+                        ),
+                        _link("CSV import reference", "Row types, fields, and examples for the import format",
+                            Links.csvReference),
+                        ListTile(
+                            title: const Text("Reset to sample data"),
+                            subtitle: const Text("Replace your data with the tutorial's example data, keeping settings"),
+                            onTap: _resetToSampleData,
+                        ),
+                        ListTile(
+                            title: const Text("Clear all data"),
+                            subtitle: const Text("Permanently removes all expenses, balance, and linked accounts"),
+                            onTap: _clearAllData,
+                        ),
+                        const Divider(),
+                        _header("BACKUP & TRANSFER"),
+                        ListTile(
+                            title: const Text("Export backup"),
+                            subtitle: const Text("Save a passphrase-encrypted copy of all your data to a file"),
+                            onTap: () => exportBackup(context, widget.state),
+                        ),
+                        ListTile(
+                            title: const Text("Import backup"),
+                            subtitle: const Text("Restore your data from a backup (including one from the old Android app)"),
+                            onTap: () => importBackup(context, widget.state),
+                        ),
+                        const Divider(),
+                        _header("INFO"),
+                        _link("Website", "Privacy policy, CSV reference, and support", Links.website),
+                        const Divider(),
+                        _header("LEGAL"),
+                        _link("Privacy Policy", "", Links.privacyPolicy),
+                        _link("Plaid Legal and Privacy Policy", "Third-party banking data provider", Links.plaidPrivacy),
+                        ListTile(title: const Text("Disclaimer"), onTap: _showDisclaimer),
+                    ],
+                ),
             ),
         );
     }

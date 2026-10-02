@@ -1795,6 +1795,20 @@ class $AppMetaRowsTable extends AppMetaRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _disclaimerAcceptedMeta =
+      const VerificationMeta('disclaimerAccepted');
+  @override
+  late final GeneratedColumn<bool> disclaimerAccepted = GeneratedColumn<bool>(
+    'disclaimer_accepted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("disclaimer_accepted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _lastBankSyncMeta = const VerificationMeta(
     'lastBankSync',
   );
@@ -1855,6 +1869,7 @@ class $AppMetaRowsTable extends AppMetaRows
     tutorialSeen,
     useCommaSeparators,
     appLockEnabled,
+    disclaimerAccepted,
     lastBankSync,
     tasksSyncEnabled,
     tasksListId,
@@ -1958,6 +1973,15 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('disclaimer_accepted')) {
+      context.handle(
+        _disclaimerAcceptedMeta,
+        disclaimerAccepted.isAcceptableOrUnknown(
+          data['disclaimer_accepted']!,
+          _disclaimerAcceptedMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_bank_sync')) {
       context.handle(
         _lastBankSyncMeta,
@@ -2043,6 +2067,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.bool,
         data['${effectivePrefix}app_lock_enabled'],
       )!,
+      disclaimerAccepted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}disclaimer_accepted'],
+      )!,
       lastBankSync: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_bank_sync'],
@@ -2079,6 +2107,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final bool tutorialSeen;
   final bool useCommaSeparators;
   final bool appLockEnabled;
+  final bool disclaimerAccepted;
   final DateTime? lastBankSync;
   final bool tasksSyncEnabled;
   final String? tasksListId;
@@ -2094,6 +2123,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.tutorialSeen,
     required this.useCommaSeparators,
     required this.appLockEnabled,
+    required this.disclaimerAccepted,
     this.lastBankSync,
     required this.tasksSyncEnabled,
     this.tasksListId,
@@ -2112,6 +2142,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['tutorial_seen'] = Variable<bool>(tutorialSeen);
     map['use_comma_separators'] = Variable<bool>(useCommaSeparators);
     map['app_lock_enabled'] = Variable<bool>(appLockEnabled);
+    map['disclaimer_accepted'] = Variable<bool>(disclaimerAccepted);
     if (!nullToAbsent || lastBankSync != null) {
       map['last_bank_sync'] = Variable<DateTime>(lastBankSync);
     }
@@ -2137,6 +2168,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: Value(tutorialSeen),
       useCommaSeparators: Value(useCommaSeparators),
       appLockEnabled: Value(appLockEnabled),
+      disclaimerAccepted: Value(disclaimerAccepted),
       lastBankSync: lastBankSync == null && nullToAbsent
           ? const Value.absent()
           : Value(lastBankSync),
@@ -2168,6 +2200,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: serializer.fromJson<bool>(json['tutorialSeen']),
       useCommaSeparators: serializer.fromJson<bool>(json['useCommaSeparators']),
       appLockEnabled: serializer.fromJson<bool>(json['appLockEnabled']),
+      disclaimerAccepted: serializer.fromJson<bool>(json['disclaimerAccepted']),
       lastBankSync: serializer.fromJson<DateTime?>(json['lastBankSync']),
       tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
       tasksListId: serializer.fromJson<String?>(json['tasksListId']),
@@ -2188,6 +2221,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'tutorialSeen': serializer.toJson<bool>(tutorialSeen),
       'useCommaSeparators': serializer.toJson<bool>(useCommaSeparators),
       'appLockEnabled': serializer.toJson<bool>(appLockEnabled),
+      'disclaimerAccepted': serializer.toJson<bool>(disclaimerAccepted),
       'lastBankSync': serializer.toJson<DateTime?>(lastBankSync),
       'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
       'tasksListId': serializer.toJson<String?>(tasksListId),
@@ -2206,6 +2240,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     bool? tutorialSeen,
     bool? useCommaSeparators,
     bool? appLockEnabled,
+    bool? disclaimerAccepted,
     Value<DateTime?> lastBankSync = const Value.absent(),
     bool? tasksSyncEnabled,
     Value<String?> tasksListId = const Value.absent(),
@@ -2221,6 +2256,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tutorialSeen: tutorialSeen ?? this.tutorialSeen,
     useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
     appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+    disclaimerAccepted: disclaimerAccepted ?? this.disclaimerAccepted,
     lastBankSync: lastBankSync.present ? lastBankSync.value : this.lastBankSync,
     tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
     tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
@@ -2256,6 +2292,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       appLockEnabled: data.appLockEnabled.present
           ? data.appLockEnabled.value
           : this.appLockEnabled,
+      disclaimerAccepted: data.disclaimerAccepted.present
+          ? data.disclaimerAccepted.value
+          : this.disclaimerAccepted,
       lastBankSync: data.lastBankSync.present
           ? data.lastBankSync.value
           : this.lastBankSync,
@@ -2284,6 +2323,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('tutorialSeen: $tutorialSeen, ')
           ..write('useCommaSeparators: $useCommaSeparators, ')
           ..write('appLockEnabled: $appLockEnabled, ')
+          ..write('disclaimerAccepted: $disclaimerAccepted, ')
           ..write('lastBankSync: $lastBankSync, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
@@ -2304,6 +2344,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tutorialSeen,
     useCommaSeparators,
     appLockEnabled,
+    disclaimerAccepted,
     lastBankSync,
     tasksSyncEnabled,
     tasksListId,
@@ -2323,6 +2364,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.tutorialSeen == this.tutorialSeen &&
           other.useCommaSeparators == this.useCommaSeparators &&
           other.appLockEnabled == this.appLockEnabled &&
+          other.disclaimerAccepted == this.disclaimerAccepted &&
           other.lastBankSync == this.lastBankSync &&
           other.tasksSyncEnabled == this.tasksSyncEnabled &&
           other.tasksListId == this.tasksListId &&
@@ -2340,6 +2382,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<bool> tutorialSeen;
   final Value<bool> useCommaSeparators;
   final Value<bool> appLockEnabled;
+  final Value<bool> disclaimerAccepted;
   final Value<DateTime?> lastBankSync;
   final Value<bool> tasksSyncEnabled;
   final Value<String?> tasksListId;
@@ -2355,6 +2398,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tutorialSeen = const Value.absent(),
     this.useCommaSeparators = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
+    this.disclaimerAccepted = const Value.absent(),
     this.lastBankSync = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
@@ -2371,6 +2415,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tutorialSeen = const Value.absent(),
     this.useCommaSeparators = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
+    this.disclaimerAccepted = const Value.absent(),
     this.lastBankSync = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
@@ -2387,6 +2432,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<bool>? tutorialSeen,
     Expression<bool>? useCommaSeparators,
     Expression<bool>? appLockEnabled,
+    Expression<bool>? disclaimerAccepted,
     Expression<DateTime>? lastBankSync,
     Expression<bool>? tasksSyncEnabled,
     Expression<String>? tasksListId,
@@ -2405,6 +2451,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (useCommaSeparators != null)
         'use_comma_separators': useCommaSeparators,
       if (appLockEnabled != null) 'app_lock_enabled': appLockEnabled,
+      if (disclaimerAccepted != null) 'disclaimer_accepted': disclaimerAccepted,
       if (lastBankSync != null) 'last_bank_sync': lastBankSync,
       if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
       if (tasksListId != null) 'tasks_list_id': tasksListId,
@@ -2423,6 +2470,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<bool>? tutorialSeen,
     Value<bool>? useCommaSeparators,
     Value<bool>? appLockEnabled,
+    Value<bool>? disclaimerAccepted,
     Value<DateTime?>? lastBankSync,
     Value<bool>? tasksSyncEnabled,
     Value<String?>? tasksListId,
@@ -2440,6 +2488,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
       appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+      disclaimerAccepted: disclaimerAccepted ?? this.disclaimerAccepted,
       lastBankSync: lastBankSync ?? this.lastBankSync,
       tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
       tasksListId: tasksListId ?? this.tasksListId,
@@ -2482,6 +2531,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (appLockEnabled.present) {
       map['app_lock_enabled'] = Variable<bool>(appLockEnabled.value);
     }
+    if (disclaimerAccepted.present) {
+      map['disclaimer_accepted'] = Variable<bool>(disclaimerAccepted.value);
+    }
     if (lastBankSync.present) {
       map['last_bank_sync'] = Variable<DateTime>(lastBankSync.value);
     }
@@ -2510,6 +2562,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('tutorialSeen: $tutorialSeen, ')
           ..write('useCommaSeparators: $useCommaSeparators, ')
           ..write('appLockEnabled: $appLockEnabled, ')
+          ..write('disclaimerAccepted: $disclaimerAccepted, ')
           ..write('lastBankSync: $lastBankSync, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
@@ -6020,6 +6073,7 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<bool> tutorialSeen,
       Value<bool> useCommaSeparators,
       Value<bool> appLockEnabled,
+      Value<bool> disclaimerAccepted,
       Value<DateTime?> lastBankSync,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
@@ -6037,6 +6091,7 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<bool> tutorialSeen,
       Value<bool> useCommaSeparators,
       Value<bool> appLockEnabled,
+      Value<bool> disclaimerAccepted,
       Value<DateTime?> lastBankSync,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
@@ -6099,6 +6154,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<bool> get appLockEnabled => $composableBuilder(
     column: $table.appLockEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get disclaimerAccepted => $composableBuilder(
+    column: $table.disclaimerAccepted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6182,6 +6242,11 @@ class $$AppMetaRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get disclaimerAccepted => $composableBuilder(
+    column: $table.disclaimerAccepted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastBankSync => $composableBuilder(
     column: $table.lastBankSync,
     builder: (column) => ColumnOrderings(column),
@@ -6260,6 +6325,11 @@ class $$AppMetaRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get disclaimerAccepted => $composableBuilder(
+    column: $table.disclaimerAccepted,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get lastBankSync => $composableBuilder(
     column: $table.lastBankSync,
     builder: (column) => column,
@@ -6322,6 +6392,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tutorialSeen = const Value.absent(),
                 Value<bool> useCommaSeparators = const Value.absent(),
                 Value<bool> appLockEnabled = const Value.absent(),
+                Value<bool> disclaimerAccepted = const Value.absent(),
                 Value<DateTime?> lastBankSync = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
@@ -6337,6 +6408,7 @@ class $$AppMetaRowsTableTableManager
                 tutorialSeen: tutorialSeen,
                 useCommaSeparators: useCommaSeparators,
                 appLockEnabled: appLockEnabled,
+                disclaimerAccepted: disclaimerAccepted,
                 lastBankSync: lastBankSync,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
@@ -6354,6 +6426,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tutorialSeen = const Value.absent(),
                 Value<bool> useCommaSeparators = const Value.absent(),
                 Value<bool> appLockEnabled = const Value.absent(),
+                Value<bool> disclaimerAccepted = const Value.absent(),
                 Value<DateTime?> lastBankSync = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
@@ -6369,6 +6442,7 @@ class $$AppMetaRowsTableTableManager
                 tutorialSeen: tutorialSeen,
                 useCommaSeparators: useCommaSeparators,
                 appLockEnabled: appLockEnabled,
+                disclaimerAccepted: disclaimerAccepted,
                 lastBankSync: lastBankSync,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,

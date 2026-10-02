@@ -206,6 +206,22 @@ work as usual.
 
 ---
 
+## Tip jar and ratings
+
+The tip buttons sell the Java app's one-time products: `tip_small`, `tip_medium`
+and `tip_large`. Until the store returns them, the buttons show $0.99, $2.99 and
+$4.99, and tapping one says "Store unavailable".
+- [ ] **Google Play:** these products already exist for the Java app. Purchases
+      only work in builds installed from Play (internal testing track or later)
+      and signed with your release key (see below).
+- [ ] **App Store:** in App Store Connect, create three **Consumable** in-app
+      purchases with the same product IDs, and accept the Paid Apps agreement.
+- [ ] **Rate Bujit** opens the Play Store and only shows on Android. Once the app
+      has an App Store listing, send me its numeric App Store ID and I'll add the
+      iOS link.
+
+---
+
 ## Release signing for Android (not done yet)
 Release builds of the Flutter app are still signed with the debug key. To ship as
 an update to the Java app on Play, and for Google sign-in and App Check to

@@ -49,6 +49,9 @@ dependencies:
   firebase_auth: ^6.7.0
   firebase_app_check: ^0.4.8
   plaid_flutter: ^5.2.1
+  url_launcher: ^6.3.3
+  share_plus: ^13.3.1
+  in_app_purchase: ^3.3.1
 
 dev_dependencies:
   flutter_test:

@@ -131,9 +131,9 @@ class VisualsData {
         return expense.amount * (payPeriodDays / daysBetween);
     }
 
-    // Per-check spending by category, in the user's category order, then
-    // "Credit Cards" and "Other". Ended expenses are skipped; categories with
-    // nothing are left out.
+    // Per-check spending by category, largest first (ties keep the user's
+    // category order, then "Credit Cards" and "Other"). Ended expenses are
+    // skipped; categories with nothing are left out.
     Map<String, double> categoryAmounts({bool excludeCredit = false}) {
         final Map<String, double> amounts = {
             for (final String category in categories) category: 0.0,
@@ -151,7 +151,13 @@ class VisualsData {
                 : (expense.category.isEmpty ? otherCategory : expense.category);
             amounts[category] = (amounts[category] ?? 0.0) + perCheck;
         }
-        amounts.removeWhere((_, amount) => amount <= 0);
-        return amounts;
+        // Largest first, as the Java app orders its slices and legend.
+        final List<String> order = amounts.keys.toList();
+        final List<MapEntry<String, double>> sorted = amounts.entries.where((e) => e.value > 0.01).toList()
+            ..sort((a, b) {
+                final int byAmount = b.value.compareTo(a.value);
+                return byAmount != 0 ? byAmount : order.indexOf(a.key).compareTo(order.indexOf(b.key));
+            });
+        return Map.fromEntries(sorted);
     }
 }

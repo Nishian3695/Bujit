@@ -77,6 +77,40 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
         return Colors.red;
     }
 
+    // The Java app's totals row: everything owed against every limit (current
+    // balances), the overall percentage colored like the cards', and a sync hint
+    // when any card is linked to a bank.
+    Widget _totals(List<CreditModel> cards) {
+        final double owed = cards.fold(0.00, (sum, c) => sum + c.amount);
+        final double limit = cards.fold(0.00, (sum, c) => sum + c.creditLimit);
+        final double utilization = limit > 0 ? owed / limit : 0.0;
+        final Color color = _utilizationColor(utilization);
+        final bool anyLinked = cards.any((c) => _balance.linkedAccount(c.linkedAccountId) != null);
+        return Card(
+            child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                                Text("TOTAL ${Money.format(owed)} of ${Money.format(limit)}"),
+                                Text("${(utilization * 100).clamp(0, 100).round()}%", style: TextStyle(color: color)),
+                            ],
+                        ),
+                        LinearProgressIndicator(value: utilization.clamp(0.0, 1.0), color: color),
+                        if (anyLinked)
+                            const Padding(
+                                padding: EdgeInsets.only(top: 4),
+                                child: Text("Pull down to sync balances", style: TextStyle(fontSize: 12)),
+                            ),
+                    ],
+                ),
+            ),
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         final List<CreditModel> cards = _balance.creditCards.toList();
@@ -85,7 +119,9 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
             screen: TutorialScreen.creditUtil,
             child: Scaffold(
             appBar: AppBar(title: const Text("Credit Utilization")),
-            body: TutorialTarget(id: "credit_list", child: cards.isEmpty
+            body: Column(children: [
+                if (cards.isNotEmpty) _totals(cards),
+                Expanded(child: TutorialTarget(id: "credit_list", child: cards.isEmpty
                 ? const Center(child: Text("No credit cards yet. Tap + to add one."))
                 // Pull to refresh syncs linked cards' balances and limits, as in the Java app.
                 : RefreshIndicator(
@@ -116,7 +152,7 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                             onTap: () => _edit(card),
                         );
                     },
-                ))),
+                ))))]),
             floatingActionButton: FloatingActionButton(
                 onPressed: _add,
                 tooltip: "Add credit card",

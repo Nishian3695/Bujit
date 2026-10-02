@@ -8,6 +8,7 @@ import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/credit_model.dart';
 import 'navigation_items/expense_activity/expense_item.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
+import 'navigation_items/settings/tip_jar.dart';
 import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'tutorial/tutorial_manager.dart';
@@ -26,6 +27,8 @@ class AppState extends ChangeNotifier {
     DeviceAuth? deviceAuth;
     // Linked banks through Plaid; null = not available (tests, or storage failed to open).
     BankingService? banking;
+    // The tip jar (Settings); null = not available (tests).
+    TipJar? tipJar;
 
     AppState(this.data, [this._store]) {
         Money.useCommaSeparators = data.useCommaSeparators;
@@ -44,7 +47,8 @@ class AppState extends ChangeNotifier {
             {DateTime? today, GoogleTasksSync? tasks, BankingService? banking}) async {
         AppData? data = await store.load();
         if (data == null) {
-            data = AppData(balance: BalanceModel(currentBalance: 0.00));
+            // A fresh install: the disclaimer comes first, then the tutorial.
+            data = AppData(balance: BalanceModel(currentBalance: 0.00), disclaimerAccepted: false);
             seedSampleData(data.balance, today: today);
         } else {
             data.balance.makeRecent(today: today);
@@ -95,9 +99,14 @@ class AppState extends ChangeNotifier {
 
     // Deletes an expense or card. What was charged to a deleted card is paid from
     // the balance from then on.
-    Future<void> removeItem(ExpenseItem item) {
-        balance.expenses.remove(item);
-        if (item is CreditModel) balance.cardRemoved(item.name);
+    Future<void> removeItem(ExpenseItem item) => removeItems([item]);
+
+    // Deletes several (the home screen's multi-select Delete).
+    Future<void> removeItems(Iterable<ExpenseItem> items) {
+        for (final ExpenseItem item in items.toList()) {
+            balance.expenses.remove(item);
+            if (item is CreditModel) balance.cardRemoved(item.name);
+        }
         return changed();
     }
 
@@ -200,11 +209,18 @@ class AppState extends ChangeNotifier {
         await changed();
     }
 
-    // The tutorial step to show now, or null once it's finished or skipped.
+    // The tutorial step to show now, or null once it's finished or skipped (or
+    // while the first-launch disclaimer is still waiting, as in the Java app).
     TutorialStep? get tutorialStep {
-        if (data.tutorialSeen) return null;
+        if (data.tutorialSeen || !data.disclaimerAccepted) return null;
         final int index = data.tutorialStep;
         return (index >= 0 && index < TutorialManager.steps.length) ? TutorialManager.steps[index] : null;
+    }
+
+    // "I Understand" on the first-launch disclaimer; the tutorial starts after it.
+    Future<void> acceptDisclaimer() {
+        data.disclaimerAccepted = true;
+        return changed();
     }
 
     // Moves to the next step; finishing the last one marks the tutorial seen.

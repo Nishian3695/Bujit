@@ -28,6 +28,8 @@ class AppData {
     bool tutorialSeen; // Tutorial finished or skipped
     bool useCommaSeparators; // Settings: "$1,234.56" instead of "$1234.56"
     bool appLockEnabled; // Settings: unlock with biometrics/device credential on opening
+    // The first-launch disclaimer was accepted (AppState.open asks on a fresh install).
+    bool disclaimerAccepted;
     bool tasksSyncEnabled; // Settings: sync expenses and paychecks to Google Tasks
     String? tasksListId; // The "Bujit" list in Google Tasks
     String? tasksAccount; // Email of the Google account synced to (for display)
@@ -47,6 +49,7 @@ class AppData {
         this.tutorialSeen = false,
         this.useCommaSeparators = false,
         this.appLockEnabled = false,
+        this.disclaimerAccepted = true,
         this.tasksSyncEnabled = false,
         this.tasksListId,
         this.tasksAccount,
@@ -206,6 +209,7 @@ class AppDataStore {
             tutorialSeen: meta.tutorialSeen,
             useCommaSeparators: meta.useCommaSeparators,
             appLockEnabled: meta.appLockEnabled,
+            disclaimerAccepted: meta.disclaimerAccepted,
             tasksSyncEnabled: meta.tasksSyncEnabled,
             tasksListId: meta.tasksListId,
             tasksAccount: meta.tasksAccount,
@@ -305,6 +309,7 @@ class AppDataStore {
                 tutorialSeen: Value(data.tutorialSeen),
                 useCommaSeparators: Value(data.useCommaSeparators),
                 appLockEnabled: Value(data.appLockEnabled),
+                disclaimerAccepted: Value(data.disclaimerAccepted),
                 lastBankSync: Value(data.lastBankSync),
                 tasksSyncEnabled: Value(data.tasksSyncEnabled),
                 tasksListId: Value(data.tasksListId),

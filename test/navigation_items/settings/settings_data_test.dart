@@ -131,6 +131,8 @@ void main() {
             state.deviceAuth = auth;
             await tester.pumpWidget(MaterialApp(home: SettingsActivity(state: state)));
             await tester.scrollUntilVisible(find.text("App lock"), 200);
+            await tester.ensureVisible(find.text("App lock"));
+            await tester.pumpAndSettle();
 
             await tester.tap(find.text("App lock"));
             await tester.pumpAndSettle();

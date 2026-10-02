@@ -11,6 +11,7 @@ import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/expense_activity.dart';
 import 'navigation_items/settings/google_tasks_account.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
+import 'navigation_items/settings/tip_jar.dart';
 import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/storage_manager.dart';
@@ -38,7 +39,9 @@ Future<AppState> openAppState() async {
         PlaidFlutterLauncher(),
       ),
     );
-    return state..deviceAuth = deviceAuth;
+    return state
+      ..deviceAuth = deviceAuth
+      ..tipJar = (TipJar(InAppPurchaseTipStore())..load());
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);
     final AppData data = AppData(balance: BalanceModel(currentBalance: 0.00));

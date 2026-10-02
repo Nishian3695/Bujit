@@ -106,7 +106,7 @@ void main() {
             final data = VisualsData(balance, ["Housing", "Food"]);
 
             final amounts = data.categoryAmounts();
-            expect(amounts.keys.toList(), ["Housing", "Food", "Credit Cards"]);
+            expect(amounts.keys.toList(), ["Housing", "Credit Cards", "Food"]); // largest first
             expect(amounts["Housing"], closeTo(850.0 * 14 / 30.44, 1e-9));
             expect(amounts["Food"], closeTo(5.0 * 14, 1e-9));
             expect(amounts["Credit Cards"], closeTo(300.0 * 14 / 30.44, 1e-9));
