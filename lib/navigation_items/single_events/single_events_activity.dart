@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/single_event_dialog.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import 'single_event_model.dart';
 import 'single_events_ledger.dart';
 
@@ -53,13 +55,27 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
         await _save();
     }
 
+    // Shown (not applied or saved) while the tutorial is on this screen and the
+    // list is empty, so it has something to point at -- the Java app's examples.
+    static final List<SingleEventModel> _tutorialExamples = [
+        SingleEventModel(name: "Spontaneous concert tickets", amount: 85.00, isDebit: true),
+        SingleEventModel(name: "Won trivia night 🎉", amount: 50.00, isDebit: false),
+        SingleEventModel(name: "Forgot to pack lunch", amount: 12.75, isDebit: true),
+    ];
+
     @override
     Widget build(BuildContext context) {
-        final List<SingleEventModel> events = widget.state.data.singleEvents;
+        final List<SingleEventModel> saved = widget.state.data.singleEvents;
+        final bool showExamples = saved.isEmpty
+            && widget.state.tutorialStep?.screen == TutorialScreen.singleEvents;
+        final List<SingleEventModel> events = showExamples ? _tutorialExamples : saved;
         final int expiryDays = widget.state.data.singleEventExpiryDays;
-        return Scaffold(
+        return TutorialOverlay(
+            state: widget.state,
+            screen: TutorialScreen.singleEvents,
+            child: Scaffold(
             appBar: AppBar(title: const Text("Single Events")),
-            body: events.isEmpty
+            body: TutorialTarget(id: "single_events_list", child: events.isEmpty
                 ? const Center(child: Text("No single events. Tap + to add a one-off expense or windfall."))
                 : ListView.builder(
                     itemCount: events.length,
@@ -72,14 +88,15 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
                             subtitle: Text("${event.targetDisplayName} · clears in $daysLeft "
                                 "day${daysLeft == 1 ? "" : "s"}"),
                             trailing: Text("$sign\$${event.amount.toStringAsFixed(2)}"),
-                            onTap: () => _edit(event),
+                            onTap: showExamples ? null : () => _edit(event),
                         );
                     },
-                ),
+                )),
             floatingActionButton: FloatingActionButton(
                 onPressed: _add,
                 tooltip: "Add single event",
                 child: const Icon(Icons.add),
+            ),
             ),
         );
     }

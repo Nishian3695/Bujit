@@ -1408,6 +1408,33 @@ class $AppMetaRowsTable extends AppMetaRows
     requiredDuringInsert: false,
     defaultValue: const Constant(30),
   );
+  static const VerificationMeta _tutorialStepMeta = const VerificationMeta(
+    'tutorialStep',
+  );
+  @override
+  late final GeneratedColumn<int> tutorialStep = GeneratedColumn<int>(
+    'tutorial_step',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tutorialSeenMeta = const VerificationMeta(
+    'tutorialSeen',
+  );
+  @override
+  late final GeneratedColumn<bool> tutorialSeen = GeneratedColumn<bool>(
+    'tutorial_seen',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("tutorial_seen" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1415,6 +1442,8 @@ class $AppMetaRowsTable extends AppMetaRows
     lastUpdated,
     includeNextCheck,
     singleEventExpiryDays,
+    tutorialStep,
+    tutorialSeen,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1469,6 +1498,24 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('tutorial_step')) {
+      context.handle(
+        _tutorialStepMeta,
+        tutorialStep.isAcceptableOrUnknown(
+          data['tutorial_step']!,
+          _tutorialStepMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tutorial_seen')) {
+      context.handle(
+        _tutorialSeenMeta,
+        tutorialSeen.isAcceptableOrUnknown(
+          data['tutorial_seen']!,
+          _tutorialSeenMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1498,6 +1545,14 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.int,
         data['${effectivePrefix}single_event_expiry_days'],
       )!,
+      tutorialStep: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tutorial_step'],
+      )!,
+      tutorialSeen: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}tutorial_seen'],
+      )!,
     );
   }
 
@@ -1513,12 +1568,16 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final DateTime lastUpdated;
   final bool includeNextCheck;
   final int singleEventExpiryDays;
+  final int tutorialStep;
+  final bool tutorialSeen;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
     required this.lastUpdated,
     required this.includeNextCheck,
     required this.singleEventExpiryDays,
+    required this.tutorialStep,
+    required this.tutorialSeen,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1528,6 +1587,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['last_updated'] = Variable<DateTime>(lastUpdated);
     map['include_next_check'] = Variable<bool>(includeNextCheck);
     map['single_event_expiry_days'] = Variable<int>(singleEventExpiryDays);
+    map['tutorial_step'] = Variable<int>(tutorialStep);
+    map['tutorial_seen'] = Variable<bool>(tutorialSeen);
     return map;
   }
 
@@ -1538,6 +1599,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       lastUpdated: Value(lastUpdated),
       includeNextCheck: Value(includeNextCheck),
       singleEventExpiryDays: Value(singleEventExpiryDays),
+      tutorialStep: Value(tutorialStep),
+      tutorialSeen: Value(tutorialSeen),
     );
   }
 
@@ -1554,6 +1617,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       singleEventExpiryDays: serializer.fromJson<int>(
         json['singleEventExpiryDays'],
       ),
+      tutorialStep: serializer.fromJson<int>(json['tutorialStep']),
+      tutorialSeen: serializer.fromJson<bool>(json['tutorialSeen']),
     );
   }
   @override
@@ -1565,6 +1630,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
       'includeNextCheck': serializer.toJson<bool>(includeNextCheck),
       'singleEventExpiryDays': serializer.toJson<int>(singleEventExpiryDays),
+      'tutorialStep': serializer.toJson<int>(tutorialStep),
+      'tutorialSeen': serializer.toJson<bool>(tutorialSeen),
     };
   }
 
@@ -1574,12 +1641,16 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     DateTime? lastUpdated,
     bool? includeNextCheck,
     int? singleEventExpiryDays,
+    int? tutorialStep,
+    bool? tutorialSeen,
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
     lastUpdated: lastUpdated ?? this.lastUpdated,
     includeNextCheck: includeNextCheck ?? this.includeNextCheck,
     singleEventExpiryDays: singleEventExpiryDays ?? this.singleEventExpiryDays,
+    tutorialStep: tutorialStep ?? this.tutorialStep,
+    tutorialSeen: tutorialSeen ?? this.tutorialSeen,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -1596,6 +1667,12 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       singleEventExpiryDays: data.singleEventExpiryDays.present
           ? data.singleEventExpiryDays.value
           : this.singleEventExpiryDays,
+      tutorialStep: data.tutorialStep.present
+          ? data.tutorialStep.value
+          : this.tutorialStep,
+      tutorialSeen: data.tutorialSeen.present
+          ? data.tutorialSeen.value
+          : this.tutorialSeen,
     );
   }
 
@@ -1606,7 +1683,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('currentBalance: $currentBalance, ')
           ..write('lastUpdated: $lastUpdated, ')
           ..write('includeNextCheck: $includeNextCheck, ')
-          ..write('singleEventExpiryDays: $singleEventExpiryDays')
+          ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
+          ..write('tutorialStep: $tutorialStep, ')
+          ..write('tutorialSeen: $tutorialSeen')
           ..write(')'))
         .toString();
   }
@@ -1618,6 +1697,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     lastUpdated,
     includeNextCheck,
     singleEventExpiryDays,
+    tutorialStep,
+    tutorialSeen,
   );
   @override
   bool operator ==(Object other) =>
@@ -1627,7 +1708,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.currentBalance == this.currentBalance &&
           other.lastUpdated == this.lastUpdated &&
           other.includeNextCheck == this.includeNextCheck &&
-          other.singleEventExpiryDays == this.singleEventExpiryDays);
+          other.singleEventExpiryDays == this.singleEventExpiryDays &&
+          other.tutorialStep == this.tutorialStep &&
+          other.tutorialSeen == this.tutorialSeen);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
@@ -1636,12 +1719,16 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<DateTime> lastUpdated;
   final Value<bool> includeNextCheck;
   final Value<int> singleEventExpiryDays;
+  final Value<int> tutorialStep;
+  final Value<bool> tutorialSeen;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.lastUpdated = const Value.absent(),
     this.includeNextCheck = const Value.absent(),
     this.singleEventExpiryDays = const Value.absent(),
+    this.tutorialStep = const Value.absent(),
+    this.tutorialSeen = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -1649,6 +1736,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     required DateTime lastUpdated,
     this.includeNextCheck = const Value.absent(),
     this.singleEventExpiryDays = const Value.absent(),
+    this.tutorialStep = const Value.absent(),
+    this.tutorialSeen = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
@@ -1656,6 +1745,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<DateTime>? lastUpdated,
     Expression<bool>? includeNextCheck,
     Expression<int>? singleEventExpiryDays,
+    Expression<int>? tutorialStep,
+    Expression<bool>? tutorialSeen,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1664,6 +1755,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (includeNextCheck != null) 'include_next_check': includeNextCheck,
       if (singleEventExpiryDays != null)
         'single_event_expiry_days': singleEventExpiryDays,
+      if (tutorialStep != null) 'tutorial_step': tutorialStep,
+      if (tutorialSeen != null) 'tutorial_seen': tutorialSeen,
     });
   }
 
@@ -1673,6 +1766,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<DateTime>? lastUpdated,
     Value<bool>? includeNextCheck,
     Value<int>? singleEventExpiryDays,
+    Value<int>? tutorialStep,
+    Value<bool>? tutorialSeen,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
@@ -1681,6 +1776,8 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       includeNextCheck: includeNextCheck ?? this.includeNextCheck,
       singleEventExpiryDays:
           singleEventExpiryDays ?? this.singleEventExpiryDays,
+      tutorialStep: tutorialStep ?? this.tutorialStep,
+      tutorialSeen: tutorialSeen ?? this.tutorialSeen,
     );
   }
 
@@ -1704,6 +1801,12 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
         singleEventExpiryDays.value,
       );
     }
+    if (tutorialStep.present) {
+      map['tutorial_step'] = Variable<int>(tutorialStep.value);
+    }
+    if (tutorialSeen.present) {
+      map['tutorial_seen'] = Variable<bool>(tutorialSeen.value);
+    }
     return map;
   }
 
@@ -1714,7 +1817,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('currentBalance: $currentBalance, ')
           ..write('lastUpdated: $lastUpdated, ')
           ..write('includeNextCheck: $includeNextCheck, ')
-          ..write('singleEventExpiryDays: $singleEventExpiryDays')
+          ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
+          ..write('tutorialStep: $tutorialStep, ')
+          ..write('tutorialSeen: $tutorialSeen')
           ..write(')'))
         .toString();
   }
@@ -3344,6 +3449,8 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       required DateTime lastUpdated,
       Value<bool> includeNextCheck,
       Value<int> singleEventExpiryDays,
+      Value<int> tutorialStep,
+      Value<bool> tutorialSeen,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
@@ -3352,6 +3459,8 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<DateTime> lastUpdated,
       Value<bool> includeNextCheck,
       Value<int> singleEventExpiryDays,
+      Value<int> tutorialStep,
+      Value<bool> tutorialSeen,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -3385,6 +3494,16 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<int> get singleEventExpiryDays => $composableBuilder(
     column: $table.singleEventExpiryDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tutorialStep => $composableBuilder(
+    column: $table.tutorialStep,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get tutorialSeen => $composableBuilder(
+    column: $table.tutorialSeen,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3422,6 +3541,16 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.singleEventExpiryDays,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tutorialStep => $composableBuilder(
+    column: $table.tutorialStep,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get tutorialSeen => $composableBuilder(
+    column: $table.tutorialSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -3453,6 +3582,16 @@ class $$AppMetaRowsTableAnnotationComposer
 
   GeneratedColumn<int> get singleEventExpiryDays => $composableBuilder(
     column: $table.singleEventExpiryDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get tutorialStep => $composableBuilder(
+    column: $table.tutorialStep,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get tutorialSeen => $composableBuilder(
+    column: $table.tutorialSeen,
     builder: (column) => column,
   );
 }
@@ -3493,12 +3632,16 @@ class $$AppMetaRowsTableTableManager
                 Value<DateTime> lastUpdated = const Value.absent(),
                 Value<bool> includeNextCheck = const Value.absent(),
                 Value<int> singleEventExpiryDays = const Value.absent(),
+                Value<int> tutorialStep = const Value.absent(),
+                Value<bool> tutorialSeen = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
                 singleEventExpiryDays: singleEventExpiryDays,
+                tutorialStep: tutorialStep,
+                tutorialSeen: tutorialSeen,
               ),
           createCompanionCallback:
               ({
@@ -3507,12 +3650,16 @@ class $$AppMetaRowsTableTableManager
                 required DateTime lastUpdated,
                 Value<bool> includeNextCheck = const Value.absent(),
                 Value<int> singleEventExpiryDays = const Value.absent(),
+                Value<int> tutorialStep = const Value.absent(),
+                Value<bool> tutorialSeen = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
                 singleEventExpiryDays: singleEventExpiryDays,
+                tutorialStep: tutorialStep,
+                tutorialSeen: tutorialSeen,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import '../expense_activity/balance_model.dart';
 import '../expense_activity/credit_model.dart';
 
@@ -66,9 +68,12 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
     @override
     Widget build(BuildContext context) {
         final List<CreditModel> cards = _balance.creditCards.toList();
-        return Scaffold(
+        return TutorialOverlay(
+            state: widget.state,
+            screen: TutorialScreen.creditUtil,
+            child: Scaffold(
             appBar: AppBar(title: const Text("Credit Utilization")),
-            body: cards.isEmpty
+            body: TutorialTarget(id: "credit_list", child: cards.isEmpty
                 ? const Center(child: Text("No credit cards yet. Tap + to add one."))
                 : ListView.builder(
                     itemCount: cards.length,
@@ -93,11 +98,12 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                             onTap: () => _edit(card),
                         );
                     },
-                ),
+                )),
             floatingActionButton: FloatingActionButton(
                 onPressed: _add,
                 tooltip: "Add credit card",
                 child: const Icon(Icons.add),
+            ),
             ),
         );
     }

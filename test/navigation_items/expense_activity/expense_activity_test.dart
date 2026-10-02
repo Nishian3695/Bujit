@@ -8,9 +8,10 @@ import 'package:bujit/utils/sample_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// The sample data with no storage behind it (nothing is saved).
+// The sample data with no storage behind it (nothing is saved). The tutorial is
+// off: its overlay blocks taps (see tutorial_test.dart for the tutorial itself).
 AppState _sampleState() {
-    final AppData data = AppData(balance: BalanceModel(currentBalance: 0.0));
+    final AppData data = AppData(balance: BalanceModel(currentBalance: 0.0), tutorialSeen: true);
     seedSampleData(data.balance);
     return AppState(data);
 }

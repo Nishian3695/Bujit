@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import 'csv_import_helper.dart';
 
 class SettingsActivity extends StatefulWidget {
@@ -104,7 +106,10 @@ class _SettingsActivityState extends State<SettingsActivity> {
 
     @override
     Widget build(BuildContext context) {
-        return Scaffold(
+        return TutorialOverlay(
+            state: widget.state,
+            screen: TutorialScreen.settings,
+            child: Scaffold(
             appBar: AppBar(title: const Text("Settings")),
             body: ListView(
                 children: [
@@ -123,10 +128,13 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         onTap: _editExpiryDays,
                     ),
                     const Divider(),
-                    ListTile(
-                        title: const Text("Import CSV"),
-                        subtitle: const Text("Add expenses, credit cards and income streams from a file"),
-                        onTap: _importCsv,
+                    TutorialTarget(
+                        id: "import_csv",
+                        child: ListTile(
+                            title: const Text("Import CSV"),
+                            subtitle: const Text("Add expenses, credit cards and income streams from a file"),
+                            onTap: _importCsv,
+                        ),
                     ),
                     ListTile(
                         title: const Text("Save CSV template"),
@@ -134,12 +142,25 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         onTap: _saveCsvTemplate,
                     ),
                     const Divider(),
+                    TutorialTarget(
+                        id: "replay_tutorial",
+                        child: ListTile(
+                            title: const Text("Replay tutorial"),
+                            subtitle: const Text("Walk through Bujit's features again"),
+                            onTap: () async {
+                                final NavigatorState navigator = Navigator.of(context);
+                                await widget.state.replayTutorial();
+                                navigator.popUntil((route) => route.isFirst); // it starts on the home screen
+                            },
+                        ),
+                    ),
                     ListTile(
                         title: const Text("Reset to sample data"),
                         subtitle: const Text("Replace everything with the tutorial's example data"),
                         onTap: _resetToSampleData,
                     ),
                 ],
+            ),
             ),
         );
     }

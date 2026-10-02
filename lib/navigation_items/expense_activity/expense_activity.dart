@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/recurring_expenses.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import '../app_drawer.dart';
 import 'balance_model.dart';
 import 'credit_model.dart';
@@ -149,17 +151,34 @@ class ExpenseActivityState extends State<ExpenseActivity> {
 
     // Define the appBar and its actions
     AppBar get appBar => AppBar(
+        // An explicit menu button (same as the default) so the tutorial can spotlight it.
+        leading: Builder(builder: (context) => TutorialTarget(
+            id: "menu_button",
+            child: IconButton(
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                icon: const Icon(Icons.menu),
+                tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+            ),
+        )),
         title: Text(_onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}"),
         actions: [
-            IconButton(
-                onPressed: _onHomeScreen ? null : _previousCheck,
-                icon: const Icon(Icons.chevron_left),
-                tooltip: "Previous check",
-            ),
-            IconButton(
-                onPressed: _nextCheck,
-                icon: const Icon(Icons.chevron_right),
-                tooltip: "Next check",
+            TutorialTarget(
+                id: "check_nav",
+                child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        IconButton(
+                            onPressed: _onHomeScreen ? null : _previousCheck,
+                            icon: const Icon(Icons.chevron_left),
+                            tooltip: "Previous check",
+                        ),
+                        IconButton(
+                            onPressed: _nextCheck,
+                            icon: const Icon(Icons.chevron_right),
+                            tooltip: "Next check",
+                        ),
+                    ],
+                ),
             ),
         ],
     );
@@ -205,27 +224,34 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                     content: Text("Storage couldn't be opened, so changes won't be saved."),
                     actions: [SizedBox.shrink()],
                 ),
-            balanceSummary,
+            TutorialTarget(id: "balance_card", child: balanceSummary),
             expenseListHeader,
             const Divider(), // Divider between header and list
             // Expanded gives the ListView a bounded height; a scrollable list
             // directly inside a Column fails at runtime with "unbounded height".
-            Expanded(child: expenseList),
+            Expanded(child: TutorialTarget(id: "expense_list", child: expenseList)),
         ],
     );
 
     @override
     Widget build(BuildContext context) {
-        return Scaffold(
-            appBar: appBar,
-            drawer: AppDrawer(state: _state, onReturn: _refresh),
-            body: mainActivity,
-            // Adds an expense on the current check; while viewing a projected check
-            // it becomes a home button that returns to the current one.
-            floatingActionButton: FloatingActionButton(
-                onPressed: _onHomeScreen ? _addExpense : _goHome,
-                tooltip: _onHomeScreen ? "Add expense" : "Back to this check",
-                child: Icon(_onHomeScreen ? Icons.add : Icons.home),
+        return TutorialOverlay(
+            state: _state,
+            screen: TutorialScreen.home,
+            child: Scaffold(
+                appBar: appBar,
+                drawer: AppDrawer(state: _state, onReturn: _refresh),
+                body: mainActivity,
+                // Adds an expense on the current check; while viewing a projected check
+                // it becomes a home button that returns to the current one.
+                floatingActionButton: TutorialTarget(
+                    id: "add_button",
+                    child: FloatingActionButton(
+                        onPressed: _onHomeScreen ? _addExpense : _goHome,
+                        tooltip: _onHomeScreen ? "Add expense" : "Back to this check",
+                        child: Icon(_onHomeScreen ? Icons.add : Icons.home),
+                    ),
+                ),
             ),
         );
     }

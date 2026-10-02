@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
 import 'storage_management/app_data_store.dart';
+import 'tutorial/tutorial_manager.dart';
 import 'utils/sample_data.dart';
 
 class AppState extends ChangeNotifier {
@@ -54,6 +55,33 @@ class AppState extends ChangeNotifier {
     Future<void> changed() {
         notifyListeners();
         return save();
+    }
+
+    // The tutorial step to show now, or null once it's finished or skipped.
+    TutorialStep? get tutorialStep {
+        if (data.tutorialSeen) return null;
+        final int index = data.tutorialStep;
+        return (index >= 0 && index < TutorialManager.steps.length) ? TutorialManager.steps[index] : null;
+    }
+
+    // Moves to the next step; finishing the last one marks the tutorial seen.
+    Future<void> advanceTutorial() {
+        data.tutorialStep++;
+        if (data.tutorialStep >= TutorialManager.steps.length) data.tutorialSeen = true;
+        return changed();
+    }
+
+    // Skips the rest of the tutorial.
+    Future<void> skipTutorial() {
+        data.tutorialSeen = true;
+        return changed();
+    }
+
+    // Starts the tutorial over from the first step (Settings: Replay tutorial).
+    Future<void> replayTutorial() {
+        data.tutorialStep = 0;
+        data.tutorialSeen = false;
+        return changed();
     }
 
     // Replaces everything with the tutorial's sample data (Settings).

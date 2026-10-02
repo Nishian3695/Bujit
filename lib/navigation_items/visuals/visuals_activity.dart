@@ -5,6 +5,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import '../../utils/date_utils.dart';
 import 'visuals_data.dart';
 
@@ -33,14 +35,24 @@ class _VisualsActivityState extends State<VisualsActivity> {
 
     @override
     Widget build(BuildContext context) {
-        return DefaultTabController(
-            length: 2,
-            child: Scaffold(
-                appBar: AppBar(
-                    title: const Text("Visuals"),
-                    bottom: const TabBar(tabs: [Tab(text: "Cash Flow"), Tab(text: "Categories")]),
+        return TutorialOverlay(
+            state: widget.state,
+            screen: TutorialScreen.visuals,
+            child: DefaultTabController(
+                length: 2,
+                child: Scaffold(
+                    appBar: AppBar(
+                        title: const Text("Visuals"),
+                        bottom: const PreferredSize(
+                            preferredSize: Size.fromHeight(kTextTabBarHeight),
+                            child: TutorialTarget(
+                                id: "visuals_tabs",
+                                child: TabBar(tabs: [Tab(text: "Cash Flow"), Tab(text: "Categories")]),
+                            ),
+                        ),
+                    ),
+                    body: TabBarView(children: [_cashFlowTab(), _categoriesTab()]),
                 ),
-                body: TabBarView(children: [_cashFlowTab(), _categoriesTab()]),
             ),
         );
     }
@@ -78,7 +90,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
                         onSelectionChanged: (selection) => setState(() => _gross = selection.first),
                     ),
                 ),
-                SizedBox(height: 260, child: _cashFlowChart(periods)),
+                TutorialTarget(id: "cash_flow_chart", child: SizedBox(height: 260, child: _cashFlowChart(periods))),
                 const Divider(),
                 for (final CashFlowPeriod period in periods)
                     ListTile(

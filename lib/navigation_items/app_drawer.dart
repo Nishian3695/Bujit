@@ -2,12 +2,9 @@
 // (res/menu/navigation_menu.xml) in the same order.
 import 'package:flutter/material.dart';
 import '../app_state.dart';
-import 'credit_util/credit_util_activity.dart';
-import 'income_streams/income_streams_activity.dart';
+import '../tutorial/tutorial_manager.dart';
 import 'not_built_yet.dart';
-import 'settings/settings_activity.dart';
-import 'single_events/single_events_activity.dart';
-import 'visuals/visuals_activity.dart';
+import 'screens.dart';
 
 class AppDrawer extends StatelessWidget {
     final AppState state;
@@ -36,13 +33,13 @@ class AppDrawer extends StatelessWidget {
             child: ListView(
                 children: [
                     const DrawerHeader(child: Text("Bujit")),
-                    item(Icons.payments, "Income Streams", IncomeStreamsActivity(state: state)),
-                    item(Icons.credit_card, "Credit Utilization", CreditUtilActivity(state: state)),
+                    item(Icons.payments, "Income Streams", screenFor(TutorialScreen.incomeStreams, state)),
+                    item(Icons.credit_card, "Credit Utilization", screenFor(TutorialScreen.creditUtil, state)),
                     item(Icons.account_balance, "Linked Accounts", const NotBuiltYet(title: "Linked Accounts")),
-                    item(Icons.event, "Single Events", SingleEventsActivity(state: state)),
-                    item(Icons.bar_chart, "Visuals", VisualsActivity(state: state)),
+                    item(Icons.event, "Single Events", screenFor(TutorialScreen.singleEvents, state)),
+                    item(Icons.bar_chart, "Visuals", screenFor(TutorialScreen.visuals, state)),
                     const Divider(),
-                    item(Icons.settings, "Settings", SettingsActivity(state: state)),
+                    item(Icons.settings, "Settings", screenFor(TutorialScreen.settings, state)),
                 ],
             ),
         );

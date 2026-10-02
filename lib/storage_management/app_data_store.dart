@@ -20,6 +20,8 @@ class AppData {
     final List<SingleEventModel> singleEvents; // Newest-changed first
     bool includeNextCheck; // Settings: show "Next Check" instead of "After This Check"
     int singleEventExpiryDays; // Settings: days after its last change a single event is cleared
+    int tutorialStep; // Next tutorial step to show
+    bool tutorialSeen; // Tutorial finished or skipped
 
     AppData({
         required this.balance,
@@ -27,6 +29,8 @@ class AppData {
         List<SingleEventModel>? singleEvents,
         this.includeNextCheck = false,
         this.singleEventExpiryDays = 30,
+        this.tutorialStep = 0,
+        this.tutorialSeen = false,
     }) : categories = categories ?? defaultCategories(),
          singleEvents = singleEvents ?? [];
 
@@ -77,6 +81,8 @@ class AppDataStore {
             singleEvents: eventRows.map((row) => row.toDomain()).toList(),
             includeNextCheck: meta.includeNextCheck,
             singleEventExpiryDays: meta.singleEventExpiryDays,
+            tutorialStep: meta.tutorialStep,
+            tutorialSeen: meta.tutorialSeen,
         );
     }
 
@@ -117,6 +123,8 @@ class AppDataStore {
                 lastUpdated: balance.lastUpdated,
                 includeNextCheck: Value(data.includeNextCheck),
                 singleEventExpiryDays: Value(data.singleEventExpiryDays),
+                tutorialStep: Value(data.tutorialStep),
+                tutorialSeen: Value(data.tutorialSeen),
             ));
         });
     }

@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/income_stream_dialog.dart';
+import '../../tutorial/tutorial_manager.dart';
+import '../../tutorial/tutorial_overlay_layout.dart';
 import '../../utils/date_utils.dart';
 import '../expense_activity/balance_model.dart';
 import 'income_stream_model.dart';
@@ -63,9 +65,12 @@ class _IncomeStreamsActivityState extends State<IncomeStreamsActivity> {
     @override
     Widget build(BuildContext context) {
         final List<IncomeStreamModel> streams = _balance.incomeStreams;
-        return Scaffold(
+        return TutorialOverlay(
+            state: widget.state,
+            screen: TutorialScreen.incomeStreams,
+            child: Scaffold(
             appBar: AppBar(title: const Text("Income Streams")),
-            body: streams.isEmpty
+            body: TutorialTarget(id: "income_list", child: streams.isEmpty
                 ? const Center(child: Text("No income streams yet. Tap + to add one."))
                 : RadioGroup<IncomeStreamModel>(
                     groupValue: _balance.activeIncome,
@@ -84,11 +89,15 @@ class _IncomeStreamsActivityState extends State<IncomeStreamsActivity> {
                             );
                         },
                     ),
+                )),
+            floatingActionButton: TutorialTarget(
+                id: "income_add",
+                child: FloatingActionButton(
+                    onPressed: _add,
+                    tooltip: "Add income stream",
+                    child: const Icon(Icons.add),
                 ),
-            floatingActionButton: FloatingActionButton(
-                onPressed: _add,
-                tooltip: "Add income stream",
-                child: const Icon(Icons.add),
+            ),
             ),
         );
     }

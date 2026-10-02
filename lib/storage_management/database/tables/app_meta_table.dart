@@ -29,6 +29,9 @@ class AppMetaRows extends Table {
   BoolColumn get includeNextCheck => boolean().withDefault(const Constant(false))();
   // Settings: days after its last change that a single event is cleared (Java default 30).
   IntColumn get singleEventExpiryDays => integer().withDefault(const Constant(30))();
+  // Tutorial progress: the next step to show, and whether it was finished or skipped.
+  IntColumn get tutorialStep => integer().withDefault(const Constant(0))();
+  BoolColumn get tutorialSeen => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
