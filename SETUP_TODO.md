@@ -61,30 +61,12 @@ holds the Plaid keys and checks each request for two things:
 - a **Firebase ID token** (the app signs in anonymously);
 - a **Firebase App Check** token.
 
-So the Flutter app needs to be set up in the same Firebase project, **`bujit-89ac6`**.
-Until then, Linked Accounts shows "Not set up in this build", and manual accounts
-work as usual.
+The Flutter app uses the same Firebase project, **`bujit-89ac6`**.
 
 ### 1. Connect the app to Firebase
-- [ ] Install the FlutterFire command-line tool, if you haven't:
-      `dart pub global activate flutterfire_cli` (needs the
-      [Firebase CLI](https://firebase.google.com/docs/cli) and `firebase login`).
-- [ ] In the project folder, run `flutterfire configure --project=bujit-89ac6`.
-  - Choose **android** and **ios**.
-  - For Android, pick the existing app `io.github.nishian3695.bujit`. The Java app
-    already registered it, and the Flutter app uses the same package name.
-  - For iOS, let it create the app (bundle ID `io.github.nishian3695.bujit`).
-
-  This writes `lib/firebase_options.dart`. It may also add `google-services.json`
-  and a Gradle plugin; both are fine.
-- [ ] In [lib/config/firebase_config.dart](lib/config/firebase_config.dart):
-  1. add `import '../firebase_options.dart';`;
-  2. change the function to
-     `FirebaseOptions? firebaseOptions() => DefaultFirebaseOptions.currentPlatform;`.
-- [ ] Choose whether to commit `lib/firebase_options.dart`. Its keys identify the
-      app and aren't secret, but the Java repo kept `google-services.json` out of
-      git. If you add it to `.gitignore`, each machine has to run
-      `flutterfire configure`.
+**Done:** [lib/firebase_options.dart](lib/firebase_options.dart) has the Android
+app's settings (from the Java app's `google-services.json`, the same Firebase app)
+and the iOS app's (from its `GoogleService-Info.plist`).
 - [ ] Firebase console → **Authentication → Sign-in method**: make sure
       **Anonymous** is enabled (the Java app uses it too).
 
