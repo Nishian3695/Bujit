@@ -22,4 +22,5 @@ class IncomeStreamModelRows extends Table {
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
   BoolColumn get isActive => boolean().withDefault(const Constant(false))();
+  TextColumn get googleTaskId => text().nullable()(); // Its Google Task once synced
 }

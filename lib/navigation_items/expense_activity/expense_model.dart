@@ -16,6 +16,8 @@ class ExpenseModel extends ExpenseItem {
         super.category = otherCategory,
         super.currentDueDate,
         super.endDate,
+        super.googleTaskId,
+        super.remindInTasks,
     });
 
     // Getters

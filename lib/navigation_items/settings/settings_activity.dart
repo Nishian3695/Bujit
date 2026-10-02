@@ -1,6 +1,6 @@
 // Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app.
-// So far: the Next Check setting, single-event expiry, CSV import and its
-// template, and resetting to the tutorial's sample data.
+// So far: the Next Check setting, single-event expiry, Google Tasks sync, CSV
+// import and its template, and resetting to the tutorial's sample data.
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +9,7 @@ import '../../app_state.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
 import 'csv_import_helper.dart';
+import 'google_tasks_helper.dart';
 
 class SettingsActivity extends StatefulWidget {
     final AppState state;
@@ -84,6 +85,78 @@ class _SettingsActivityState extends State<SettingsActivity> {
         await widget.state.changed();
     }
 
+    bool _connectingTasks = false;
+
+    // Turning sync on signs in to Google (the account picker and permission
+    // screen); turning it off asks whether to remove the tasks Bujit added.
+    Future<void> _toggleTasks(bool enable) async {
+        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        if (enable) {
+            setState(() => _connectingTasks = true);
+            try {
+                if (await widget.state.connectTasks()) {
+                    messenger.showSnackBar(const SnackBar(content: Text("Connected to Google Tasks")));
+                }
+            } on TasksAuthException catch (e) {
+                messenger.showSnackBar(SnackBar(content: Text(e.message)));
+            } finally {
+                if (mounted) setState(() => _connectingTasks = false);
+            }
+            return;
+        }
+        final bool? removeTasks = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: const Text("Stop syncing to Google Tasks?"),
+                content: const Text("Remove the tasks Bujit added to your \"Bujit\" list, or keep them?"),
+                actions: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Keep tasks")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Remove tasks")),
+                ],
+            ),
+        );
+        if (removeTasks == null) return;
+        await widget.state.disconnectTasks(removeTasks: removeTasks);
+    }
+
+    // The Google Tasks switch, its status, and Sync now. Rebuilt as syncs run.
+    Widget _googleTasksSection() {
+        return ListenableBuilder(
+            listenable: widget.state,
+            builder: (context, _) {
+                final AppState state = widget.state;
+                final bool configured = state.tasks?.account.isConfigured ?? false;
+                final bool on = state.data.tasksSyncEnabled;
+                final TasksSyncResult? last = state.lastTasksSync;
+                final String status = !configured
+                    ? "Not set up in this build"
+                    : !on
+                        ? "Add expenses, cards and paychecks to a \"Bujit\" list, with reminders on due dates"
+                        : [
+                            "Connected as ${state.data.tasksAccount ?? "your Google account"}",
+                            if (state.tasksSyncing) "Syncing…" else if (last != null) last.summary(),
+                        ].join("\n");
+                return Column(
+                    children: [
+                        SwitchListTile(
+                            title: const Text("Sync to Google Tasks"),
+                            subtitle: Text(status),
+                            value: on,
+                            onChanged: configured && !_connectingTasks ? _toggleTasks : null,
+                        ),
+                        if (on && configured)
+                            ListTile(
+                                title: const Text("Sync now"),
+                                enabled: !state.tasksSyncing,
+                                onTap: () => state.syncTasks(),
+                            ),
+                    ],
+                );
+            },
+        );
+    }
+
     Future<void> _resetToSampleData() async {
         final bool? confirmed = await showDialog<bool>(
             context: context,
@@ -127,6 +200,8 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         subtitle: Text("${widget.state.data.singleEventExpiryDays} days since they were last changed"),
                         onTap: _editExpiryDays,
                     ),
+                    const Divider(),
+                    _googleTasksSection(),
                     const Divider(),
                     TutorialTarget(
                         id: "import_csv",

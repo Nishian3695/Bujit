@@ -139,6 +139,32 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _googleTaskIdMeta = const VerificationMeta(
+    'googleTaskId',
+  );
+  @override
+  late final GeneratedColumn<String> googleTaskId = GeneratedColumn<String>(
+    'google_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remindInTasksMeta = const VerificationMeta(
+    'remindInTasks',
+  );
+  @override
+  late final GeneratedColumn<bool> remindInTasks = GeneratedColumn<bool>(
+    'remind_in_tasks',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("remind_in_tasks" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -152,6 +178,8 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     category,
     isCredit,
     creditLimit,
+    googleTaskId,
+    remindInTasks,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -238,6 +266,24 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         ),
       );
     }
+    if (data.containsKey('google_task_id')) {
+      context.handle(
+        _googleTaskIdMeta,
+        googleTaskId.isAcceptableOrUnknown(
+          data['google_task_id']!,
+          _googleTaskIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remind_in_tasks')) {
+      context.handle(
+        _remindInTasksMeta,
+        remindInTasks.isAcceptableOrUnknown(
+          data['remind_in_tasks']!,
+          _remindInTasksMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -293,6 +339,14 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         DriftSqlType.double,
         data['${effectivePrefix}credit_limit'],
       ),
+      googleTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}google_task_id'],
+      ),
+      remindInTasks: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}remind_in_tasks'],
+      )!,
     );
   }
 
@@ -319,6 +373,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final String category;
   final bool isCredit;
   final double? creditLimit;
+  final String? googleTaskId;
+  final bool remindInTasks;
   const ExpenseItemRow({
     required this.id,
     required this.name,
@@ -331,6 +387,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     required this.category,
     required this.isCredit,
     this.creditLimit,
+    this.googleTaskId,
+    required this.remindInTasks,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -354,6 +412,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     if (!nullToAbsent || creditLimit != null) {
       map['credit_limit'] = Variable<double>(creditLimit);
     }
+    if (!nullToAbsent || googleTaskId != null) {
+      map['google_task_id'] = Variable<String>(googleTaskId);
+    }
+    map['remind_in_tasks'] = Variable<bool>(remindInTasks);
     return map;
   }
 
@@ -374,6 +436,10 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       creditLimit: creditLimit == null && nullToAbsent
           ? const Value.absent()
           : Value(creditLimit),
+      googleTaskId: googleTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googleTaskId),
+      remindInTasks: Value(remindInTasks),
     );
   }
 
@@ -396,6 +462,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       category: serializer.fromJson<String>(json['category']),
       isCredit: serializer.fromJson<bool>(json['isCredit']),
       creditLimit: serializer.fromJson<double?>(json['creditLimit']),
+      googleTaskId: serializer.fromJson<String?>(json['googleTaskId']),
+      remindInTasks: serializer.fromJson<bool>(json['remindInTasks']),
     );
   }
   @override
@@ -415,6 +483,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       'category': serializer.toJson<String>(category),
       'isCredit': serializer.toJson<bool>(isCredit),
       'creditLimit': serializer.toJson<double?>(creditLimit),
+      'googleTaskId': serializer.toJson<String?>(googleTaskId),
+      'remindInTasks': serializer.toJson<bool>(remindInTasks),
     };
   }
 
@@ -430,6 +500,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     String? category,
     bool? isCredit,
     Value<double?> creditLimit = const Value.absent(),
+    Value<String?> googleTaskId = const Value.absent(),
+    bool? remindInTasks,
   }) => ExpenseItemRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -442,6 +514,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     category: category ?? this.category,
     isCredit: isCredit ?? this.isCredit,
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
+    googleTaskId: googleTaskId.present ? googleTaskId.value : this.googleTaskId,
+    remindInTasks: remindInTasks ?? this.remindInTasks,
   );
   ExpenseItemRow copyWithCompanion(ExpenseItemRowsCompanion data) {
     return ExpenseItemRow(
@@ -462,6 +536,12 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       creditLimit: data.creditLimit.present
           ? data.creditLimit.value
           : this.creditLimit,
+      googleTaskId: data.googleTaskId.present
+          ? data.googleTaskId.value
+          : this.googleTaskId,
+      remindInTasks: data.remindInTasks.present
+          ? data.remindInTasks.value
+          : this.remindInTasks,
     );
   }
 
@@ -478,7 +558,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
-          ..write('creditLimit: $creditLimit')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('googleTaskId: $googleTaskId, ')
+          ..write('remindInTasks: $remindInTasks')
           ..write(')'))
         .toString();
   }
@@ -496,6 +578,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     category,
     isCredit,
     creditLimit,
+    googleTaskId,
+    remindInTasks,
   );
   @override
   bool operator ==(Object other) =>
@@ -511,7 +595,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.frequencyUnits == this.frequencyUnits &&
           other.category == this.category &&
           other.isCredit == this.isCredit &&
-          other.creditLimit == this.creditLimit);
+          other.creditLimit == this.creditLimit &&
+          other.googleTaskId == this.googleTaskId &&
+          other.remindInTasks == this.remindInTasks);
 }
 
 class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
@@ -526,6 +612,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<String> category;
   final Value<bool> isCredit;
   final Value<double?> creditLimit;
+  final Value<String?> googleTaskId;
+  final Value<bool> remindInTasks;
   const ExpenseItemRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -538,6 +626,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
+    this.googleTaskId = const Value.absent(),
+    this.remindInTasks = const Value.absent(),
   });
   ExpenseItemRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -551,6 +641,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
+    this.googleTaskId = const Value.absent(),
+    this.remindInTasks = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        startDate = Value(startDate),
@@ -569,6 +661,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<String>? category,
     Expression<bool>? isCredit,
     Expression<double>? creditLimit,
+    Expression<String>? googleTaskId,
+    Expression<bool>? remindInTasks,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -582,6 +676,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (category != null) 'category': category,
       if (isCredit != null) 'is_credit': isCredit,
       if (creditLimit != null) 'credit_limit': creditLimit,
+      if (googleTaskId != null) 'google_task_id': googleTaskId,
+      if (remindInTasks != null) 'remind_in_tasks': remindInTasks,
     });
   }
 
@@ -597,6 +693,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<String>? category,
     Value<bool>? isCredit,
     Value<double?>? creditLimit,
+    Value<String?>? googleTaskId,
+    Value<bool>? remindInTasks,
   }) {
     return ExpenseItemRowsCompanion(
       id: id ?? this.id,
@@ -610,6 +708,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       category: category ?? this.category,
       isCredit: isCredit ?? this.isCredit,
       creditLimit: creditLimit ?? this.creditLimit,
+      googleTaskId: googleTaskId ?? this.googleTaskId,
+      remindInTasks: remindInTasks ?? this.remindInTasks,
     );
   }
 
@@ -653,6 +753,12 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     if (creditLimit.present) {
       map['credit_limit'] = Variable<double>(creditLimit.value);
     }
+    if (googleTaskId.present) {
+      map['google_task_id'] = Variable<String>(googleTaskId.value);
+    }
+    if (remindInTasks.present) {
+      map['remind_in_tasks'] = Variable<bool>(remindInTasks.value);
+    }
     return map;
   }
 
@@ -669,7 +775,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
-          ..write('creditLimit: $creditLimit')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('googleTaskId: $googleTaskId, ')
+          ..write('remindInTasks: $remindInTasks')
           ..write(')'))
         .toString();
   }
@@ -765,6 +873,17 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _googleTaskIdMeta = const VerificationMeta(
+    'googleTaskId',
+  );
+  @override
+  late final GeneratedColumn<String> googleTaskId = GeneratedColumn<String>(
+    'google_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -774,6 +893,7 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     frequency,
     frequencyUnits,
     isActive,
+    googleTaskId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -828,6 +948,15 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('google_task_id')) {
+      context.handle(
+        _googleTaskIdMeta,
+        googleTaskId.isAcceptableOrUnknown(
+          data['google_task_id']!,
+          _googleTaskIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -868,6 +997,10 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      googleTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}google_task_id'],
+      ),
     );
   }
 
@@ -891,6 +1024,7 @@ class IncomeStreamModelRow extends DataClass
   final int frequency;
   final FrequencyUnit frequencyUnits;
   final bool isActive;
+  final String? googleTaskId;
   const IncomeStreamModelRow({
     required this.id,
     required this.name,
@@ -899,6 +1033,7 @@ class IncomeStreamModelRow extends DataClass
     required this.frequency,
     required this.frequencyUnits,
     required this.isActive,
+    this.googleTaskId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -916,6 +1051,9 @@ class IncomeStreamModelRow extends DataClass
       );
     }
     map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || googleTaskId != null) {
+      map['google_task_id'] = Variable<String>(googleTaskId);
+    }
     return map;
   }
 
@@ -928,6 +1066,9 @@ class IncomeStreamModelRow extends DataClass
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
       isActive: Value(isActive),
+      googleTaskId: googleTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googleTaskId),
     );
   }
 
@@ -945,6 +1086,7 @@ class IncomeStreamModelRow extends DataClass
       frequencyUnits: $IncomeStreamModelRowsTable.$converterfrequencyUnits
           .fromJson(serializer.fromJson<String>(json['frequencyUnits'])),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      googleTaskId: serializer.fromJson<String?>(json['googleTaskId']),
     );
   }
   @override
@@ -962,6 +1104,7 @@ class IncomeStreamModelRow extends DataClass
         ),
       ),
       'isActive': serializer.toJson<bool>(isActive),
+      'googleTaskId': serializer.toJson<String?>(googleTaskId),
     };
   }
 
@@ -973,6 +1116,7 @@ class IncomeStreamModelRow extends DataClass
     int? frequency,
     FrequencyUnit? frequencyUnits,
     bool? isActive,
+    Value<String?> googleTaskId = const Value.absent(),
   }) => IncomeStreamModelRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -981,6 +1125,7 @@ class IncomeStreamModelRow extends DataClass
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     isActive: isActive ?? this.isActive,
+    googleTaskId: googleTaskId.present ? googleTaskId.value : this.googleTaskId,
   );
   IncomeStreamModelRow copyWithCompanion(IncomeStreamModelRowsCompanion data) {
     return IncomeStreamModelRow(
@@ -993,6 +1138,9 @@ class IncomeStreamModelRow extends DataClass
           ? data.frequencyUnits.value
           : this.frequencyUnits,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      googleTaskId: data.googleTaskId.present
+          ? data.googleTaskId.value
+          : this.googleTaskId,
     );
   }
 
@@ -1005,7 +1153,8 @@ class IncomeStreamModelRow extends DataClass
           ..write('startDate: $startDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('googleTaskId: $googleTaskId')
           ..write(')'))
         .toString();
   }
@@ -1019,6 +1168,7 @@ class IncomeStreamModelRow extends DataClass
     frequency,
     frequencyUnits,
     isActive,
+    googleTaskId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1030,7 +1180,8 @@ class IncomeStreamModelRow extends DataClass
           other.startDate == this.startDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
-          other.isActive == this.isActive);
+          other.isActive == this.isActive &&
+          other.googleTaskId == this.googleTaskId);
 }
 
 class IncomeStreamModelRowsCompanion
@@ -1042,6 +1193,7 @@ class IncomeStreamModelRowsCompanion
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
   final Value<bool> isActive;
+  final Value<String?> googleTaskId;
   const IncomeStreamModelRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -1050,6 +1202,7 @@ class IncomeStreamModelRowsCompanion
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.googleTaskId = const Value.absent(),
   });
   IncomeStreamModelRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -1059,6 +1212,7 @@ class IncomeStreamModelRowsCompanion
     required int frequency,
     required FrequencyUnit frequencyUnits,
     this.isActive = const Value.absent(),
+    this.googleTaskId = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        startDate = Value(startDate),
@@ -1072,6 +1226,7 @@ class IncomeStreamModelRowsCompanion
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
     Expression<bool>? isActive,
+    Expression<String>? googleTaskId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1081,6 +1236,7 @@ class IncomeStreamModelRowsCompanion
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (isActive != null) 'is_active': isActive,
+      if (googleTaskId != null) 'google_task_id': googleTaskId,
     });
   }
 
@@ -1092,6 +1248,7 @@ class IncomeStreamModelRowsCompanion
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
     Value<bool>? isActive,
+    Value<String?>? googleTaskId,
   }) {
     return IncomeStreamModelRowsCompanion(
       id: id ?? this.id,
@@ -1101,6 +1258,7 @@ class IncomeStreamModelRowsCompanion
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       isActive: isActive ?? this.isActive,
+      googleTaskId: googleTaskId ?? this.googleTaskId,
     );
   }
 
@@ -1132,6 +1290,9 @@ class IncomeStreamModelRowsCompanion
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (googleTaskId.present) {
+      map['google_task_id'] = Variable<String>(googleTaskId.value);
+    }
     return map;
   }
 
@@ -1144,7 +1305,8 @@ class IncomeStreamModelRowsCompanion
           ..write('startDate: $startDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('googleTaskId: $googleTaskId')
           ..write(')'))
         .toString();
   }
@@ -1435,6 +1597,43 @@ class $AppMetaRowsTable extends AppMetaRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _tasksSyncEnabledMeta = const VerificationMeta(
+    'tasksSyncEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> tasksSyncEnabled = GeneratedColumn<bool>(
+    'tasks_sync_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("tasks_sync_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _tasksListIdMeta = const VerificationMeta(
+    'tasksListId',
+  );
+  @override
+  late final GeneratedColumn<String> tasksListId = GeneratedColumn<String>(
+    'tasks_list_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tasksAccountMeta = const VerificationMeta(
+    'tasksAccount',
+  );
+  @override
+  late final GeneratedColumn<String> tasksAccount = GeneratedColumn<String>(
+    'tasks_account',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1444,6 +1643,9 @@ class $AppMetaRowsTable extends AppMetaRows
     singleEventExpiryDays,
     tutorialStep,
     tutorialSeen,
+    tasksSyncEnabled,
+    tasksListId,
+    tasksAccount,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1516,6 +1718,33 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('tasks_sync_enabled')) {
+      context.handle(
+        _tasksSyncEnabledMeta,
+        tasksSyncEnabled.isAcceptableOrUnknown(
+          data['tasks_sync_enabled']!,
+          _tasksSyncEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tasks_list_id')) {
+      context.handle(
+        _tasksListIdMeta,
+        tasksListId.isAcceptableOrUnknown(
+          data['tasks_list_id']!,
+          _tasksListIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tasks_account')) {
+      context.handle(
+        _tasksAccountMeta,
+        tasksAccount.isAcceptableOrUnknown(
+          data['tasks_account']!,
+          _tasksAccountMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1553,6 +1782,18 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.bool,
         data['${effectivePrefix}tutorial_seen'],
       )!,
+      tasksSyncEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}tasks_sync_enabled'],
+      )!,
+      tasksListId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tasks_list_id'],
+      ),
+      tasksAccount: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tasks_account'],
+      ),
     );
   }
 
@@ -1570,6 +1811,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final int singleEventExpiryDays;
   final int tutorialStep;
   final bool tutorialSeen;
+  final bool tasksSyncEnabled;
+  final String? tasksListId;
+  final String? tasksAccount;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
@@ -1578,6 +1822,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.singleEventExpiryDays,
     required this.tutorialStep,
     required this.tutorialSeen,
+    required this.tasksSyncEnabled,
+    this.tasksListId,
+    this.tasksAccount,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1589,6 +1836,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['single_event_expiry_days'] = Variable<int>(singleEventExpiryDays);
     map['tutorial_step'] = Variable<int>(tutorialStep);
     map['tutorial_seen'] = Variable<bool>(tutorialSeen);
+    map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled);
+    if (!nullToAbsent || tasksListId != null) {
+      map['tasks_list_id'] = Variable<String>(tasksListId);
+    }
+    if (!nullToAbsent || tasksAccount != null) {
+      map['tasks_account'] = Variable<String>(tasksAccount);
+    }
     return map;
   }
 
@@ -1601,6 +1855,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       singleEventExpiryDays: Value(singleEventExpiryDays),
       tutorialStep: Value(tutorialStep),
       tutorialSeen: Value(tutorialSeen),
+      tasksSyncEnabled: Value(tasksSyncEnabled),
+      tasksListId: tasksListId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tasksListId),
+      tasksAccount: tasksAccount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tasksAccount),
     );
   }
 
@@ -1619,6 +1880,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       ),
       tutorialStep: serializer.fromJson<int>(json['tutorialStep']),
       tutorialSeen: serializer.fromJson<bool>(json['tutorialSeen']),
+      tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
+      tasksListId: serializer.fromJson<String?>(json['tasksListId']),
+      tasksAccount: serializer.fromJson<String?>(json['tasksAccount']),
     );
   }
   @override
@@ -1632,6 +1896,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'singleEventExpiryDays': serializer.toJson<int>(singleEventExpiryDays),
       'tutorialStep': serializer.toJson<int>(tutorialStep),
       'tutorialSeen': serializer.toJson<bool>(tutorialSeen),
+      'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
+      'tasksListId': serializer.toJson<String?>(tasksListId),
+      'tasksAccount': serializer.toJson<String?>(tasksAccount),
     };
   }
 
@@ -1643,6 +1910,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     int? singleEventExpiryDays,
     int? tutorialStep,
     bool? tutorialSeen,
+    bool? tasksSyncEnabled,
+    Value<String?> tasksListId = const Value.absent(),
+    Value<String?> tasksAccount = const Value.absent(),
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
@@ -1651,6 +1921,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     singleEventExpiryDays: singleEventExpiryDays ?? this.singleEventExpiryDays,
     tutorialStep: tutorialStep ?? this.tutorialStep,
     tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+    tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
+    tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
+    tasksAccount: tasksAccount.present ? tasksAccount.value : this.tasksAccount,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -1673,6 +1946,15 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: data.tutorialSeen.present
           ? data.tutorialSeen.value
           : this.tutorialSeen,
+      tasksSyncEnabled: data.tasksSyncEnabled.present
+          ? data.tasksSyncEnabled.value
+          : this.tasksSyncEnabled,
+      tasksListId: data.tasksListId.present
+          ? data.tasksListId.value
+          : this.tasksListId,
+      tasksAccount: data.tasksAccount.present
+          ? data.tasksAccount.value
+          : this.tasksAccount,
     );
   }
 
@@ -1685,7 +1967,10 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('includeNextCheck: $includeNextCheck, ')
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
           ..write('tutorialStep: $tutorialStep, ')
-          ..write('tutorialSeen: $tutorialSeen')
+          ..write('tutorialSeen: $tutorialSeen, ')
+          ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
+          ..write('tasksListId: $tasksListId, ')
+          ..write('tasksAccount: $tasksAccount')
           ..write(')'))
         .toString();
   }
@@ -1699,6 +1984,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     singleEventExpiryDays,
     tutorialStep,
     tutorialSeen,
+    tasksSyncEnabled,
+    tasksListId,
+    tasksAccount,
   );
   @override
   bool operator ==(Object other) =>
@@ -1710,7 +1998,10 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.includeNextCheck == this.includeNextCheck &&
           other.singleEventExpiryDays == this.singleEventExpiryDays &&
           other.tutorialStep == this.tutorialStep &&
-          other.tutorialSeen == this.tutorialSeen);
+          other.tutorialSeen == this.tutorialSeen &&
+          other.tasksSyncEnabled == this.tasksSyncEnabled &&
+          other.tasksListId == this.tasksListId &&
+          other.tasksAccount == this.tasksAccount);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
@@ -1721,6 +2012,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<int> singleEventExpiryDays;
   final Value<int> tutorialStep;
   final Value<bool> tutorialSeen;
+  final Value<bool> tasksSyncEnabled;
+  final Value<String?> tasksListId;
+  final Value<String?> tasksAccount;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
@@ -1729,6 +2023,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.singleEventExpiryDays = const Value.absent(),
     this.tutorialStep = const Value.absent(),
     this.tutorialSeen = const Value.absent(),
+    this.tasksSyncEnabled = const Value.absent(),
+    this.tasksListId = const Value.absent(),
+    this.tasksAccount = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -1738,6 +2035,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.singleEventExpiryDays = const Value.absent(),
     this.tutorialStep = const Value.absent(),
     this.tutorialSeen = const Value.absent(),
+    this.tasksSyncEnabled = const Value.absent(),
+    this.tasksListId = const Value.absent(),
+    this.tasksAccount = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
@@ -1747,6 +2047,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<int>? singleEventExpiryDays,
     Expression<int>? tutorialStep,
     Expression<bool>? tutorialSeen,
+    Expression<bool>? tasksSyncEnabled,
+    Expression<String>? tasksListId,
+    Expression<String>? tasksAccount,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1757,6 +2060,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
         'single_event_expiry_days': singleEventExpiryDays,
       if (tutorialStep != null) 'tutorial_step': tutorialStep,
       if (tutorialSeen != null) 'tutorial_seen': tutorialSeen,
+      if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
+      if (tasksListId != null) 'tasks_list_id': tasksListId,
+      if (tasksAccount != null) 'tasks_account': tasksAccount,
     });
   }
 
@@ -1768,6 +2074,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<int>? singleEventExpiryDays,
     Value<int>? tutorialStep,
     Value<bool>? tutorialSeen,
+    Value<bool>? tasksSyncEnabled,
+    Value<String?>? tasksListId,
+    Value<String?>? tasksAccount,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
@@ -1778,6 +2087,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           singleEventExpiryDays ?? this.singleEventExpiryDays,
       tutorialStep: tutorialStep ?? this.tutorialStep,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+      tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
+      tasksListId: tasksListId ?? this.tasksListId,
+      tasksAccount: tasksAccount ?? this.tasksAccount,
     );
   }
 
@@ -1807,6 +2119,15 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (tutorialSeen.present) {
       map['tutorial_seen'] = Variable<bool>(tutorialSeen.value);
     }
+    if (tasksSyncEnabled.present) {
+      map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled.value);
+    }
+    if (tasksListId.present) {
+      map['tasks_list_id'] = Variable<String>(tasksListId.value);
+    }
+    if (tasksAccount.present) {
+      map['tasks_account'] = Variable<String>(tasksAccount.value);
+    }
     return map;
   }
 
@@ -1819,7 +2140,10 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('includeNextCheck: $includeNextCheck, ')
           ..write('singleEventExpiryDays: $singleEventExpiryDays, ')
           ..write('tutorialStep: $tutorialStep, ')
-          ..write('tutorialSeen: $tutorialSeen')
+          ..write('tutorialSeen: $tutorialSeen, ')
+          ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
+          ..write('tasksListId: $tasksListId, ')
+          ..write('tasksAccount: $tasksAccount')
           ..write(')'))
         .toString();
   }
@@ -2712,6 +3036,214 @@ class PeriodSnapshotRowsCompanion extends UpdateCompanion<PeriodSnapshotRow> {
   }
 }
 
+class $SyncedTaskRowsTable extends SyncedTaskRows
+    with TableInfo<$SyncedTaskRowsTable, SyncedTaskRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncedTaskRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [taskId, body];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'synced_task_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncedTaskRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {taskId};
+  @override
+  SyncedTaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncedTaskRow(
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncedTaskRowsTable createAlias(String alias) {
+    return $SyncedTaskRowsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncedTaskRow extends DataClass implements Insertable<SyncedTaskRow> {
+  final String taskId;
+  final String body;
+  const SyncedTaskRow({required this.taskId, required this.body});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['task_id'] = Variable<String>(taskId);
+    map['body'] = Variable<String>(body);
+    return map;
+  }
+
+  SyncedTaskRowsCompanion toCompanion(bool nullToAbsent) {
+    return SyncedTaskRowsCompanion(taskId: Value(taskId), body: Value(body));
+  }
+
+  factory SyncedTaskRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncedTaskRow(
+      taskId: serializer.fromJson<String>(json['taskId']),
+      body: serializer.fromJson<String>(json['body']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'taskId': serializer.toJson<String>(taskId),
+      'body': serializer.toJson<String>(body),
+    };
+  }
+
+  SyncedTaskRow copyWith({String? taskId, String? body}) =>
+      SyncedTaskRow(taskId: taskId ?? this.taskId, body: body ?? this.body);
+  SyncedTaskRow copyWithCompanion(SyncedTaskRowsCompanion data) {
+    return SyncedTaskRow(
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      body: data.body.present ? data.body.value : this.body,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncedTaskRow(')
+          ..write('taskId: $taskId, ')
+          ..write('body: $body')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(taskId, body);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncedTaskRow &&
+          other.taskId == this.taskId &&
+          other.body == this.body);
+}
+
+class SyncedTaskRowsCompanion extends UpdateCompanion<SyncedTaskRow> {
+  final Value<String> taskId;
+  final Value<String> body;
+  final Value<int> rowid;
+  const SyncedTaskRowsCompanion({
+    this.taskId = const Value.absent(),
+    this.body = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncedTaskRowsCompanion.insert({
+    required String taskId,
+    required String body,
+    this.rowid = const Value.absent(),
+  }) : taskId = Value(taskId),
+       body = Value(body);
+  static Insertable<SyncedTaskRow> custom({
+    Expression<String>? taskId,
+    Expression<String>? body,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (taskId != null) 'task_id': taskId,
+      if (body != null) 'body': body,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncedTaskRowsCompanion copyWith({
+    Value<String>? taskId,
+    Value<String>? body,
+    Value<int>? rowid,
+  }) {
+    return SyncedTaskRowsCompanion(
+      taskId: taskId ?? this.taskId,
+      body: body ?? this.body,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncedTaskRowsCompanion(')
+          ..write('taskId: $taskId, ')
+          ..write('body: $body, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2727,6 +3259,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $PeriodSnapshotRowsTable periodSnapshotRows =
       $PeriodSnapshotRowsTable(this);
+  late final $SyncedTaskRowsTable syncedTaskRows = $SyncedTaskRowsTable(this);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2739,6 +3272,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     appMetaRows,
     singleEventRows,
     periodSnapshotRows,
+    syncedTaskRows,
   ];
 }
 
@@ -2755,6 +3289,8 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       Value<String> category,
       Value<bool> isCredit,
       Value<double?> creditLimit,
+      Value<String?> googleTaskId,
+      Value<bool> remindInTasks,
     });
 typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
     ExpenseItemRowsCompanion Function({
@@ -2769,6 +3305,8 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<String> category,
       Value<bool> isCredit,
       Value<double?> creditLimit,
+      Value<String?> googleTaskId,
+      Value<bool> remindInTasks,
     });
 
 class $$ExpenseItemRowsTableFilterComposer
@@ -2833,6 +3371,16 @@ class $$ExpenseItemRowsTableFilterComposer
 
   ColumnFilters<double> get creditLimit => $composableBuilder(
     column: $table.creditLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get remindInTasks => $composableBuilder(
+    column: $table.remindInTasks,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2900,6 +3448,16 @@ class $$ExpenseItemRowsTableOrderingComposer
     column: $table.creditLimit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get remindInTasks => $composableBuilder(
+    column: $table.remindInTasks,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpenseItemRowsTableAnnotationComposer
@@ -2948,6 +3506,16 @@ class $$ExpenseItemRowsTableAnnotationComposer
 
   GeneratedColumn<double> get creditLimit => $composableBuilder(
     column: $table.creditLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get remindInTasks => $composableBuilder(
+    column: $table.remindInTasks,
     builder: (column) => column,
   );
 }
@@ -3000,6 +3568,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<String> category = const Value.absent(),
                 Value<bool> isCredit = const Value.absent(),
                 Value<double?> creditLimit = const Value.absent(),
+                Value<String?> googleTaskId = const Value.absent(),
+                Value<bool> remindInTasks = const Value.absent(),
               }) => ExpenseItemRowsCompanion(
                 id: id,
                 name: name,
@@ -3012,6 +3582,8 @@ class $$ExpenseItemRowsTableTableManager
                 category: category,
                 isCredit: isCredit,
                 creditLimit: creditLimit,
+                googleTaskId: googleTaskId,
+                remindInTasks: remindInTasks,
               ),
           createCompanionCallback:
               ({
@@ -3026,6 +3598,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<String> category = const Value.absent(),
                 Value<bool> isCredit = const Value.absent(),
                 Value<double?> creditLimit = const Value.absent(),
+                Value<String?> googleTaskId = const Value.absent(),
+                Value<bool> remindInTasks = const Value.absent(),
               }) => ExpenseItemRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -3038,6 +3612,8 @@ class $$ExpenseItemRowsTableTableManager
                 category: category,
                 isCredit: isCredit,
                 creditLimit: creditLimit,
+                googleTaskId: googleTaskId,
+                remindInTasks: remindInTasks,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3073,6 +3649,7 @@ typedef $$IncomeStreamModelRowsTableCreateCompanionBuilder =
       required int frequency,
       required FrequencyUnit frequencyUnits,
       Value<bool> isActive,
+      Value<String?> googleTaskId,
     });
 typedef $$IncomeStreamModelRowsTableUpdateCompanionBuilder =
     IncomeStreamModelRowsCompanion Function({
@@ -3083,6 +3660,7 @@ typedef $$IncomeStreamModelRowsTableUpdateCompanionBuilder =
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
       Value<bool> isActive,
+      Value<String?> googleTaskId,
     });
 
 class $$IncomeStreamModelRowsTableFilterComposer
@@ -3127,6 +3705,11 @@ class $$IncomeStreamModelRowsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3174,6 +3757,11 @@ class $$IncomeStreamModelRowsTableOrderingComposer
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$IncomeStreamModelRowsTableAnnotationComposer
@@ -3208,6 +3796,11 @@ class $$IncomeStreamModelRowsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get googleTaskId => $composableBuilder(
+    column: $table.googleTaskId,
+    builder: (column) => column,
+  );
 }
 
 class $$IncomeStreamModelRowsTableTableManager
@@ -3263,6 +3856,7 @@ class $$IncomeStreamModelRowsTableTableManager
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String?> googleTaskId = const Value.absent(),
               }) => IncomeStreamModelRowsCompanion(
                 id: id,
                 name: name,
@@ -3271,6 +3865,7 @@ class $$IncomeStreamModelRowsTableTableManager
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 isActive: isActive,
+                googleTaskId: googleTaskId,
               ),
           createCompanionCallback:
               ({
@@ -3281,6 +3876,7 @@ class $$IncomeStreamModelRowsTableTableManager
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
                 Value<bool> isActive = const Value.absent(),
+                Value<String?> googleTaskId = const Value.absent(),
               }) => IncomeStreamModelRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -3289,6 +3885,7 @@ class $$IncomeStreamModelRowsTableTableManager
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
                 isActive: isActive,
+                googleTaskId: googleTaskId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3451,6 +4048,9 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<int> singleEventExpiryDays,
       Value<int> tutorialStep,
       Value<bool> tutorialSeen,
+      Value<bool> tasksSyncEnabled,
+      Value<String?> tasksListId,
+      Value<String?> tasksAccount,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
@@ -3461,6 +4061,9 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<int> singleEventExpiryDays,
       Value<int> tutorialStep,
       Value<bool> tutorialSeen,
+      Value<bool> tasksSyncEnabled,
+      Value<String?> tasksListId,
+      Value<String?> tasksAccount,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -3504,6 +4107,21 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<bool> get tutorialSeen => $composableBuilder(
     column: $table.tutorialSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get tasksSyncEnabled => $composableBuilder(
+    column: $table.tasksSyncEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tasksListId => $composableBuilder(
+    column: $table.tasksListId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tasksAccount => $composableBuilder(
+    column: $table.tasksAccount,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3551,6 +4169,21 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.tutorialSeen,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get tasksSyncEnabled => $composableBuilder(
+    column: $table.tasksSyncEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tasksListId => $composableBuilder(
+    column: $table.tasksListId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tasksAccount => $composableBuilder(
+    column: $table.tasksAccount,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -3594,6 +4227,21 @@ class $$AppMetaRowsTableAnnotationComposer
     column: $table.tutorialSeen,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get tasksSyncEnabled => $composableBuilder(
+    column: $table.tasksSyncEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tasksListId => $composableBuilder(
+    column: $table.tasksListId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tasksAccount => $composableBuilder(
+    column: $table.tasksAccount,
+    builder: (column) => column,
+  );
 }
 
 class $$AppMetaRowsTableTableManager
@@ -3634,6 +4282,9 @@ class $$AppMetaRowsTableTableManager
                 Value<int> singleEventExpiryDays = const Value.absent(),
                 Value<int> tutorialStep = const Value.absent(),
                 Value<bool> tutorialSeen = const Value.absent(),
+                Value<bool> tasksSyncEnabled = const Value.absent(),
+                Value<String?> tasksListId = const Value.absent(),
+                Value<String?> tasksAccount = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
@@ -3642,6 +4293,9 @@ class $$AppMetaRowsTableTableManager
                 singleEventExpiryDays: singleEventExpiryDays,
                 tutorialStep: tutorialStep,
                 tutorialSeen: tutorialSeen,
+                tasksSyncEnabled: tasksSyncEnabled,
+                tasksListId: tasksListId,
+                tasksAccount: tasksAccount,
               ),
           createCompanionCallback:
               ({
@@ -3652,6 +4306,9 @@ class $$AppMetaRowsTableTableManager
                 Value<int> singleEventExpiryDays = const Value.absent(),
                 Value<int> tutorialStep = const Value.absent(),
                 Value<bool> tutorialSeen = const Value.absent(),
+                Value<bool> tasksSyncEnabled = const Value.absent(),
+                Value<String?> tasksListId = const Value.absent(),
+                Value<String?> tasksAccount = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
@@ -3660,6 +4317,9 @@ class $$AppMetaRowsTableTableManager
                 singleEventExpiryDays: singleEventExpiryDays,
                 tutorialStep: tutorialStep,
                 tutorialSeen: tutorialSeen,
+                tasksSyncEnabled: tasksSyncEnabled,
+                tasksListId: tasksListId,
+                tasksAccount: tasksAccount,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4163,6 +4823,151 @@ typedef $$PeriodSnapshotRowsTableProcessedTableManager =
       PeriodSnapshotRow,
       PrefetchHooks Function()
     >;
+typedef $$SyncedTaskRowsTableCreateCompanionBuilder =
+    SyncedTaskRowsCompanion Function({
+      required String taskId,
+      required String body,
+      Value<int> rowid,
+    });
+typedef $$SyncedTaskRowsTableUpdateCompanionBuilder =
+    SyncedTaskRowsCompanion Function({
+      Value<String> taskId,
+      Value<String> body,
+      Value<int> rowid,
+    });
+
+class $$SyncedTaskRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncedTaskRowsTable> {
+  $$SyncedTaskRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncedTaskRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncedTaskRowsTable> {
+  $$SyncedTaskRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncedTaskRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncedTaskRowsTable> {
+  $$SyncedTaskRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+}
+
+class $$SyncedTaskRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncedTaskRowsTable,
+          SyncedTaskRow,
+          $$SyncedTaskRowsTableFilterComposer,
+          $$SyncedTaskRowsTableOrderingComposer,
+          $$SyncedTaskRowsTableAnnotationComposer,
+          $$SyncedTaskRowsTableCreateCompanionBuilder,
+          $$SyncedTaskRowsTableUpdateCompanionBuilder,
+          (
+            SyncedTaskRow,
+            BaseReferences<_$AppDatabase, $SyncedTaskRowsTable, SyncedTaskRow>,
+          ),
+          SyncedTaskRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncedTaskRowsTableTableManager(
+    _$AppDatabase db,
+    $SyncedTaskRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncedTaskRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncedTaskRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncedTaskRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> taskId = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncedTaskRowsCompanion(
+                taskId: taskId,
+                body: body,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String taskId,
+                required String body,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncedTaskRowsCompanion.insert(
+                taskId: taskId,
+                body: body,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncedTaskRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncedTaskRowsTable,
+      SyncedTaskRow,
+      $$SyncedTaskRowsTableFilterComposer,
+      $$SyncedTaskRowsTableOrderingComposer,
+      $$SyncedTaskRowsTableAnnotationComposer,
+      $$SyncedTaskRowsTableCreateCompanionBuilder,
+      $$SyncedTaskRowsTableUpdateCompanionBuilder,
+      (
+        SyncedTaskRow,
+        BaseReferences<_$AppDatabase, $SyncedTaskRowsTable, SyncedTaskRow>,
+      ),
+      SyncedTaskRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4179,4 +4984,6 @@ class $AppDatabaseManager {
       $$SingleEventRowsTableTableManager(_db, _db.singleEventRows);
   $$PeriodSnapshotRowsTableTableManager get periodSnapshotRows =>
       $$PeriodSnapshotRowsTableTableManager(_db, _db.periodSnapshotRows);
+  $$SyncedTaskRowsTableTableManager get syncedTaskRows =>
+      $$SyncedTaskRowsTableTableManager(_db, _db.syncedTaskRows);
 }

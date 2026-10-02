@@ -94,6 +94,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         final ExpenseModel? expense = await showRecurringExpenseDialog(
             context,
             categories: _state.data.categories,
+            showTasksOption: _state.data.tasksSyncEnabled,
         );
         if (expense == null) return;
         expense.skipToNextDueDate();
@@ -116,6 +117,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 existing: item as ExpenseModel,
                 categories: _state.data.categories,
                 onDelete: delete,
+                showTasksOption: _state.data.tasksSyncEnabled,
             );
         if (edited == null) return;
         // A newly picked date in the past rolls forward without charging, as when adding.

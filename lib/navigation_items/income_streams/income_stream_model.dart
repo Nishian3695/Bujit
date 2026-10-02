@@ -14,6 +14,7 @@ class IncomeStreamModel {
     int frequency; // Frequency
     FrequencyUnit frequencyUnits; // Tag to track frequency
     bool isActive; // Whether this stream sets the pay periods (see BalanceModel)
+    String? googleTaskId; // Its task in Google Tasks, once synced (see GoogleTasksSync)
     double periodAmount = 0.00; // Amount for the check currently on screen
 
     IncomeStreamModel({
@@ -24,6 +25,7 @@ class IncomeStreamModel {
         required this.frequency,
         required this.frequencyUnits,
         this.isActive = false, // Default to inactive
+        this.googleTaskId,
     }) : startDate = dateOnly(startDate);
 
     // Built on demand so it always reflects the current startDate/frequency.
@@ -38,17 +40,7 @@ class IncomeStreamModel {
     // Methods
 
     // Human-readable string representation of the income stream
-    String displayString() {
-        String plurality = frequency > 1 ? 's' : '';
-        String displayBase = switch (frequencyUnits) {
-            FrequencyUnit.daily => 'day',
-            FrequencyUnit.weekly => 'week',
-            FrequencyUnit.biweekly => 'biweek',
-            FrequencyUnit.monthly => 'month',
-            FrequencyUnit.yearly => 'year',
-        };
-        return 'Every $frequency $displayBase$plurality';
-    }
+    String displayString() => describeFrequency(frequency, frequencyUnits);
 
     // Number of paydays from [from] through [to], both inclusive.
     int occurrencesBetween(DateTime from, DateTime to) {

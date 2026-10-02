@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
+import 'navigation_items/settings/google_tasks_helper.dart';
 import 'storage_management/app_data_store.dart';
 import 'tutorial/tutorial_manager.dart';
 import 'utils/sample_data.dart';
@@ -12,6 +13,9 @@ class AppState extends ChangeNotifier {
 
     final AppData data;
     final AppDataStore? _store; // null = nothing is saved (tests, or storage failed to open)
+
+    // Google Tasks sync; null = not available (tests, or storage failed to open).
+    GoogleTasksSync? tasks;
 
     AppState(this.data, [this._store]);
 
@@ -24,7 +28,7 @@ class AppState extends ChangeNotifier {
     // due and crediting paychecks that arrived, then saves the result. On the very
     // first launch there's nothing saved, so the tutorial's sample data is loaded
     // instead, as the Java app does.
-    static Future<AppState> open(AppDataStore store, {DateTime? today}) async {
+    static Future<AppState> open(AppDataStore store, {DateTime? today, GoogleTasksSync? tasks}) async {
         AppData? data = await store.load();
         if (data == null) {
             data = AppData(balance: BalanceModel(currentBalance: 0.00));
@@ -34,8 +38,9 @@ class AppState extends ChangeNotifier {
             // Expired single events leave the list; their effects stay (they happened).
             data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
         }
-        final AppState state = AppState(data, store);
+        final AppState state = AppState(data, store)..tasks = tasks;
         await state.save();
+        state.syncTasks(today: today); // Due dates may have moved on; runs in the background
         return state;
     }
 
@@ -54,7 +59,66 @@ class AppState extends ChangeNotifier {
     // Call after changing anything in [data]: rebuilds listening screens and saves.
     Future<void> changed() {
         notifyListeners();
+        syncTasks();
         return save();
+    }
+
+    // ── Google Tasks ────────────────────────────────────────────────────────
+
+    bool get canSyncTasks => tasks != null && data.tasksSyncEnabled;
+    bool tasksSyncing = false;
+    TasksSyncResult? lastTasksSync; // Shown in Settings
+    Future<void>? _tasksRun;
+    bool _tasksAgain = false;
+
+    // Brings Google Tasks up to date in the background. If a sync is running, one
+    // more runs after it (the data may have changed since it started). Completes
+    // when syncing is done; never throws.
+    Future<void> syncTasks({DateTime? today}) {
+        if (!canSyncTasks) return Future.value();
+        final Future<void>? running = _tasksRun;
+        if (running != null) {
+            _tasksAgain = true;
+            return running;
+        }
+        final Future<void> run = _runTasksSync(today).whenComplete(() => _tasksRun = null);
+        _tasksRun = run;
+        return run;
+    }
+
+    Future<void> _runTasksSync(DateTime? today) async {
+        tasksSyncing = true;
+        notifyListeners();
+        do {
+            _tasksAgain = false;
+            lastTasksSync = await tasks!.reconcile(data, today: today);
+            await save(); // Task ids (not changed(): that would sync again)
+        } while (_tasksAgain && canSyncTasks);
+        tasksSyncing = false;
+        notifyListeners();
+    }
+
+    // Signs in to Google and turns sync on (Settings). Returns false if the user
+    // cancelled; throws TasksAuthException if signing in failed.
+    Future<bool> connectTasks() async {
+        final GoogleTasksSync? sync = tasks;
+        if (sync == null) return false;
+        final String? email = await sync.account.connect();
+        if (email == null) return false;
+        data.tasksSyncEnabled = true;
+        data.tasksAccount = email;
+        await changed();
+        return true;
+    }
+
+    // Turns sync off and signs out; with [removeTasks], deletes Bujit's tasks first.
+    Future<void> disconnectTasks({required bool removeTasks}) async {
+        final GoogleTasksSync? sync = tasks;
+        if (sync == null) return;
+        await _tasksRun; // Let a running sync finish, so it can't recreate tasks after
+        await sync.disconnect(data, removeTasks: removeTasks);
+        lastTasksSync = null;
+        await changed();
     }
 
     // The tutorial step to show now, or null once it's finished or skipped.

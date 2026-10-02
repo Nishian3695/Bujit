@@ -59,6 +59,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
         frequency: int.parse(_frequency.text.trim()),
         frequencyUnits: _unit,
         isActive: widget.existing?.isActive ?? false,
+        googleTaskId: widget.existing?.googleTaskId,
     );
 
     @override

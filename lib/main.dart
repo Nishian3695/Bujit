@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'app_state.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/expense_activity.dart';
+import 'navigation_items/settings/google_tasks_account.dart';
+import 'navigation_items/settings/google_tasks_helper.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/storage_manager.dart';
 import 'utils/sample_data.dart';
@@ -21,7 +23,7 @@ void main() {
 Future<AppState> openAppState() async {
   try {
     final storage = await StorageManager.create(await getApplicationDocumentsDirectory());
-    return await AppState.open(storage.store);
+    return await AppState.open(storage.store, tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())));
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);
     final AppData data = AppData(balance: BalanceModel(currentBalance: 0.00));

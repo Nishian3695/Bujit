@@ -22,6 +22,12 @@ class AppData {
     int singleEventExpiryDays; // Settings: days after its last change a single event is cleared
     int tutorialStep; // Next tutorial step to show
     bool tutorialSeen; // Tutorial finished or skipped
+    bool tasksSyncEnabled; // Settings: sync expenses and paychecks to Google Tasks
+    String? tasksListId; // The "Bujit" list in Google Tasks
+    String? tasksAccount; // Email of the Google account synced to (for display)
+    // Google Task id -> the JSON last sent for it, for every task the app created
+    // (see GoogleTasksSync).
+    final Map<String, String> syncedTasks;
 
     AppData({
         required this.balance,
@@ -31,8 +37,13 @@ class AppData {
         this.singleEventExpiryDays = 30,
         this.tutorialStep = 0,
         this.tutorialSeen = false,
+        this.tasksSyncEnabled = false,
+        this.tasksListId,
+        this.tasksAccount,
+        Map<String, String>? syncedTasks,
     }) : categories = categories ?? defaultCategories(),
-         singleEvents = singleEvents ?? [];
+         singleEvents = singleEvents ?? [],
+         syncedTasks = syncedTasks ?? {};
 
     // Single events applied against this data's balance and cards.
     SingleEventsLedger get singleEventsLedger => SingleEventsLedger(balance, singleEvents);
@@ -75,6 +86,7 @@ class AppDataStore {
         final eventRows = await (db.select(db.singleEventRows)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
+        final syncedRows = await db.select(db.syncedTaskRows).get();
         return AppData(
             balance: balance,
             categories: categoryRows.map((row) => row.name).toList(),
@@ -83,6 +95,10 @@ class AppDataStore {
             singleEventExpiryDays: meta.singleEventExpiryDays,
             tutorialStep: meta.tutorialStep,
             tutorialSeen: meta.tutorialSeen,
+            tasksSyncEnabled: meta.tasksSyncEnabled,
+            tasksListId: meta.tasksListId,
+            tasksAccount: meta.tasksAccount,
+            syncedTasks: {for (final row in syncedRows) row.taskId: row.body},
         );
     }
 
@@ -117,6 +133,11 @@ class AppDataStore {
             for (final SingleEventModel event in data.singleEvents) {
                 event.id = await db.into(db.singleEventRows).insert(event.toInsertCompanion());
             }
+            await db.delete(db.syncedTaskRows).go();
+            for (final MapEntry<String, String> task in data.syncedTasks.entries) {
+                await db.into(db.syncedTaskRows).insert(
+                    SyncedTaskRowsCompanion.insert(taskId: task.key, body: task.value));
+            }
             await db.into(db.appMetaRows).insertOnConflictUpdate(AppMetaRowsCompanion.insert(
                 id: const Value(0),
                 currentBalance: Value(balance.currentBalance),
@@ -125,6 +146,9 @@ class AppDataStore {
                 singleEventExpiryDays: Value(data.singleEventExpiryDays),
                 tutorialStep: Value(data.tutorialStep),
                 tutorialSeen: Value(data.tutorialSeen),
+                tasksSyncEnabled: Value(data.tasksSyncEnabled),
+                tasksListId: Value(data.tasksListId),
+                tasksAccount: Value(data.tasksAccount),
             ));
         });
     }

@@ -9,12 +9,14 @@ import 'confirm_delete.dart';
 // Returns the created/edited ExpenseModel, or null if the dialog was cancelled
 // or the expense was deleted. [categories] are the user's categories ("Other"
 // and a "New Category" option are added). When editing, Delete asks for
-// confirmation and then calls [onDelete].
+// confirmation and then calls [onDelete]. [showTasksOption] adds the Google
+// Tasks reminder switch (while Google Tasks sync is on).
 Future<ExpenseModel?> showRecurringExpenseDialog(
     BuildContext context, {
     ExpenseModel? existing,
     List<String> categories = const [],
     VoidCallback? onDelete,
+    bool showTasksOption = false,
 }) {
     return showAdaptiveDialog<ExpenseModel>(
         context: context,
@@ -22,6 +24,7 @@ Future<ExpenseModel?> showRecurringExpenseDialog(
             existing: existing,
             categories: categories,
             onDelete: onDelete,
+            showTasksOption: showTasksOption,
         ),
     );
 }
@@ -32,7 +35,13 @@ class _RecurringExpenseDialog extends StatefulWidget {
     final ExpenseModel? existing;
     final List<String> categories;
     final VoidCallback? onDelete;
-    const _RecurringExpenseDialog({this.existing, required this.categories, this.onDelete});
+    final bool showTasksOption;
+    const _RecurringExpenseDialog({
+        this.existing,
+        required this.categories,
+        this.onDelete,
+        this.showTasksOption = false,
+    });
 
     @override
     State<_RecurringExpenseDialog> createState() => _RecurringExpenseDialogState();
@@ -57,6 +66,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     late DateTime _startDate = widget.existing?.currentDueDate ?? _today;
     // Optional last date (inclusive); null = never ends.
     late DateTime? _endDate = widget.existing?.endDate;
+    late bool _remindInTasks = widget.existing?.remindInTasks ?? true;
     // Categories added from this dialog ("New Category"), shown in the dropdown.
     final List<String> _addedCategories = [];
     String? _endDateError;
@@ -136,6 +146,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 currentDueDate: keepSchedule ? existing.currentDueDate : null,
                 endDate: _endDate,
                 category: _category,
+                googleTaskId: existing?.googleTaskId,
+                remindInTasks: _remindInTasks,
             );
         }
 
@@ -315,6 +327,14 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     }
                                 },
                             ),
+                            if (widget.showTasksOption)
+                                SwitchListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text("Remind me in Google Tasks"),
+                                    subtitle: const Text("Its task gets the next due date"),
+                                    value: _remindInTasks,
+                                    onChanged: (value) => setState(() => _remindInTasks = value),
+                                ),
                         ],
                     ),
                 ),

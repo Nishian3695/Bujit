@@ -45,4 +45,7 @@ class ExpenseItemRows extends Table {
   // the card's balance and creditLimit its limit; null for regular expenses.
   BoolColumn get isCredit => boolean().withDefault(const Constant(false))();
   RealColumn get creditLimit => real().nullable()();
+  // Google Tasks: the item's task id once synced, and whether the task gets a due date.
+  TextColumn get googleTaskId => text().nullable()();
+  BoolColumn get remindInTasks => boolean().withDefault(const Constant(true))();
 }

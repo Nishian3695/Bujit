@@ -25,6 +25,8 @@ extension ExpenseRowMapper on ExpenseItemRow {
           frequencyUnits: frequencyUnits,
           category: category,
           creditLimit: creditLimit ?? 0.0,
+          googleTaskId: googleTaskId,
+          remindInTasks: remindInTasks,
         )
       : ExpenseModel(
           id: id,
@@ -36,6 +38,8 @@ extension ExpenseRowMapper on ExpenseItemRow {
           frequency: frequency,
           frequencyUnits: frequencyUnits,
           category: category,
+          googleTaskId: googleTaskId,
+          remindInTasks: remindInTasks,
         );
 }
 
@@ -61,6 +65,8 @@ extension ExpenseItemMapper on ExpenseItem {
       category: Value(category),
       isCredit: Value(card != null),
       creditLimit: Value(card?.creditLimit),
+      googleTaskId: Value(googleTaskId),
+      remindInTasks: Value(remindInTasks),
     );
   }
 }

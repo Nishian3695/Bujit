@@ -14,6 +14,7 @@ extension IncomeStreamRowMapper on IncomeStreamModelRow {
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         isActive: isActive,
+        googleTaskId: googleTaskId,
       );
 }
 
@@ -26,5 +27,6 @@ extension IncomeStreamModelMapper on IncomeStreamModel {
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         isActive: Value(isActive),
+        googleTaskId: Value(googleTaskId),
       );
 }

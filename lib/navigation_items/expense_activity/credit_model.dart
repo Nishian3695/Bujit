@@ -28,6 +28,8 @@ class CreditModel extends ExpenseItem {
         super.category = "Credit Cards",
         required this.creditLimit,
         super.currentDueDate,
+        super.googleTaskId,
+        super.remindInTasks,
     }) : displayBalance = amount;
 
     // Methods

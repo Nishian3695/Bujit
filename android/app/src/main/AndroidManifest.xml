@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Google Tasks sync (and later Linked Accounts) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="bujit"
         android:name="${applicationName}"

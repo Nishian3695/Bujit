@@ -68,6 +68,8 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
             currentDueDate: keepSchedule ? existing.currentDueDate : null,
             frequency: 1,
             frequencyUnits: FrequencyUnit.monthly,
+            googleTaskId: existing?.googleTaskId,
+            remindInTasks: existing?.remindInTasks ?? true,
         );
     }
 

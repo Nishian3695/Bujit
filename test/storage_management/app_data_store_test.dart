@@ -25,7 +25,7 @@ AppData _sampleData() {
         ExpenseModel(
             name: "Gym", amount: 40.0, startDate: DateTime(2026, 1, 31), currentDueDate: day(30),
             frequency: 1, frequencyUnits: FrequencyUnit.monthly, endDate: DateTime(2027, 6, 30),
-            category: "Health",
+            category: "Health", googleTaskId: "task-gym", remindInTasks: false,
         ),
         CreditModel(
             name: "Card", amount: 300.0, startDate: day(5), frequency: 1,
@@ -35,7 +35,7 @@ AppData _sampleData() {
     final side = IncomeStreamModel(name: "Side", amount: 250.0, startDate: day(-35),
         frequency: 30, frequencyUnits: FrequencyUnit.daily);
     final job = IncomeStreamModel(name: "Job", amount: 1000.0, startDate: today,
-        frequency: 2, frequencyUnits: FrequencyUnit.weekly);
+        frequency: 2, frequencyUnits: FrequencyUnit.weekly, googleTaskId: "task-job");
     balance.incomeStreams.addAll([side, job]);
     balance.activeIncome = job;
     balance.snapshots.add(PeriodSnapshot(start: day(-14), totalIncome: 1250.0, totalExpenses: 410.5));
@@ -44,6 +44,10 @@ AppData _sampleData() {
         categories: ["Housing", "Health"],
         includeNextCheck: true,
         singleEventExpiryDays: 14,
+        tasksSyncEnabled: true,
+        tasksListId: "list-1",
+        tasksAccount: "me@example.com",
+        syncedTasks: {"task-gym": '{"title":"Gym"}', "task-job": '{"title":"Job"}'},
         singleEvents: [
             SingleEventModel(name: "Dinner", amount: 60.0, isDebit: true, target: EventTarget.creditCard,
                 targetName: "Card", createdDate: day(-3), lastModifiedDate: day(-1)),
@@ -74,6 +78,15 @@ void main() {
             expect(gym.currentDueDate, day(30));
             expect(gym.endDate, DateTime(2027, 6, 30));
             expect(gym.category, "Health");
+            expect(gym.googleTaskId, "task-gym");
+            expect(gym.remindInTasks, isFalse);
+            expect(balance.expenses[1].googleTaskId, isNull);
+            expect(balance.expenses[1].remindInTasks, isTrue);
+            expect(balance.activeIncome!.googleTaskId, "task-job");
+            expect(loaded.tasksSyncEnabled, isTrue);
+            expect(loaded.tasksListId, "list-1");
+            expect(loaded.tasksAccount, "me@example.com");
+            expect(loaded.syncedTasks, {"task-gym": '{"title":"Gym"}', "task-job": '{"title":"Job"}'});
 
             final CreditModel card = balance.expenses[1] as CreditModel;
             expect(card.amount, 300.0);
