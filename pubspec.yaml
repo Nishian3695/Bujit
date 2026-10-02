@@ -45,6 +45,10 @@ dependencies:
   cryptography: ^2.9.0
   cryptography_flutter: ^2.3.4
   local_auth: ^3.0.2
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  firebase_app_check: ^0.4.8
+  plaid_flutter: ^5.2.1
 
 dev_dependencies:
   flutter_test:

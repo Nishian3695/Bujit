@@ -1,12 +1,14 @@
 // "Update Balance" (the Java app's changeBankBalance): type the balance, or set
-// it "From Accounts" -- the total of the manual accounts picked, which then count
-// toward it -- plus "Additional funds" for money tracked elsewhere.
+// it "From Accounts" -- the total of the manual and linked bank accounts picked,
+// which then count toward it (linked ones keep it in step at each bank sync) --
+// plus "Additional funds" for money tracked elsewhere.
 //
 // Typing a balance means no account counts toward it anymore, as in the Java
 // app. Unlike the Java app, opening the dialog and changing only the additional
 // funds keeps the accounts that already count (Java unlinked them).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/banking/manual_account_model.dart';
 import '../navigation_items/expense_activity/balance_model.dart';
 import '../utils/money.dart';
@@ -36,9 +38,18 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
     late final TextEditingController _extra =
         TextEditingController(text: _balance.balanceExtra.toStringAsFixed(2));
     final _formKey = GlobalKey<FormState>();
+    // What "From Accounts" offers: manual accounts, then linked accounts with money in them.
+    late final List<({String id, String title, String subtitle, double balance, bool counts})> _choices = [
+        for (final ManualAccountModel a in _balance.manualAccounts)
+            (id: a.id, title: a.name, subtitle: a.accountType, balance: a.balance, counts: a.countsTowardBalance),
+        for (final BankAccountModel a in _balance.linkedAccounts)
+            if (a.isCash && a.ledger != null)
+                (id: a.id, title: a.displayName, subtitle: a.displayType, balance: a.ledger!, counts: a.countsTowardBalance),
+    ];
+
     // Accounts the balance comes from; null once a balance is typed.
-    late Set<String>? _accountIds = _balance.manualAccounts.any((a) => a.countsTowardBalance)
-        ? {for (final a in _balance.manualAccounts) if (a.countsTowardBalance) a.id}
+    late Set<String>? _accountIds = _choices.any((c) => c.counts)
+        ? {for (final c in _choices) if (c.counts) c.id}
         : null;
 
     @override
@@ -55,7 +66,7 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
     static String? _validate(String? value) =>
         double.tryParse(value?.trim() ?? "") == null ? "Enter an amount" : null;
 
-    // Multi-select of the manual accounts; the field shows their total.
+    // Multi-select of the accounts; the field shows their total.
     Future<void> _pickAccounts() async {
         final Set<String> picked = {...?_accountIds};
         final bool? ok = await showDialog<bool>(
@@ -67,16 +78,16 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
                         child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                                for (final ManualAccountModel account in _balance.manualAccounts)
+                                for (final choice in _choices)
                                     CheckboxListTile(
-                                        value: picked.contains(account.id),
-                                        title: Text(account.name),
-                                        subtitle: Text("${account.accountType} · ${Money.format(account.balance)}"),
+                                        value: picked.contains(choice.id),
+                                        title: Text(choice.title),
+                                        subtitle: Text("${choice.subtitle} · ${Money.format(choice.balance)}"),
                                         onChanged: (on) => setDialogState(() {
                                             if (on == true) {
-                                                picked.add(account.id);
+                                                picked.add(choice.id);
                                             } else {
-                                                picked.remove(account.id);
+                                                picked.remove(choice.id);
                                             }
                                         }),
                                     ),
@@ -91,9 +102,9 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
             ),
         );
         if (ok != true) return;
-        final double total = _balance.manualAccounts
-            .where((a) => picked.contains(a.id))
-            .fold(0.00, (sum, a) => sum + a.balance);
+        final double total = _choices
+            .where((c) => picked.contains(c.id))
+            .fold(0.00, (sum, c) => sum + c.balance);
         setState(() {
             _base.text = total.toStringAsFixed(2);
             _accountIds = picked; // (Setting the text doesn't call onChanged, which clears this.)
@@ -114,7 +125,7 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
 
     @override
     Widget build(BuildContext context) {
-        final bool hasAccounts = _balance.manualAccounts.isNotEmpty;
+        final bool hasAccounts = _choices.isNotEmpty;
         final Set<String>? ids = _accountIds;
         return AlertDialog.adaptive(
             title: const Text("Update Balance"),

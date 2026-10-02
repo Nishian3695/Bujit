@@ -46,6 +46,7 @@ class CreditModel extends ExpenseItem {
         super.remindInTasks,
         super.source,
         super.sourceId,
+        super.linkedAccountId,
     }) : displayBalance = amount;
 
     // Methods

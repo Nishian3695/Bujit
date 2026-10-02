@@ -67,12 +67,12 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
         amount: double.parse(_amount.text.trim()),
         isDebit: _isDebit,
         target: switch (_target.source) {
-            FundingSource.balance => EventTarget.balance,
+            FundingSource.balance || FundingSource.linkedAccount => EventTarget.balance,
             FundingSource.creditCard => EventTarget.creditCard,
             FundingSource.manualAccount => EventTarget.manualAccount,
         },
         targetName: switch (_target.source) {
-            FundingSource.balance => null,
+            FundingSource.balance || FundingSource.linkedAccount => null,
             FundingSource.creditCard => _target.id,
             FundingSource.manualAccount => _target.label,
         },

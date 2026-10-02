@@ -37,6 +37,8 @@ class AppMetaRows extends Table {
   // Settings: thousands separators in amounts, and asking to unlock on opening.
   BoolColumn get useCommaSeparators => boolean().withDefault(const Constant(false))();
   BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
+  // When linked banks were last synced (refreshes are skipped within 15 minutes).
+  DateTimeColumn get lastBankSync => dateTime().nullable()();
   // Google Tasks: sync turned on, the "Bujit" task list's id, and the signed-in
   // account's email (for display).
   BoolColumn get tasksSyncEnabled => boolean().withDefault(const Constant(false))();

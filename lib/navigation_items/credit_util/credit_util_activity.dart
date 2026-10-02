@@ -40,6 +40,7 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
             context,
             sources: _balance.paymentOptions(forCard: true),
             otherCardNames: _balance.creditCards.map((c) => c.name),
+            connectable: _balance.linkedAccounts.where((a) => a.isCredit).toList(),
         );
         if (card == null) return;
         card.skipToNextDueDate();
@@ -53,6 +54,7 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
             existing: old,
             sources: _balance.paymentOptions(forCard: true),
             otherCardNames: _balance.creditCards.where((c) => c != old).map((c) => c.name),
+            connectable: _balance.linkedAccounts.where((a) => a.isCredit).toList(),
             onDelete: () async {
                 await widget.state.removeItem(old);
                 _refreshCards();
@@ -85,7 +87,13 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
             appBar: AppBar(title: const Text("Credit Utilization")),
             body: TutorialTarget(id: "credit_list", child: cards.isEmpty
                 ? const Center(child: Text("No credit cards yet. Tap + to add one."))
-                : ListView.builder(
+                // Pull to refresh syncs linked cards' balances and limits, as in the Java app.
+                : RefreshIndicator(
+                    onRefresh: () async {
+                        await widget.state.refreshBanks(force: true);
+                        _refreshCards();
+                    },
+                    child: ListView.builder(
                     itemCount: cards.length,
                     itemBuilder: (context, index) {
                         final CreditModel card = cards[index];
@@ -108,7 +116,7 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                             onTap: () => _edit(card),
                         );
                     },
-                )),
+                ))),
             floatingActionButton: FloatingActionButton(
                 onPressed: _add,
                 tooltip: "Add credit card",

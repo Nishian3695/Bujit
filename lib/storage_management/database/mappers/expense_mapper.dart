@@ -29,6 +29,7 @@ extension ExpenseRowMapper on ExpenseItemRow {
           remindInTasks: remindInTasks,
           source: source,
           sourceId: sourceId,
+          linkedAccountId: linkedAccountId,
         )
       : ExpenseModel(
           id: id,
@@ -44,6 +45,7 @@ extension ExpenseRowMapper on ExpenseItemRow {
           remindInTasks: remindInTasks,
           source: source,
           sourceId: sourceId,
+          linkedAccountId: linkedAccountId,
         );
 }
 
@@ -73,6 +75,7 @@ extension ExpenseItemMapper on ExpenseItem {
       remindInTasks: Value(remindInTasks),
       source: Value(source),
       sourceId: Value(sourceId),
+      linkedAccountId: Value(linkedAccountId),
     );
   }
 }

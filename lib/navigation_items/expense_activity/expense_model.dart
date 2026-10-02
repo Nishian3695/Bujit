@@ -20,6 +20,7 @@ class ExpenseModel extends ExpenseItem {
         super.remindInTasks,
         super.source,
         super.sourceId,
+        super.linkedAccountId,
     });
 
     // Getters

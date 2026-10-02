@@ -3,8 +3,10 @@
 // name can't be shared with another card.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/expense_activity/credit_model.dart';
 import '../navigation_items/expense_activity/funding_source.dart';
+import 'connected_account_field.dart';
 import 'paid_from_field.dart';
 import '../utils/date_utils.dart';
 import '../utils/frequency_unit.dart';
@@ -13,13 +15,15 @@ import 'confirm_delete.dart';
 // Returns the created/edited CreditModel, or null if cancelled or deleted. When
 // editing, Delete asks for confirmation and then calls [onDelete].
 // [sources] are the "Paid from" choices (BalanceModel.paymentOptions(forCard: true));
-// [otherCardNames] are the names already taken.
+// [otherCardNames] are the names already taken; [connectable] the linked credit
+// accounts its balance and limit can sync from.
 Future<CreditModel?> showCreditCardDialog(
     BuildContext context, {
     CreditModel? existing,
     VoidCallback? onDelete,
     List<SourceOption> sources = const [SourceOption.currentBalance],
     Iterable<String> otherCardNames = const [],
+    List<BankAccountModel> connectable = const [],
 }) {
     return showAdaptiveDialog<CreditModel>(
         context: context,
@@ -28,6 +32,7 @@ Future<CreditModel?> showCreditCardDialog(
             onDelete: onDelete,
             sources: sources,
             otherCardNames: otherCardNames.toSet(),
+            connectable: connectable,
         ),
     );
 }
@@ -37,11 +42,13 @@ class _CreditCardDialog extends StatefulWidget {
     final VoidCallback? onDelete;
     final List<SourceOption> sources;
     final Set<String> otherCardNames;
+    final List<BankAccountModel> connectable;
     const _CreditCardDialog({
         this.existing,
         this.onDelete,
         required this.sources,
         required this.otherCardNames,
+        required this.connectable,
     });
 
     @override
@@ -59,6 +66,28 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
     late DateTime _dueDate = widget.existing?.currentDueDate ?? DateTime(
         todayDate().year, todayDate().month + 1, todayDate().day);
     late SourceOption _source = initialSource(widget.sources, widget.existing);
+    late BankAccountModel? _linked = _connectable(widget.existing?.linkedAccountId);
+
+    BankAccountModel? _connectable(String? id) {
+        for (final BankAccountModel a in widget.connectable) {
+            if (a.id == id) return a;
+        }
+        return null;
+    }
+
+    // The card's balance and limit from the connected account (the same rules as a sync).
+    void _fillFrom(BankAccountModel account) {
+        final double? ledger = account.ledger;
+        if (_name.text.trim().isEmpty) _name.text = account.displayName;
+        if (ledger != null) _balance.text = ledger.abs().toStringAsFixed(2);
+        final double? limit = account.limit;
+        final double? available = account.available;
+        if (limit != null && limit > 0) {
+            _limit.text = limit.toStringAsFixed(2);
+        } else if (ledger != null && available != null && available > 0) {
+            _limit.text = (ledger + available).toStringAsFixed(2);
+        }
+    }
 
     @override
     void dispose() {
@@ -93,6 +122,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
             remindInTasks: existing?.remindInTasks ?? true,
             source: _source.source,
             sourceId: _source.id,
+            linkedAccountId: _linked?.id,
         );
     }
 
@@ -126,6 +156,15 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                                     if (widget.otherCardNames.contains(name)) return "Another card has this name";
                                     return null;
                                 },
+                            ),
+                            ConnectedAccountField(
+                                accounts: widget.connectable,
+                                linked: _linked,
+                                onPick: (account) => setState(() {
+                                    _linked = account;
+                                    _fillFrom(account);
+                                }),
+                                onUnlink: () => setState(() => _linked = null),
                             ),
                             _moneyField(_balance, "Balance Owed", positive: false),
                             _moneyField(_limit, "Credit Limit", positive: true),

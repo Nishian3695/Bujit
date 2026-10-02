@@ -6,15 +6,17 @@
 //                    the account counts toward it
 //   creditCard    -> it's charged to that card (expenses only): the card owes
 //                    more, and the balance pays when the card is due
+//   linkedAccount -> a linked bank account pays it: nothing is deducted here,
+//                    since the bank's balance shows it at the next sync (as in
+//                    the Java app)
 // Projections ("After This Check") count only what leaves the current balance,
 // so a charge isn't counted both on its own date and in the card's payment.
-// Linked (Plaid) accounts join with Linked Accounts' bank linking.
-enum FundingSource { balance, manualAccount, creditCard }
+enum FundingSource { balance, manualAccount, creditCard, linkedAccount }
 
 // One choice in a "Paid from" dropdown.
 class SourceOption {
     final FundingSource source;
-    final String? id; // Manual account id or card name; null for the balance
+    final String? id; // Manual or linked account id, or card name; null for the balance
     final String label;
 
     const SourceOption(this.source, this.id, this.label);

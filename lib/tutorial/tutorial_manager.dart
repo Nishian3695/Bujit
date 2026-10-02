@@ -51,8 +51,8 @@ class TutorialManager {
             "⚠️ 30-70%: moderate\n❌ 70% and up: high",
             TutorialScreen.linkedAccounts),
         TutorialStep(TutorialScreen.linkedAccounts, "connect_bank", "Link your bank or credit card",
-            "Soon you'll be able to connect your bank securely through Plaid, to sync your balance "
-            "and card amounts automatically. Bujit never sees your login."),
+            "Securely connect your bank through Plaid to sync your balance and credit card amounts "
+            "automatically. Bujit never sees your login."),
         TutorialStep(TutorialScreen.linkedAccounts, "manual_accounts", "My Accounts",
             "Track savings, cash or any account by hand here. Choose which ones make up your "
             "balance with \"From Accounts\" when you update it, and pay expenses from them.",

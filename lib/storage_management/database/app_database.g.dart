@@ -186,6 +186,17 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _linkedAccountIdMeta = const VerificationMeta(
+    'linkedAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> linkedAccountId = GeneratedColumn<String>(
+    'linked_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -203,6 +214,7 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     remindInTasks,
     source,
     sourceId,
+    linkedAccountId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -313,6 +325,15 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
       );
     }
+    if (data.containsKey('linked_account_id')) {
+      context.handle(
+        _linkedAccountIdMeta,
+        linkedAccountId.isAcceptableOrUnknown(
+          data['linked_account_id']!,
+          _linkedAccountIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -386,6 +407,10 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
         DriftSqlType.string,
         data['${effectivePrefix}source_id'],
       ),
+      linkedAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_account_id'],
+      ),
     );
   }
 
@@ -418,6 +443,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final bool remindInTasks;
   final FundingSource source;
   final String? sourceId;
+  final String? linkedAccountId;
   const ExpenseItemRow({
     required this.id,
     required this.name,
@@ -434,6 +460,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     required this.remindInTasks,
     required this.source,
     this.sourceId,
+    this.linkedAccountId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -469,6 +496,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     if (!nullToAbsent || sourceId != null) {
       map['source_id'] = Variable<String>(sourceId);
     }
+    if (!nullToAbsent || linkedAccountId != null) {
+      map['linked_account_id'] = Variable<String>(linkedAccountId);
+    }
     return map;
   }
 
@@ -497,6 +527,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       sourceId: sourceId == null && nullToAbsent
           ? const Value.absent()
           : Value(sourceId),
+      linkedAccountId: linkedAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedAccountId),
     );
   }
 
@@ -525,6 +558,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
         serializer.fromJson<String>(json['source']),
       ),
       sourceId: serializer.fromJson<String?>(json['sourceId']),
+      linkedAccountId: serializer.fromJson<String?>(json['linkedAccountId']),
     );
   }
   @override
@@ -550,6 +584,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
         $ExpenseItemRowsTable.$convertersource.toJson(source),
       ),
       'sourceId': serializer.toJson<String?>(sourceId),
+      'linkedAccountId': serializer.toJson<String?>(linkedAccountId),
     };
   }
 
@@ -569,6 +604,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     bool? remindInTasks,
     FundingSource? source,
     Value<String?> sourceId = const Value.absent(),
+    Value<String?> linkedAccountId = const Value.absent(),
   }) => ExpenseItemRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -585,6 +621,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     remindInTasks: remindInTasks ?? this.remindInTasks,
     source: source ?? this.source,
     sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    linkedAccountId: linkedAccountId.present
+        ? linkedAccountId.value
+        : this.linkedAccountId,
   );
   ExpenseItemRow copyWithCompanion(ExpenseItemRowsCompanion data) {
     return ExpenseItemRow(
@@ -613,6 +652,9 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           : this.remindInTasks,
       source: data.source.present ? data.source.value : this.source,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      linkedAccountId: data.linkedAccountId.present
+          ? data.linkedAccountId.value
+          : this.linkedAccountId,
     );
   }
 
@@ -633,7 +675,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('googleTaskId: $googleTaskId, ')
           ..write('remindInTasks: $remindInTasks, ')
           ..write('source: $source, ')
-          ..write('sourceId: $sourceId')
+          ..write('sourceId: $sourceId, ')
+          ..write('linkedAccountId: $linkedAccountId')
           ..write(')'))
         .toString();
   }
@@ -655,6 +698,7 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     remindInTasks,
     source,
     sourceId,
+    linkedAccountId,
   );
   @override
   bool operator ==(Object other) =>
@@ -674,7 +718,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.googleTaskId == this.googleTaskId &&
           other.remindInTasks == this.remindInTasks &&
           other.source == this.source &&
-          other.sourceId == this.sourceId);
+          other.sourceId == this.sourceId &&
+          other.linkedAccountId == this.linkedAccountId);
 }
 
 class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
@@ -693,6 +738,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<bool> remindInTasks;
   final Value<FundingSource> source;
   final Value<String?> sourceId;
+  final Value<String?> linkedAccountId;
   const ExpenseItemRowsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -709,6 +755,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.remindInTasks = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceId = const Value.absent(),
+    this.linkedAccountId = const Value.absent(),
   });
   ExpenseItemRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -726,6 +773,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.remindInTasks = const Value.absent(),
     this.source = const Value.absent(),
     this.sourceId = const Value.absent(),
+    this.linkedAccountId = const Value.absent(),
   }) : name = Value(name),
        amount = Value(amount),
        startDate = Value(startDate),
@@ -748,6 +796,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<bool>? remindInTasks,
     Expression<String>? source,
     Expression<String>? sourceId,
+    Expression<String>? linkedAccountId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -765,6 +814,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (remindInTasks != null) 'remind_in_tasks': remindInTasks,
       if (source != null) 'source': source,
       if (sourceId != null) 'source_id': sourceId,
+      if (linkedAccountId != null) 'linked_account_id': linkedAccountId,
     });
   }
 
@@ -784,6 +834,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<bool>? remindInTasks,
     Value<FundingSource>? source,
     Value<String?>? sourceId,
+    Value<String?>? linkedAccountId,
   }) {
     return ExpenseItemRowsCompanion(
       id: id ?? this.id,
@@ -801,6 +852,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       remindInTasks: remindInTasks ?? this.remindInTasks,
       source: source ?? this.source,
       sourceId: sourceId ?? this.sourceId,
+      linkedAccountId: linkedAccountId ?? this.linkedAccountId,
     );
   }
 
@@ -858,6 +910,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     if (sourceId.present) {
       map['source_id'] = Variable<String>(sourceId.value);
     }
+    if (linkedAccountId.present) {
+      map['linked_account_id'] = Variable<String>(linkedAccountId.value);
+    }
     return map;
   }
 
@@ -878,7 +933,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('googleTaskId: $googleTaskId, ')
           ..write('remindInTasks: $remindInTasks, ')
           ..write('source: $source, ')
-          ..write('sourceId: $sourceId')
+          ..write('sourceId: $sourceId, ')
+          ..write('linkedAccountId: $linkedAccountId')
           ..write(')'))
         .toString();
   }
@@ -1739,6 +1795,17 @@ class $AppMetaRowsTable extends AppMetaRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _lastBankSyncMeta = const VerificationMeta(
+    'lastBankSync',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastBankSync = GeneratedColumn<DateTime>(
+    'last_bank_sync',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _tasksSyncEnabledMeta = const VerificationMeta(
     'tasksSyncEnabled',
   );
@@ -1788,6 +1855,7 @@ class $AppMetaRowsTable extends AppMetaRows
     tutorialSeen,
     useCommaSeparators,
     appLockEnabled,
+    lastBankSync,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -1890,6 +1958,15 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('last_bank_sync')) {
+      context.handle(
+        _lastBankSyncMeta,
+        lastBankSync.isAcceptableOrUnknown(
+          data['last_bank_sync']!,
+          _lastBankSyncMeta,
+        ),
+      );
+    }
     if (data.containsKey('tasks_sync_enabled')) {
       context.handle(
         _tasksSyncEnabledMeta,
@@ -1966,6 +2043,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.bool,
         data['${effectivePrefix}app_lock_enabled'],
       )!,
+      lastBankSync: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_bank_sync'],
+      ),
       tasksSyncEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}tasks_sync_enabled'],
@@ -1998,6 +2079,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final bool tutorialSeen;
   final bool useCommaSeparators;
   final bool appLockEnabled;
+  final DateTime? lastBankSync;
   final bool tasksSyncEnabled;
   final String? tasksListId;
   final String? tasksAccount;
@@ -2012,6 +2094,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.tutorialSeen,
     required this.useCommaSeparators,
     required this.appLockEnabled,
+    this.lastBankSync,
     required this.tasksSyncEnabled,
     this.tasksListId,
     this.tasksAccount,
@@ -2029,6 +2112,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['tutorial_seen'] = Variable<bool>(tutorialSeen);
     map['use_comma_separators'] = Variable<bool>(useCommaSeparators);
     map['app_lock_enabled'] = Variable<bool>(appLockEnabled);
+    if (!nullToAbsent || lastBankSync != null) {
+      map['last_bank_sync'] = Variable<DateTime>(lastBankSync);
+    }
     map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled);
     if (!nullToAbsent || tasksListId != null) {
       map['tasks_list_id'] = Variable<String>(tasksListId);
@@ -2051,6 +2137,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: Value(tutorialSeen),
       useCommaSeparators: Value(useCommaSeparators),
       appLockEnabled: Value(appLockEnabled),
+      lastBankSync: lastBankSync == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastBankSync),
       tasksSyncEnabled: Value(tasksSyncEnabled),
       tasksListId: tasksListId == null && nullToAbsent
           ? const Value.absent()
@@ -2079,6 +2168,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tutorialSeen: serializer.fromJson<bool>(json['tutorialSeen']),
       useCommaSeparators: serializer.fromJson<bool>(json['useCommaSeparators']),
       appLockEnabled: serializer.fromJson<bool>(json['appLockEnabled']),
+      lastBankSync: serializer.fromJson<DateTime?>(json['lastBankSync']),
       tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
       tasksListId: serializer.fromJson<String?>(json['tasksListId']),
       tasksAccount: serializer.fromJson<String?>(json['tasksAccount']),
@@ -2098,6 +2188,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'tutorialSeen': serializer.toJson<bool>(tutorialSeen),
       'useCommaSeparators': serializer.toJson<bool>(useCommaSeparators),
       'appLockEnabled': serializer.toJson<bool>(appLockEnabled),
+      'lastBankSync': serializer.toJson<DateTime?>(lastBankSync),
       'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
       'tasksListId': serializer.toJson<String?>(tasksListId),
       'tasksAccount': serializer.toJson<String?>(tasksAccount),
@@ -2115,6 +2206,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     bool? tutorialSeen,
     bool? useCommaSeparators,
     bool? appLockEnabled,
+    Value<DateTime?> lastBankSync = const Value.absent(),
     bool? tasksSyncEnabled,
     Value<String?> tasksListId = const Value.absent(),
     Value<String?> tasksAccount = const Value.absent(),
@@ -2129,6 +2221,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tutorialSeen: tutorialSeen ?? this.tutorialSeen,
     useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
     appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+    lastBankSync: lastBankSync.present ? lastBankSync.value : this.lastBankSync,
     tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
     tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
     tasksAccount: tasksAccount.present ? tasksAccount.value : this.tasksAccount,
@@ -2163,6 +2256,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       appLockEnabled: data.appLockEnabled.present
           ? data.appLockEnabled.value
           : this.appLockEnabled,
+      lastBankSync: data.lastBankSync.present
+          ? data.lastBankSync.value
+          : this.lastBankSync,
       tasksSyncEnabled: data.tasksSyncEnabled.present
           ? data.tasksSyncEnabled.value
           : this.tasksSyncEnabled,
@@ -2188,6 +2284,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('tutorialSeen: $tutorialSeen, ')
           ..write('useCommaSeparators: $useCommaSeparators, ')
           ..write('appLockEnabled: $appLockEnabled, ')
+          ..write('lastBankSync: $lastBankSync, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -2207,6 +2304,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tutorialSeen,
     useCommaSeparators,
     appLockEnabled,
+    lastBankSync,
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
@@ -2225,6 +2323,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.tutorialSeen == this.tutorialSeen &&
           other.useCommaSeparators == this.useCommaSeparators &&
           other.appLockEnabled == this.appLockEnabled &&
+          other.lastBankSync == this.lastBankSync &&
           other.tasksSyncEnabled == this.tasksSyncEnabled &&
           other.tasksListId == this.tasksListId &&
           other.tasksAccount == this.tasksAccount);
@@ -2241,6 +2340,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<bool> tutorialSeen;
   final Value<bool> useCommaSeparators;
   final Value<bool> appLockEnabled;
+  final Value<DateTime?> lastBankSync;
   final Value<bool> tasksSyncEnabled;
   final Value<String?> tasksListId;
   final Value<String?> tasksAccount;
@@ -2255,6 +2355,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tutorialSeen = const Value.absent(),
     this.useCommaSeparators = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
+    this.lastBankSync = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2270,6 +2371,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tutorialSeen = const Value.absent(),
     this.useCommaSeparators = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
+    this.lastBankSync = const Value.absent(),
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
@@ -2285,6 +2387,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<bool>? tutorialSeen,
     Expression<bool>? useCommaSeparators,
     Expression<bool>? appLockEnabled,
+    Expression<DateTime>? lastBankSync,
     Expression<bool>? tasksSyncEnabled,
     Expression<String>? tasksListId,
     Expression<String>? tasksAccount,
@@ -2302,6 +2405,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (useCommaSeparators != null)
         'use_comma_separators': useCommaSeparators,
       if (appLockEnabled != null) 'app_lock_enabled': appLockEnabled,
+      if (lastBankSync != null) 'last_bank_sync': lastBankSync,
       if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
       if (tasksListId != null) 'tasks_list_id': tasksListId,
       if (tasksAccount != null) 'tasks_account': tasksAccount,
@@ -2319,6 +2423,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<bool>? tutorialSeen,
     Value<bool>? useCommaSeparators,
     Value<bool>? appLockEnabled,
+    Value<DateTime?>? lastBankSync,
     Value<bool>? tasksSyncEnabled,
     Value<String?>? tasksListId,
     Value<String?>? tasksAccount,
@@ -2335,6 +2440,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       useCommaSeparators: useCommaSeparators ?? this.useCommaSeparators,
       appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+      lastBankSync: lastBankSync ?? this.lastBankSync,
       tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
       tasksListId: tasksListId ?? this.tasksListId,
       tasksAccount: tasksAccount ?? this.tasksAccount,
@@ -2376,6 +2482,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (appLockEnabled.present) {
       map['app_lock_enabled'] = Variable<bool>(appLockEnabled.value);
     }
+    if (lastBankSync.present) {
+      map['last_bank_sync'] = Variable<DateTime>(lastBankSync.value);
+    }
     if (tasksSyncEnabled.present) {
       map['tasks_sync_enabled'] = Variable<bool>(tasksSyncEnabled.value);
     }
@@ -2401,6 +2510,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('tutorialSeen: $tutorialSeen, ')
           ..write('useCommaSeparators: $useCommaSeparators, ')
           ..write('appLockEnabled: $appLockEnabled, ')
+          ..write('lastBankSync: $lastBankSync, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
           ..write('tasksAccount: $tasksAccount')
@@ -3985,6 +4095,1056 @@ class ManualAccountRowsCompanion extends UpdateCompanion<ManualAccountRow> {
   }
 }
 
+class $LinkedItemRowsTable extends LinkedItemRows
+    with TableInfo<$LinkedItemRowsTable, LinkedItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LinkedItemRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accessTokenMeta = const VerificationMeta(
+    'accessToken',
+  );
+  @override
+  late final GeneratedColumn<String> accessToken = GeneratedColumn<String>(
+    'access_token',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _institutionMeta = const VerificationMeta(
+    'institution',
+  );
+  @override
+  late final GeneratedColumn<String> institution = GeneratedColumn<String>(
+    'institution',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(""),
+  );
+  static const VerificationMeta _needsRelinkMeta = const VerificationMeta(
+    'needsRelink',
+  );
+  @override
+  late final GeneratedColumn<bool> needsRelink = GeneratedColumn<bool>(
+    'needs_relink',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("needs_relink" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    key,
+    accessToken,
+    institution,
+    needsRelink,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'linked_item_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LinkedItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('access_token')) {
+      context.handle(
+        _accessTokenMeta,
+        accessToken.isAcceptableOrUnknown(
+          data['access_token']!,
+          _accessTokenMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_accessTokenMeta);
+    }
+    if (data.containsKey('institution')) {
+      context.handle(
+        _institutionMeta,
+        institution.isAcceptableOrUnknown(
+          data['institution']!,
+          _institutionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('needs_relink')) {
+      context.handle(
+        _needsRelinkMeta,
+        needsRelink.isAcceptableOrUnknown(
+          data['needs_relink']!,
+          _needsRelinkMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  LinkedItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LinkedItemRow(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      accessToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}access_token'],
+      )!,
+      institution: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}institution'],
+      )!,
+      needsRelink: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}needs_relink'],
+      )!,
+    );
+  }
+
+  @override
+  $LinkedItemRowsTable createAlias(String alias) {
+    return $LinkedItemRowsTable(attachedDatabase, alias);
+  }
+}
+
+class LinkedItemRow extends DataClass implements Insertable<LinkedItemRow> {
+  final String key;
+  final String accessToken;
+  final String institution;
+  final bool needsRelink;
+  const LinkedItemRow({
+    required this.key,
+    required this.accessToken,
+    required this.institution,
+    required this.needsRelink,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['access_token'] = Variable<String>(accessToken);
+    map['institution'] = Variable<String>(institution);
+    map['needs_relink'] = Variable<bool>(needsRelink);
+    return map;
+  }
+
+  LinkedItemRowsCompanion toCompanion(bool nullToAbsent) {
+    return LinkedItemRowsCompanion(
+      key: Value(key),
+      accessToken: Value(accessToken),
+      institution: Value(institution),
+      needsRelink: Value(needsRelink),
+    );
+  }
+
+  factory LinkedItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LinkedItemRow(
+      key: serializer.fromJson<String>(json['key']),
+      accessToken: serializer.fromJson<String>(json['accessToken']),
+      institution: serializer.fromJson<String>(json['institution']),
+      needsRelink: serializer.fromJson<bool>(json['needsRelink']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'accessToken': serializer.toJson<String>(accessToken),
+      'institution': serializer.toJson<String>(institution),
+      'needsRelink': serializer.toJson<bool>(needsRelink),
+    };
+  }
+
+  LinkedItemRow copyWith({
+    String? key,
+    String? accessToken,
+    String? institution,
+    bool? needsRelink,
+  }) => LinkedItemRow(
+    key: key ?? this.key,
+    accessToken: accessToken ?? this.accessToken,
+    institution: institution ?? this.institution,
+    needsRelink: needsRelink ?? this.needsRelink,
+  );
+  LinkedItemRow copyWithCompanion(LinkedItemRowsCompanion data) {
+    return LinkedItemRow(
+      key: data.key.present ? data.key.value : this.key,
+      accessToken: data.accessToken.present
+          ? data.accessToken.value
+          : this.accessToken,
+      institution: data.institution.present
+          ? data.institution.value
+          : this.institution,
+      needsRelink: data.needsRelink.present
+          ? data.needsRelink.value
+          : this.needsRelink,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LinkedItemRow(')
+          ..write('key: $key, ')
+          ..write('accessToken: $accessToken, ')
+          ..write('institution: $institution, ')
+          ..write('needsRelink: $needsRelink')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, accessToken, institution, needsRelink);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LinkedItemRow &&
+          other.key == this.key &&
+          other.accessToken == this.accessToken &&
+          other.institution == this.institution &&
+          other.needsRelink == this.needsRelink);
+}
+
+class LinkedItemRowsCompanion extends UpdateCompanion<LinkedItemRow> {
+  final Value<String> key;
+  final Value<String> accessToken;
+  final Value<String> institution;
+  final Value<bool> needsRelink;
+  final Value<int> rowid;
+  const LinkedItemRowsCompanion({
+    this.key = const Value.absent(),
+    this.accessToken = const Value.absent(),
+    this.institution = const Value.absent(),
+    this.needsRelink = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LinkedItemRowsCompanion.insert({
+    required String key,
+    required String accessToken,
+    this.institution = const Value.absent(),
+    this.needsRelink = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       accessToken = Value(accessToken);
+  static Insertable<LinkedItemRow> custom({
+    Expression<String>? key,
+    Expression<String>? accessToken,
+    Expression<String>? institution,
+    Expression<bool>? needsRelink,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (accessToken != null) 'access_token': accessToken,
+      if (institution != null) 'institution': institution,
+      if (needsRelink != null) 'needs_relink': needsRelink,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LinkedItemRowsCompanion copyWith({
+    Value<String>? key,
+    Value<String>? accessToken,
+    Value<String>? institution,
+    Value<bool>? needsRelink,
+    Value<int>? rowid,
+  }) {
+    return LinkedItemRowsCompanion(
+      key: key ?? this.key,
+      accessToken: accessToken ?? this.accessToken,
+      institution: institution ?? this.institution,
+      needsRelink: needsRelink ?? this.needsRelink,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (accessToken.present) {
+      map['access_token'] = Variable<String>(accessToken.value);
+    }
+    if (institution.present) {
+      map['institution'] = Variable<String>(institution.value);
+    }
+    if (needsRelink.present) {
+      map['needs_relink'] = Variable<bool>(needsRelink.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LinkedItemRowsCompanion(')
+          ..write('key: $key, ')
+          ..write('accessToken: $accessToken, ')
+          ..write('institution: $institution, ')
+          ..write('needsRelink: $needsRelink, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LinkedAccountRowsTable extends LinkedAccountRows
+    with TableInfo<$LinkedAccountRowsTable, LinkedAccountRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LinkedAccountRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemKeyMeta = const VerificationMeta(
+    'itemKey',
+  );
+  @override
+  late final GeneratedColumn<String> itemKey = GeneratedColumn<String>(
+    'item_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtypeMeta = const VerificationMeta(
+    'subtype',
+  );
+  @override
+  late final GeneratedColumn<String> subtype = GeneratedColumn<String>(
+    'subtype',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _maskMeta = const VerificationMeta('mask');
+  @override
+  late final GeneratedColumn<String> mask = GeneratedColumn<String>(
+    'mask',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _institutionMeta = const VerificationMeta(
+    'institution',
+  );
+  @override
+  late final GeneratedColumn<String> institution = GeneratedColumn<String>(
+    'institution',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ledgerMeta = const VerificationMeta('ledger');
+  @override
+  late final GeneratedColumn<double> ledger = GeneratedColumn<double>(
+    'ledger',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _availableMeta = const VerificationMeta(
+    'available',
+  );
+  @override
+  late final GeneratedColumn<double> available = GeneratedColumn<double>(
+    'available',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _creditLimitMeta = const VerificationMeta(
+    'creditLimit',
+  );
+  @override
+  late final GeneratedColumn<double> creditLimit = GeneratedColumn<double>(
+    'credit_limit',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countsTowardBalanceMeta =
+      const VerificationMeta('countsTowardBalance');
+  @override
+  late final GeneratedColumn<bool> countsTowardBalance = GeneratedColumn<bool>(
+    'counts_toward_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("counts_toward_balance" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemKey,
+    position,
+    name,
+    type,
+    subtype,
+    mask,
+    institution,
+    ledger,
+    available,
+    creditLimit,
+    countsTowardBalance,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'linked_account_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LinkedAccountRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('item_key')) {
+      context.handle(
+        _itemKeyMeta,
+        itemKey.isAcceptableOrUnknown(data['item_key']!, _itemKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemKeyMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('subtype')) {
+      context.handle(
+        _subtypeMeta,
+        subtype.isAcceptableOrUnknown(data['subtype']!, _subtypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_subtypeMeta);
+    }
+    if (data.containsKey('mask')) {
+      context.handle(
+        _maskMeta,
+        mask.isAcceptableOrUnknown(data['mask']!, _maskMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_maskMeta);
+    }
+    if (data.containsKey('institution')) {
+      context.handle(
+        _institutionMeta,
+        institution.isAcceptableOrUnknown(
+          data['institution']!,
+          _institutionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_institutionMeta);
+    }
+    if (data.containsKey('ledger')) {
+      context.handle(
+        _ledgerMeta,
+        ledger.isAcceptableOrUnknown(data['ledger']!, _ledgerMeta),
+      );
+    }
+    if (data.containsKey('available')) {
+      context.handle(
+        _availableMeta,
+        available.isAcceptableOrUnknown(data['available']!, _availableMeta),
+      );
+    }
+    if (data.containsKey('credit_limit')) {
+      context.handle(
+        _creditLimitMeta,
+        creditLimit.isAcceptableOrUnknown(
+          data['credit_limit']!,
+          _creditLimitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('counts_toward_balance')) {
+      context.handle(
+        _countsTowardBalanceMeta,
+        countsTowardBalance.isAcceptableOrUnknown(
+          data['counts_toward_balance']!,
+          _countsTowardBalanceMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LinkedAccountRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LinkedAccountRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      itemKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_key'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      subtype: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtype'],
+      )!,
+      mask: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mask'],
+      )!,
+      institution: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}institution'],
+      )!,
+      ledger: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}ledger'],
+      ),
+      available: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}available'],
+      ),
+      creditLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}credit_limit'],
+      ),
+      countsTowardBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}counts_toward_balance'],
+      )!,
+    );
+  }
+
+  @override
+  $LinkedAccountRowsTable createAlias(String alias) {
+    return $LinkedAccountRowsTable(attachedDatabase, alias);
+  }
+}
+
+class LinkedAccountRow extends DataClass
+    implements Insertable<LinkedAccountRow> {
+  final String id;
+  final String itemKey;
+  final int position;
+  final String name;
+  final String type;
+  final String subtype;
+  final String mask;
+  final String institution;
+  final double? ledger;
+  final double? available;
+  final double? creditLimit;
+  final bool countsTowardBalance;
+  const LinkedAccountRow({
+    required this.id,
+    required this.itemKey,
+    required this.position,
+    required this.name,
+    required this.type,
+    required this.subtype,
+    required this.mask,
+    required this.institution,
+    this.ledger,
+    this.available,
+    this.creditLimit,
+    required this.countsTowardBalance,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['item_key'] = Variable<String>(itemKey);
+    map['position'] = Variable<int>(position);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['subtype'] = Variable<String>(subtype);
+    map['mask'] = Variable<String>(mask);
+    map['institution'] = Variable<String>(institution);
+    if (!nullToAbsent || ledger != null) {
+      map['ledger'] = Variable<double>(ledger);
+    }
+    if (!nullToAbsent || available != null) {
+      map['available'] = Variable<double>(available);
+    }
+    if (!nullToAbsent || creditLimit != null) {
+      map['credit_limit'] = Variable<double>(creditLimit);
+    }
+    map['counts_toward_balance'] = Variable<bool>(countsTowardBalance);
+    return map;
+  }
+
+  LinkedAccountRowsCompanion toCompanion(bool nullToAbsent) {
+    return LinkedAccountRowsCompanion(
+      id: Value(id),
+      itemKey: Value(itemKey),
+      position: Value(position),
+      name: Value(name),
+      type: Value(type),
+      subtype: Value(subtype),
+      mask: Value(mask),
+      institution: Value(institution),
+      ledger: ledger == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ledger),
+      available: available == null && nullToAbsent
+          ? const Value.absent()
+          : Value(available),
+      creditLimit: creditLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(creditLimit),
+      countsTowardBalance: Value(countsTowardBalance),
+    );
+  }
+
+  factory LinkedAccountRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LinkedAccountRow(
+      id: serializer.fromJson<String>(json['id']),
+      itemKey: serializer.fromJson<String>(json['itemKey']),
+      position: serializer.fromJson<int>(json['position']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      subtype: serializer.fromJson<String>(json['subtype']),
+      mask: serializer.fromJson<String>(json['mask']),
+      institution: serializer.fromJson<String>(json['institution']),
+      ledger: serializer.fromJson<double?>(json['ledger']),
+      available: serializer.fromJson<double?>(json['available']),
+      creditLimit: serializer.fromJson<double?>(json['creditLimit']),
+      countsTowardBalance: serializer.fromJson<bool>(
+        json['countsTowardBalance'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'itemKey': serializer.toJson<String>(itemKey),
+      'position': serializer.toJson<int>(position),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'subtype': serializer.toJson<String>(subtype),
+      'mask': serializer.toJson<String>(mask),
+      'institution': serializer.toJson<String>(institution),
+      'ledger': serializer.toJson<double?>(ledger),
+      'available': serializer.toJson<double?>(available),
+      'creditLimit': serializer.toJson<double?>(creditLimit),
+      'countsTowardBalance': serializer.toJson<bool>(countsTowardBalance),
+    };
+  }
+
+  LinkedAccountRow copyWith({
+    String? id,
+    String? itemKey,
+    int? position,
+    String? name,
+    String? type,
+    String? subtype,
+    String? mask,
+    String? institution,
+    Value<double?> ledger = const Value.absent(),
+    Value<double?> available = const Value.absent(),
+    Value<double?> creditLimit = const Value.absent(),
+    bool? countsTowardBalance,
+  }) => LinkedAccountRow(
+    id: id ?? this.id,
+    itemKey: itemKey ?? this.itemKey,
+    position: position ?? this.position,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    subtype: subtype ?? this.subtype,
+    mask: mask ?? this.mask,
+    institution: institution ?? this.institution,
+    ledger: ledger.present ? ledger.value : this.ledger,
+    available: available.present ? available.value : this.available,
+    creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
+    countsTowardBalance: countsTowardBalance ?? this.countsTowardBalance,
+  );
+  LinkedAccountRow copyWithCompanion(LinkedAccountRowsCompanion data) {
+    return LinkedAccountRow(
+      id: data.id.present ? data.id.value : this.id,
+      itemKey: data.itemKey.present ? data.itemKey.value : this.itemKey,
+      position: data.position.present ? data.position.value : this.position,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      subtype: data.subtype.present ? data.subtype.value : this.subtype,
+      mask: data.mask.present ? data.mask.value : this.mask,
+      institution: data.institution.present
+          ? data.institution.value
+          : this.institution,
+      ledger: data.ledger.present ? data.ledger.value : this.ledger,
+      available: data.available.present ? data.available.value : this.available,
+      creditLimit: data.creditLimit.present
+          ? data.creditLimit.value
+          : this.creditLimit,
+      countsTowardBalance: data.countsTowardBalance.present
+          ? data.countsTowardBalance.value
+          : this.countsTowardBalance,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LinkedAccountRow(')
+          ..write('id: $id, ')
+          ..write('itemKey: $itemKey, ')
+          ..write('position: $position, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('subtype: $subtype, ')
+          ..write('mask: $mask, ')
+          ..write('institution: $institution, ')
+          ..write('ledger: $ledger, ')
+          ..write('available: $available, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('countsTowardBalance: $countsTowardBalance')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemKey,
+    position,
+    name,
+    type,
+    subtype,
+    mask,
+    institution,
+    ledger,
+    available,
+    creditLimit,
+    countsTowardBalance,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LinkedAccountRow &&
+          other.id == this.id &&
+          other.itemKey == this.itemKey &&
+          other.position == this.position &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.subtype == this.subtype &&
+          other.mask == this.mask &&
+          other.institution == this.institution &&
+          other.ledger == this.ledger &&
+          other.available == this.available &&
+          other.creditLimit == this.creditLimit &&
+          other.countsTowardBalance == this.countsTowardBalance);
+}
+
+class LinkedAccountRowsCompanion extends UpdateCompanion<LinkedAccountRow> {
+  final Value<String> id;
+  final Value<String> itemKey;
+  final Value<int> position;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String> subtype;
+  final Value<String> mask;
+  final Value<String> institution;
+  final Value<double?> ledger;
+  final Value<double?> available;
+  final Value<double?> creditLimit;
+  final Value<bool> countsTowardBalance;
+  final Value<int> rowid;
+  const LinkedAccountRowsCompanion({
+    this.id = const Value.absent(),
+    this.itemKey = const Value.absent(),
+    this.position = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.subtype = const Value.absent(),
+    this.mask = const Value.absent(),
+    this.institution = const Value.absent(),
+    this.ledger = const Value.absent(),
+    this.available = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.countsTowardBalance = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LinkedAccountRowsCompanion.insert({
+    required String id,
+    required String itemKey,
+    required int position,
+    required String name,
+    required String type,
+    required String subtype,
+    required String mask,
+    required String institution,
+    this.ledger = const Value.absent(),
+    this.available = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.countsTowardBalance = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       itemKey = Value(itemKey),
+       position = Value(position),
+       name = Value(name),
+       type = Value(type),
+       subtype = Value(subtype),
+       mask = Value(mask),
+       institution = Value(institution);
+  static Insertable<LinkedAccountRow> custom({
+    Expression<String>? id,
+    Expression<String>? itemKey,
+    Expression<int>? position,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? subtype,
+    Expression<String>? mask,
+    Expression<String>? institution,
+    Expression<double>? ledger,
+    Expression<double>? available,
+    Expression<double>? creditLimit,
+    Expression<bool>? countsTowardBalance,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemKey != null) 'item_key': itemKey,
+      if (position != null) 'position': position,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (subtype != null) 'subtype': subtype,
+      if (mask != null) 'mask': mask,
+      if (institution != null) 'institution': institution,
+      if (ledger != null) 'ledger': ledger,
+      if (available != null) 'available': available,
+      if (creditLimit != null) 'credit_limit': creditLimit,
+      if (countsTowardBalance != null)
+        'counts_toward_balance': countsTowardBalance,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LinkedAccountRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? itemKey,
+    Value<int>? position,
+    Value<String>? name,
+    Value<String>? type,
+    Value<String>? subtype,
+    Value<String>? mask,
+    Value<String>? institution,
+    Value<double?>? ledger,
+    Value<double?>? available,
+    Value<double?>? creditLimit,
+    Value<bool>? countsTowardBalance,
+    Value<int>? rowid,
+  }) {
+    return LinkedAccountRowsCompanion(
+      id: id ?? this.id,
+      itemKey: itemKey ?? this.itemKey,
+      position: position ?? this.position,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      subtype: subtype ?? this.subtype,
+      mask: mask ?? this.mask,
+      institution: institution ?? this.institution,
+      ledger: ledger ?? this.ledger,
+      available: available ?? this.available,
+      creditLimit: creditLimit ?? this.creditLimit,
+      countsTowardBalance: countsTowardBalance ?? this.countsTowardBalance,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (itemKey.present) {
+      map['item_key'] = Variable<String>(itemKey.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (subtype.present) {
+      map['subtype'] = Variable<String>(subtype.value);
+    }
+    if (mask.present) {
+      map['mask'] = Variable<String>(mask.value);
+    }
+    if (institution.present) {
+      map['institution'] = Variable<String>(institution.value);
+    }
+    if (ledger.present) {
+      map['ledger'] = Variable<double>(ledger.value);
+    }
+    if (available.present) {
+      map['available'] = Variable<double>(available.value);
+    }
+    if (creditLimit.present) {
+      map['credit_limit'] = Variable<double>(creditLimit.value);
+    }
+    if (countsTowardBalance.present) {
+      map['counts_toward_balance'] = Variable<bool>(countsTowardBalance.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LinkedAccountRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('itemKey: $itemKey, ')
+          ..write('position: $position, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('subtype: $subtype, ')
+          ..write('mask: $mask, ')
+          ..write('institution: $institution, ')
+          ..write('ledger: $ledger, ')
+          ..write('available: $available, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('countsTowardBalance: $countsTowardBalance, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4003,6 +5163,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncedTaskRowsTable syncedTaskRows = $SyncedTaskRowsTable(this);
   late final $ManualAccountRowsTable manualAccountRows =
       $ManualAccountRowsTable(this);
+  late final $LinkedItemRowsTable linkedItemRows = $LinkedItemRowsTable(this);
+  late final $LinkedAccountRowsTable linkedAccountRows =
+      $LinkedAccountRowsTable(this);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -4017,6 +5180,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     periodSnapshotRows,
     syncedTaskRows,
     manualAccountRows,
+    linkedItemRows,
+    linkedAccountRows,
   ];
 }
 
@@ -4037,6 +5202,7 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       Value<bool> remindInTasks,
       Value<FundingSource> source,
       Value<String?> sourceId,
+      Value<String?> linkedAccountId,
     });
 typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
     ExpenseItemRowsCompanion Function({
@@ -4055,6 +5221,7 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<bool> remindInTasks,
       Value<FundingSource> source,
       Value<String?> sourceId,
+      Value<String?> linkedAccountId,
     });
 
 class $$ExpenseItemRowsTableFilterComposer
@@ -4142,6 +5309,11 @@ class $$ExpenseItemRowsTableFilterComposer
     column: $table.sourceId,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get linkedAccountId => $composableBuilder(
+    column: $table.linkedAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ExpenseItemRowsTableOrderingComposer
@@ -4227,6 +5399,11 @@ class $$ExpenseItemRowsTableOrderingComposer
     column: $table.sourceId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get linkedAccountId => $composableBuilder(
+    column: $table.linkedAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpenseItemRowsTableAnnotationComposer
@@ -4293,6 +5470,11 @@ class $$ExpenseItemRowsTableAnnotationComposer
 
   GeneratedColumn<String> get sourceId =>
       $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedAccountId => $composableBuilder(
+    column: $table.linkedAccountId,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpenseItemRowsTableTableManager
@@ -4347,6 +5529,7 @@ class $$ExpenseItemRowsTableTableManager
                 Value<bool> remindInTasks = const Value.absent(),
                 Value<FundingSource> source = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
+                Value<String?> linkedAccountId = const Value.absent(),
               }) => ExpenseItemRowsCompanion(
                 id: id,
                 name: name,
@@ -4363,6 +5546,7 @@ class $$ExpenseItemRowsTableTableManager
                 remindInTasks: remindInTasks,
                 source: source,
                 sourceId: sourceId,
+                linkedAccountId: linkedAccountId,
               ),
           createCompanionCallback:
               ({
@@ -4381,6 +5565,7 @@ class $$ExpenseItemRowsTableTableManager
                 Value<bool> remindInTasks = const Value.absent(),
                 Value<FundingSource> source = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
+                Value<String?> linkedAccountId = const Value.absent(),
               }) => ExpenseItemRowsCompanion.insert(
                 id: id,
                 name: name,
@@ -4397,6 +5582,7 @@ class $$ExpenseItemRowsTableTableManager
                 remindInTasks: remindInTasks,
                 source: source,
                 sourceId: sourceId,
+                linkedAccountId: linkedAccountId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4834,6 +6020,7 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<bool> tutorialSeen,
       Value<bool> useCommaSeparators,
       Value<bool> appLockEnabled,
+      Value<DateTime?> lastBankSync,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -4850,6 +6037,7 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<bool> tutorialSeen,
       Value<bool> useCommaSeparators,
       Value<bool> appLockEnabled,
+      Value<DateTime?> lastBankSync,
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
@@ -4911,6 +6099,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<bool> get appLockEnabled => $composableBuilder(
     column: $table.appLockEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastBankSync => $composableBuilder(
+    column: $table.lastBankSync,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4989,6 +6182,11 @@ class $$AppMetaRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get lastBankSync => $composableBuilder(
+    column: $table.lastBankSync,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => ColumnOrderings(column),
@@ -5062,6 +6260,11 @@ class $$AppMetaRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get lastBankSync => $composableBuilder(
+    column: $table.lastBankSync,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get tasksSyncEnabled => $composableBuilder(
     column: $table.tasksSyncEnabled,
     builder: (column) => column,
@@ -5119,6 +6322,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tutorialSeen = const Value.absent(),
                 Value<bool> useCommaSeparators = const Value.absent(),
                 Value<bool> appLockEnabled = const Value.absent(),
+                Value<DateTime?> lastBankSync = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -5133,6 +6337,7 @@ class $$AppMetaRowsTableTableManager
                 tutorialSeen: tutorialSeen,
                 useCommaSeparators: useCommaSeparators,
                 appLockEnabled: appLockEnabled,
+                lastBankSync: lastBankSync,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
@@ -5149,6 +6354,7 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tutorialSeen = const Value.absent(),
                 Value<bool> useCommaSeparators = const Value.absent(),
                 Value<bool> appLockEnabled = const Value.absent(),
+                Value<DateTime?> lastBankSync = const Value.absent(),
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
@@ -5163,6 +6369,7 @@ class $$AppMetaRowsTableTableManager
                 tutorialSeen: tutorialSeen,
                 useCommaSeparators: useCommaSeparators,
                 appLockEnabled: appLockEnabled,
+                lastBankSync: lastBankSync,
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
@@ -6069,6 +7276,547 @@ typedef $$ManualAccountRowsTableProcessedTableManager =
       ManualAccountRow,
       PrefetchHooks Function()
     >;
+typedef $$LinkedItemRowsTableCreateCompanionBuilder =
+    LinkedItemRowsCompanion Function({
+      required String key,
+      required String accessToken,
+      Value<String> institution,
+      Value<bool> needsRelink,
+      Value<int> rowid,
+    });
+typedef $$LinkedItemRowsTableUpdateCompanionBuilder =
+    LinkedItemRowsCompanion Function({
+      Value<String> key,
+      Value<String> accessToken,
+      Value<String> institution,
+      Value<bool> needsRelink,
+      Value<int> rowid,
+    });
+
+class $$LinkedItemRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $LinkedItemRowsTable> {
+  $$LinkedItemRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accessToken => $composableBuilder(
+    column: $table.accessToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get needsRelink => $composableBuilder(
+    column: $table.needsRelink,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LinkedItemRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LinkedItemRowsTable> {
+  $$LinkedItemRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accessToken => $composableBuilder(
+    column: $table.accessToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get needsRelink => $composableBuilder(
+    column: $table.needsRelink,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LinkedItemRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LinkedItemRowsTable> {
+  $$LinkedItemRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get accessToken => $composableBuilder(
+    column: $table.accessToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get needsRelink => $composableBuilder(
+    column: $table.needsRelink,
+    builder: (column) => column,
+  );
+}
+
+class $$LinkedItemRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LinkedItemRowsTable,
+          LinkedItemRow,
+          $$LinkedItemRowsTableFilterComposer,
+          $$LinkedItemRowsTableOrderingComposer,
+          $$LinkedItemRowsTableAnnotationComposer,
+          $$LinkedItemRowsTableCreateCompanionBuilder,
+          $$LinkedItemRowsTableUpdateCompanionBuilder,
+          (
+            LinkedItemRow,
+            BaseReferences<_$AppDatabase, $LinkedItemRowsTable, LinkedItemRow>,
+          ),
+          LinkedItemRow,
+          PrefetchHooks Function()
+        > {
+  $$LinkedItemRowsTableTableManager(
+    _$AppDatabase db,
+    $LinkedItemRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LinkedItemRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LinkedItemRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LinkedItemRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> accessToken = const Value.absent(),
+                Value<String> institution = const Value.absent(),
+                Value<bool> needsRelink = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LinkedItemRowsCompanion(
+                key: key,
+                accessToken: accessToken,
+                institution: institution,
+                needsRelink: needsRelink,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String accessToken,
+                Value<String> institution = const Value.absent(),
+                Value<bool> needsRelink = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LinkedItemRowsCompanion.insert(
+                key: key,
+                accessToken: accessToken,
+                institution: institution,
+                needsRelink: needsRelink,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LinkedItemRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LinkedItemRowsTable,
+      LinkedItemRow,
+      $$LinkedItemRowsTableFilterComposer,
+      $$LinkedItemRowsTableOrderingComposer,
+      $$LinkedItemRowsTableAnnotationComposer,
+      $$LinkedItemRowsTableCreateCompanionBuilder,
+      $$LinkedItemRowsTableUpdateCompanionBuilder,
+      (
+        LinkedItemRow,
+        BaseReferences<_$AppDatabase, $LinkedItemRowsTable, LinkedItemRow>,
+      ),
+      LinkedItemRow,
+      PrefetchHooks Function()
+    >;
+typedef $$LinkedAccountRowsTableCreateCompanionBuilder =
+    LinkedAccountRowsCompanion Function({
+      required String id,
+      required String itemKey,
+      required int position,
+      required String name,
+      required String type,
+      required String subtype,
+      required String mask,
+      required String institution,
+      Value<double?> ledger,
+      Value<double?> available,
+      Value<double?> creditLimit,
+      Value<bool> countsTowardBalance,
+      Value<int> rowid,
+    });
+typedef $$LinkedAccountRowsTableUpdateCompanionBuilder =
+    LinkedAccountRowsCompanion Function({
+      Value<String> id,
+      Value<String> itemKey,
+      Value<int> position,
+      Value<String> name,
+      Value<String> type,
+      Value<String> subtype,
+      Value<String> mask,
+      Value<String> institution,
+      Value<double?> ledger,
+      Value<double?> available,
+      Value<double?> creditLimit,
+      Value<bool> countsTowardBalance,
+      Value<int> rowid,
+    });
+
+class $$LinkedAccountRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $LinkedAccountRowsTable> {
+  $$LinkedAccountRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemKey => $composableBuilder(
+    column: $table.itemKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtype => $composableBuilder(
+    column: $table.subtype,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mask => $composableBuilder(
+    column: $table.mask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get ledger => $composableBuilder(
+    column: $table.ledger,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get available => $composableBuilder(
+    column: $table.available,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LinkedAccountRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LinkedAccountRowsTable> {
+  $$LinkedAccountRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemKey => $composableBuilder(
+    column: $table.itemKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtype => $composableBuilder(
+    column: $table.subtype,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mask => $composableBuilder(
+    column: $table.mask,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get ledger => $composableBuilder(
+    column: $table.ledger,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get available => $composableBuilder(
+    column: $table.available,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LinkedAccountRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LinkedAccountRowsTable> {
+  $$LinkedAccountRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get itemKey =>
+      $composableBuilder(column: $table.itemKey, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get subtype =>
+      $composableBuilder(column: $table.subtype, builder: (column) => column);
+
+  GeneratedColumn<String> get mask =>
+      $composableBuilder(column: $table.mask, builder: (column) => column);
+
+  GeneratedColumn<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get ledger =>
+      $composableBuilder(column: $table.ledger, builder: (column) => column);
+
+  GeneratedColumn<double> get available =>
+      $composableBuilder(column: $table.available, builder: (column) => column);
+
+  GeneratedColumn<double> get creditLimit => $composableBuilder(
+    column: $table.creditLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get countsTowardBalance => $composableBuilder(
+    column: $table.countsTowardBalance,
+    builder: (column) => column,
+  );
+}
+
+class $$LinkedAccountRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LinkedAccountRowsTable,
+          LinkedAccountRow,
+          $$LinkedAccountRowsTableFilterComposer,
+          $$LinkedAccountRowsTableOrderingComposer,
+          $$LinkedAccountRowsTableAnnotationComposer,
+          $$LinkedAccountRowsTableCreateCompanionBuilder,
+          $$LinkedAccountRowsTableUpdateCompanionBuilder,
+          (
+            LinkedAccountRow,
+            BaseReferences<
+              _$AppDatabase,
+              $LinkedAccountRowsTable,
+              LinkedAccountRow
+            >,
+          ),
+          LinkedAccountRow,
+          PrefetchHooks Function()
+        > {
+  $$LinkedAccountRowsTableTableManager(
+    _$AppDatabase db,
+    $LinkedAccountRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LinkedAccountRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LinkedAccountRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LinkedAccountRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> itemKey = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> subtype = const Value.absent(),
+                Value<String> mask = const Value.absent(),
+                Value<String> institution = const Value.absent(),
+                Value<double?> ledger = const Value.absent(),
+                Value<double?> available = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
+                Value<bool> countsTowardBalance = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LinkedAccountRowsCompanion(
+                id: id,
+                itemKey: itemKey,
+                position: position,
+                name: name,
+                type: type,
+                subtype: subtype,
+                mask: mask,
+                institution: institution,
+                ledger: ledger,
+                available: available,
+                creditLimit: creditLimit,
+                countsTowardBalance: countsTowardBalance,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String itemKey,
+                required int position,
+                required String name,
+                required String type,
+                required String subtype,
+                required String mask,
+                required String institution,
+                Value<double?> ledger = const Value.absent(),
+                Value<double?> available = const Value.absent(),
+                Value<double?> creditLimit = const Value.absent(),
+                Value<bool> countsTowardBalance = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LinkedAccountRowsCompanion.insert(
+                id: id,
+                itemKey: itemKey,
+                position: position,
+                name: name,
+                type: type,
+                subtype: subtype,
+                mask: mask,
+                institution: institution,
+                ledger: ledger,
+                available: available,
+                creditLimit: creditLimit,
+                countsTowardBalance: countsTowardBalance,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LinkedAccountRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LinkedAccountRowsTable,
+      LinkedAccountRow,
+      $$LinkedAccountRowsTableFilterComposer,
+      $$LinkedAccountRowsTableOrderingComposer,
+      $$LinkedAccountRowsTableAnnotationComposer,
+      $$LinkedAccountRowsTableCreateCompanionBuilder,
+      $$LinkedAccountRowsTableUpdateCompanionBuilder,
+      (
+        LinkedAccountRow,
+        BaseReferences<
+          _$AppDatabase,
+          $LinkedAccountRowsTable,
+          LinkedAccountRow
+        >,
+      ),
+      LinkedAccountRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6089,4 +7837,8 @@ class $AppDatabaseManager {
       $$SyncedTaskRowsTableTableManager(_db, _db.syncedTaskRows);
   $$ManualAccountRowsTableTableManager get manualAccountRows =>
       $$ManualAccountRowsTableTableManager(_db, _db.manualAccountRows);
+  $$LinkedItemRowsTableTableManager get linkedItemRows =>
+      $$LinkedItemRowsTableTableManager(_db, _db.linkedItemRows);
+  $$LinkedAccountRowsTableTableManager get linkedAccountRows =>
+      $$LinkedAccountRowsTableTableManager(_db, _db.linkedAccountRows);
 }

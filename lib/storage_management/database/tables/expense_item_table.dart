@@ -52,4 +52,5 @@ class ExpenseItemRows extends Table {
   // What pays it (FundingSource) and which account/card (an account id or card name).
   TextColumn get source => textEnum<FundingSource>().withDefault(Constant(FundingSource.balance.name))();
   TextColumn get sourceId => text().nullable()();
+  TextColumn get linkedAccountId => text().nullable()(); // Bank account its amount syncs from
 }

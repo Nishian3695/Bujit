@@ -2,6 +2,7 @@
 // Kept free of platform code (no secure storage, no file paths) so it can be
 // tested with an in-memory database; StorageManager does the platform setup.
 import 'package:drift/drift.dart';
+import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/banking/manual_account_model.dart';
 import '../navigation_items/expense_activity/credit_model.dart';
 import '../navigation_items/expense_activity/expense_item.dart';
@@ -33,6 +34,8 @@ class AppData {
     // Google Task id -> the JSON last sent for it, for every task the app created
     // (see GoogleTasksSync).
     final Map<String, String> syncedTasks;
+    final List<LinkedItem> linkedItems; // Linked bank logins (see BankingService)
+    DateTime? lastBankSync;
 
     AppData({
         required this.balance,
@@ -48,15 +51,18 @@ class AppData {
         this.tasksListId,
         this.tasksAccount,
         Map<String, String>? syncedTasks,
+        List<LinkedItem>? linkedItems,
+        this.lastBankSync,
     }) : categories = categories ?? defaultCategories(),
          singleEvents = singleEvents ?? [],
-         syncedTasks = syncedTasks ?? {};
+         syncedTasks = syncedTasks ?? {},
+         linkedItems = linkedItems ?? [];
 
     // Single events applied against this data's balance, accounts and cards.
     SingleEventsLedger get singleEventsLedger => SingleEventsLedger(balance, singleEvents);
 
     // Replaces everything with [other]'s data (restoring a backup, clearing data),
-    // keeping this device's Google Tasks connection and app lock.
+    // keeping this device's Google Tasks connection, bank links and app lock.
     void replaceWith(AppData other) {
         final BalanceModel b = other.balance;
         balance
@@ -173,6 +179,23 @@ class AppDataStore {
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
         final syncedRows = await db.select(db.syncedTaskRows).get();
+        final itemRows = await db.select(db.linkedItemRows).get();
+        final linkedRows = await (db.select(db.linkedAccountRows)
+              ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+            .get();
+        balance.linkedAccounts.addAll(linkedRows.map((row) => BankAccountModel(
+            id: row.id,
+            itemKey: row.itemKey,
+            name: row.name,
+            type: row.type,
+            subtype: row.subtype,
+            mask: row.mask,
+            institution: row.institution,
+            ledger: row.ledger,
+            available: row.available,
+            limit: row.creditLimit,
+            countsTowardBalance: row.countsTowardBalance,
+        )));
         return AppData(
             balance: balance,
             categories: categoryRows.map((row) => row.name).toList(),
@@ -187,6 +210,12 @@ class AppDataStore {
             tasksListId: meta.tasksListId,
             tasksAccount: meta.tasksAccount,
             syncedTasks: {for (final row in syncedRows) row.taskId: row.body},
+            linkedItems: [
+                for (final row in itemRows)
+                    LinkedItem(key: row.key, accessToken: row.accessToken,
+                        institution: row.institution, needsRelink: row.needsRelink),
+            ],
+            lastBankSync: meta.lastBankSync,
         );
     }
 
@@ -233,6 +262,33 @@ class AppDataStore {
                     countsTowardBalance: Value(account.countsTowardBalance),
                 ));
             }
+            await db.delete(db.linkedItemRows).go();
+            for (final LinkedItem item in data.linkedItems) {
+                await db.into(db.linkedItemRows).insert(LinkedItemRowsCompanion.insert(
+                    key: item.key,
+                    accessToken: item.accessToken,
+                    institution: Value(item.institution),
+                    needsRelink: Value(item.needsRelink),
+                ));
+            }
+            await db.delete(db.linkedAccountRows).go();
+            for (int i = 0; i < balance.linkedAccounts.length; i++) {
+                final BankAccountModel a = balance.linkedAccounts[i];
+                await db.into(db.linkedAccountRows).insert(LinkedAccountRowsCompanion.insert(
+                    id: a.id,
+                    itemKey: a.itemKey,
+                    position: i,
+                    name: a.name,
+                    type: a.type,
+                    subtype: a.subtype,
+                    mask: a.mask,
+                    institution: a.institution,
+                    ledger: Value(a.ledger),
+                    available: Value(a.available),
+                    creditLimit: Value(a.limit),
+                    countsTowardBalance: Value(a.countsTowardBalance),
+                ));
+            }
             await db.delete(db.syncedTaskRows).go();
             for (final MapEntry<String, String> task in data.syncedTasks.entries) {
                 await db.into(db.syncedTaskRows).insert(
@@ -249,6 +305,7 @@ class AppDataStore {
                 tutorialSeen: Value(data.tutorialSeen),
                 useCommaSeparators: Value(data.useCommaSeparators),
                 appLockEnabled: Value(data.appLockEnabled),
+                lastBankSync: Value(data.lastBankSync),
                 tasksSyncEnabled: Value(data.tasksSyncEnabled),
                 tasksListId: Value(data.tasksListId),
                 tasksAccount: Value(data.tasksAccount),

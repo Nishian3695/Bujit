@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'app_state.dart';
+import 'config/firebase_config.dart';
+import 'navigation_items/banking/banking_prefs.dart';
+import 'navigation_items/banking/banking_provider_config.dart';
+import 'navigation_items/banking/plaid_api.dart';
+import 'navigation_items/banking/plaid_backend_client.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/expense_activity.dart';
 import 'navigation_items/settings/google_tasks_account.dart';
@@ -25,8 +30,14 @@ Future<AppState> openAppState() async {
   final DeviceAuth deviceAuth = LocalDeviceAuth();
   try {
     final storage = await StorageManager.create(await getApplicationDocumentsDirectory());
-    final AppState state =
-        await AppState.open(storage.store, tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())));
+    final AppState state = await AppState.open(
+      storage.store,
+      tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())),
+      banking: BankingService(
+        PlaidBackendClient(host: bankingBackendHost, auth: FirebaseBankingAuth()),
+        PlaidFlutterLauncher(),
+      ),
+    );
     return state..deviceAuth = deviceAuth;
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);

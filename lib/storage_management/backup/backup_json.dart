@@ -14,7 +14,9 @@
 //   - Java's "incomeCreditedThrough" is lastUpdated: paychecks through it are in the balance.
 //   - Which manual accounts count toward the balance lived in Java's preferences,
 //     not its backups, so they don't count after restoring a Java backup.
-//   - Linked (Plaid) accounts and expenses' links to them aren't restored yet.
+//   - Bank links (Plaid) stay on the device that made them: access tokens aren't in
+//     backups, so after restoring, what a linked account paid for or set the amount
+//     of is paid from the balance and keeps its last amount until linked again.
 import 'dart:convert';
 import '../../navigation_items/banking/manual_account_model.dart';
 import '../../navigation_items/expense_activity/balance_model.dart';
@@ -95,6 +97,7 @@ class BackupJson {
                 FundingSource.balance => "BALANCE",
                 FundingSource.manualAccount => "MANUAL_ACCOUNT",
                 FundingSource.creditCard => "CREDIT_CARD",
+                FundingSource.linkedAccount => "LINKED_ACCOUNT",
             },
             "sourceId": e.sourceId,
             "sourceDisplayName": null,

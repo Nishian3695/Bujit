@@ -1,11 +1,13 @@
 // Add/edit dialog for a recurring ExpenseModel entry.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/expense_activity/expense_model.dart';
 import '../navigation_items/expense_activity/funding_source.dart';
 import '../utils/category_manager.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
+import 'connected_account_field.dart';
 import 'paid_from_field.dart';
 
 // Returns the created/edited ExpenseModel, or null if the dialog was cancelled
@@ -13,7 +15,8 @@ import 'paid_from_field.dart';
 // and a "New Category" option are added). When editing, Delete asks for
 // confirmation and then calls [onDelete]. [showTasksOption] adds the Google
 // Tasks reminder switch (while Google Tasks sync is on). [sources] are the
-// "Paid from" choices (BalanceModel.paymentOptions(forCard: false)).
+// "Paid from" choices (BalanceModel.paymentOptions(forCard: false)); [connectable]
+// the linked credit/loan accounts its amount can sync from.
 Future<ExpenseModel?> showRecurringExpenseDialog(
     BuildContext context, {
     ExpenseModel? existing,
@@ -21,6 +24,7 @@ Future<ExpenseModel?> showRecurringExpenseDialog(
     VoidCallback? onDelete,
     bool showTasksOption = false,
     List<SourceOption> sources = const [SourceOption.currentBalance],
+    List<BankAccountModel> connectable = const [],
 }) {
     return showAdaptiveDialog<ExpenseModel>(
         context: context,
@@ -30,6 +34,7 @@ Future<ExpenseModel?> showRecurringExpenseDialog(
             onDelete: onDelete,
             showTasksOption: showTasksOption,
             sources: sources,
+            connectable: connectable,
         ),
     );
 }
@@ -42,12 +47,14 @@ class _RecurringExpenseDialog extends StatefulWidget {
     final VoidCallback? onDelete;
     final bool showTasksOption;
     final List<SourceOption> sources;
+    final List<BankAccountModel> connectable;
     const _RecurringExpenseDialog({
         this.existing,
         required this.categories,
         this.onDelete,
         this.showTasksOption = false,
         required this.sources,
+        required this.connectable,
     });
 
     @override
@@ -75,6 +82,15 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     late DateTime? _endDate = widget.existing?.endDate;
     late bool _remindInTasks = widget.existing?.remindInTasks ?? true;
     late SourceOption _source = initialSource(widget.sources, widget.existing);
+    // The connected account its amount syncs from (null = typed).
+    late BankAccountModel? _linked = _connectable(widget.existing?.linkedAccountId);
+
+    BankAccountModel? _connectable(String? id) {
+        for (final BankAccountModel a in widget.connectable) {
+            if (a.id == id) return a;
+        }
+        return null;
+    }
     // Categories added from this dialog ("New Category"), shown in the dropdown.
     final List<String> _addedCategories = [];
     String? _endDateError;
@@ -158,6 +174,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 remindInTasks: _remindInTasks,
                 source: _source.source,
                 sourceId: _source.id,
+                linkedAccountId: _linked?.id,
             );
         }
 
@@ -250,7 +267,17 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     return null;
                                 },
                             ),
-                            // TODO: Add a "From Connected Account" button
+                            ConnectedAccountField(
+                                accounts: widget.connectable,
+                                linked: _linked,
+                                onPick: (account) => setState(() {
+                                    _linked = account;
+                                    if (_nameController.text.trim().isEmpty) _nameController.text = account.displayName;
+                                    final double? ledger = account.ledger;
+                                    if (ledger != null) _amountController.text = ledger.abs().toStringAsFixed(2);
+                                }),
+                                onUnlink: () => setState(() => _linked = null),
+                            ),
                             // Row of (frequency, frequency unit) fields
                             Row(
                                 children: [

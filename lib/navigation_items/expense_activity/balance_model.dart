@@ -20,6 +20,7 @@
 // leaves the balance when the card is paid. "Expenses due" in a check counts
 // only what leaves currentBalance, so nothing is counted twice.
 import 'package:bujit/utils/date_utils.dart';
+import 'package:bujit/navigation_items/banking/bank_account_model.dart';
 import 'package:bujit/navigation_items/banking/manual_account_model.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'package:bujit/storage_management/period_snapshot.dart';
@@ -65,6 +66,7 @@ class BalanceModel {
     // Totals of pay periods that have ended, recorded by makeRecent, for Visuals.
     final List<PeriodSnapshot> snapshots = [];
     final List<ManualAccountModel> manualAccounts = [];
+    final List<BankAccountModel> linkedAccounts = []; // Accounts at linked banks (Plaid)
     // "Additional funds" in Update Balance: money tracked outside any account
     // (the Java app's manualBalanceAddition), part of currentBalance.
     double balanceExtra;
@@ -93,6 +95,13 @@ class BalanceModel {
         return null;
     }
 
+    BankAccountModel? linkedAccount(String? id) {
+        for (final BankAccountModel account in linkedAccounts) {
+            if (account.id == id) return account;
+        }
+        return null;
+    }
+
     // Cards are referred to by name, as in the Java app (see renameCard).
     CreditModel? card(String? name) {
         for (final CreditModel card in creditCards) {
@@ -101,10 +110,39 @@ class BalanceModel {
         return null;
     }
 
-    // Sum of the accounts that count toward currentBalance.
-    double get countedAccountsTotal => manualAccounts
+    // Sum of the accounts that count toward currentBalance, manual and linked.
+    double get countedAccountsTotal => countedManualTotal + countedLinkedTotal;
+
+    double get countedManualTotal => manualAccounts
         .where((a) => a.countsTowardBalance)
         .fold(0.00, (sum, a) => sum + a.balance);
+
+    double get countedLinkedTotal => linkedAccounts
+        .where((a) => a.countsTowardBalance)
+        .fold(0.00, (sum, a) => sum + (a.ledger ?? 0.00));
+
+    // After a bank sync: with linked accounts in the balance, the banks are the
+    // source of truth, so currentBalance = their balances + counted manual
+    // accounts + additional funds (the Java app's refreshLinkedBankBalance).
+    // Returns whether it changed anything.
+    bool applyLinkedBalances() {
+        if (!linkedAccounts.any((a) => a.countsTowardBalance)) return false;
+        currentBalance = countedLinkedTotal + countedManualTotal + balanceExtra;
+        return true;
+    }
+
+    // After bank accounts are disconnected: whatever they paid for or set the
+    // amount of falls back to the balance and to its last synced amount.
+    void linkedAccountsRemoved(Set<String> ids) {
+        linkedAccounts.removeWhere((a) => ids.contains(a.id));
+        for (final ExpenseItem expense in expenses) {
+            if (ids.contains(expense.linkedAccountId)) expense.linkedAccountId = null;
+            if (expense.source == FundingSource.linkedAccount && ids.contains(expense.sourceId)) {
+                expense.source = FundingSource.balance;
+                expense.sourceId = null;
+            }
+        }
+    }
 
     // Changes an account's balance; currentBalance moves with it when the account
     // counts toward it (the Java app's manualAccountsTotal delta).
@@ -149,6 +187,9 @@ class BalanceModel {
         for (final ManualAccountModel account in manualAccounts) {
             account.countsTowardBalance = false;
         }
+        for (final BankAccountModel account in linkedAccounts) {
+            account.countsTowardBalance = false;
+        }
         balanceExtra = extra;
         currentBalance = typed + extra;
     }
@@ -159,16 +200,21 @@ class BalanceModel {
         for (final ManualAccountModel account in manualAccounts) {
             account.countsTowardBalance = accountIds.contains(account.id);
         }
+        for (final BankAccountModel account in linkedAccounts) {
+            account.countsTowardBalance = account.isCash && accountIds.contains(account.id);
+        }
         balanceExtra = extra;
         currentBalance = countedAccountsTotal + extra;
     }
 
-    // "Paid from" choices: the balance, each manual account, and (for an expense,
-    // not a card) each card.
+    // "Paid from" choices: the balance, each manual account, each linked bank
+    // account with money in it, and (for an expense, not a card) each card.
     List<SourceOption> paymentOptions({required bool forCard}) => [
         SourceOption.currentBalance,
         for (final ManualAccountModel account in manualAccounts)
             SourceOption(FundingSource.manualAccount, account.id, account.name),
+        for (final BankAccountModel account in linkedAccounts)
+            if (account.isCash) SourceOption(FundingSource.linkedAccount, account.id, account.displayName),
         if (!forCard)
             for (final CreditModel card in creditCards)
                 SourceOption(FundingSource.creditCard, card.name, "${card.name} (card)"),
@@ -179,6 +225,7 @@ class BalanceModel {
         FundingSource.balance => "Current Balance",
         FundingSource.manualAccount => manualAccount(item.sourceId)?.name ?? "Current Balance",
         FundingSource.creditCard => _chargedTo(item) == null ? "Current Balance" : "${item.sourceId} (card)",
+        FundingSource.linkedAccount => linkedAccount(item.sourceId)?.displayName ?? "Current Balance",
     };
 
     // The card [item] is charged to, or null if it isn't (or the card is gone).
@@ -193,6 +240,8 @@ class BalanceModel {
         // A missing account falls back to the balance, as _payFrom does.
         FundingSource.manualAccount => manualAccount(item.sourceId)?.countsTowardBalance ?? true,
         FundingSource.creditCard => _chargedTo(item) == null,
+        // Its debit lowers the balance (at the next sync) only if the account is part of it.
+        FundingSource.linkedAccount => linkedAccount(item.sourceId)?.countsTowardBalance ?? true,
     };
 
     // Takes a payment of [amount] for [item] from whatever pays for it.
@@ -201,6 +250,9 @@ class BalanceModel {
         final ManualAccountModel? account =
             item.source == FundingSource.manualAccount ? manualAccount(item.sourceId) : null;
         final CreditModel? card = _chargedTo(item);
+        if (item.source == FundingSource.linkedAccount && linkedAccount(item.sourceId) != null) {
+            return; // The bank's balance shows it at the next sync
+        }
         if (account != null) {
             adjustAccount(account, -amount);
         } else if (card != null) {

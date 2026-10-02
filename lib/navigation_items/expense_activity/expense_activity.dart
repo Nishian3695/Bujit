@@ -88,6 +88,19 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         _refresh();
     }
 
+    // Pull to refresh: syncs linked banks' balances right away (the Java app's
+    // swipe refresh), offering to reconnect any that expired.
+    Future<void> _syncBanks() async {
+        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        final result = await _state.refreshBanks(force: true);
+        _refresh();
+        if (result != null && result.needsRelink.isNotEmpty) {
+            messenger.showSnackBar(SnackBar(
+                content: Text("${result.needsRelink.join(", ")}: bank connection expired. Reconnect in Linked Accounts."),
+            ));
+        }
+    }
+
     // Swiping the list pages between checks, as in the Java app: left = next.
     void _onSwipe(DragEndDetails details) {
         final double velocity = details.primaryVelocity ?? 0;
@@ -171,6 +184,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             categories: _state.data.categories,
             showTasksOption: _state.data.tasksSyncEnabled,
             sources: _balance.paymentOptions(forCard: false),
+            connectable: _balance.linkedAccounts.where((a) => a.isCredit || a.isLoan).toList(),
         );
         if (expense == null) return;
         expense.skipToNextDueDate();
@@ -190,6 +204,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 onDelete: delete,
                 sources: _balance.paymentOptions(forCard: true),
                 otherCardNames: _balance.creditCards.where((c) => c != item).map((c) => c.name),
+                connectable: _balance.linkedAccounts.where((a) => a.isCredit).toList(),
             )
             : await showRecurringExpenseDialog(
                 context,
@@ -198,6 +213,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 onDelete: delete,
                 showTasksOption: _state.data.tasksSyncEnabled,
                 sources: _balance.paymentOptions(forCard: false),
+                connectable: _balance.linkedAccounts.where((a) => a.isCredit || a.isLoan).toList(),
             );
         if (edited == null) return;
         _rememberCategory(edited.category);
@@ -322,10 +338,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     // a new order on the current check only, as in the Java app (projections
     // are read-only).
     Widget get expenseList => RefreshIndicator(
-        onRefresh: () async {
-            // TODO: Refresh linked bank balances
-            _refresh();
-        },
+        onRefresh: _syncBanks,
         child: _onHomeScreen
             ? ReorderableListView.builder(
                 itemCount: _balance.expenses.length,

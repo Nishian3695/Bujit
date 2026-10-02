@@ -2,6 +2,8 @@
 // and call changed(), which rebuilds listeners (e.g. the home screen) and saves.
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
+import 'navigation_items/banking/bank_account_model.dart';
+import 'navigation_items/banking/banking_prefs.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/credit_model.dart';
 import 'navigation_items/expense_activity/expense_item.dart';
@@ -22,6 +24,8 @@ class AppState extends ChangeNotifier {
     GoogleTasksSync? tasks;
     // Asks for the fingerprint/face/PIN (the app lock); null in tests unless faked.
     DeviceAuth? deviceAuth;
+    // Linked banks through Plaid; null = not available (tests, or storage failed to open).
+    BankingService? banking;
 
     AppState(this.data, [this._store]) {
         Money.useCommaSeparators = data.useCommaSeparators;
@@ -36,7 +40,8 @@ class AppState extends ChangeNotifier {
     // due and crediting paychecks that arrived, then saves the result. On the very
     // first launch there's nothing saved, so the tutorial's sample data is loaded
     // instead, as the Java app does.
-    static Future<AppState> open(AppDataStore store, {DateTime? today, GoogleTasksSync? tasks}) async {
+    static Future<AppState> open(AppDataStore store,
+            {DateTime? today, GoogleTasksSync? tasks, BankingService? banking}) async {
         AppData? data = await store.load();
         if (data == null) {
             data = AppData(balance: BalanceModel(currentBalance: 0.00));
@@ -46,9 +51,12 @@ class AppState extends ChangeNotifier {
             // Expired single events leave the list; their effects stay (they happened).
             data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
         }
-        final AppState state = AppState(data, store)..tasks = tasks;
+        final AppState state = AppState(data, store)
+            ..tasks = tasks
+            ..banking = banking;
         await state.save();
         state.syncTasks(today: today); // Due dates may have moved on; runs in the background
+        state.refreshBanks(); // Linked balances, unless synced in the last 15 minutes
         return state;
     }
 
@@ -91,6 +99,47 @@ class AppState extends ChangeNotifier {
         balance.expenses.remove(item);
         if (item is CreditModel) balance.cardRemoved(item.name);
         return changed();
+    }
+
+    // ── Linked banks ────────────────────────────────────────────────────────
+
+    bool get canLinkBanks => banking?.isConfigured ?? false;
+    bool bankSyncing = false;
+    BankSyncResult? lastBankSync; // For the screens: expired connections, errors
+
+    // Links a bank through Plaid (or reconnects [replacing]); returns its name,
+    // or null if the user left Plaid Link. Throws if the backend fails.
+    Future<String?> linkBank({LinkedItem? replacing}) async {
+        final BankingService? service = banking;
+        if (service == null) return null;
+        final String? institution = await service.linkBank(data, replacing: replacing);
+        if (institution != null) await changed();
+        return institution;
+    }
+
+    // Syncs linked banks' balances (at most every 15 minutes unless [force]).
+    // Never throws; problems are in the result.
+    Future<BankSyncResult?> refreshBanks({bool force = false}) async {
+        final BankingService? service = banking;
+        if (service == null || !service.isConfigured || data.linkedItems.isEmpty || bankSyncing) return null;
+        bankSyncing = true;
+        notifyListeners();
+        try {
+            final BankSyncResult result = await service.refresh(data, force: force);
+            lastBankSync = result;
+            if (result.synced || result.needsRelink.isNotEmpty) await changed();
+            return result;
+        } finally {
+            bankSyncing = false;
+            notifyListeners();
+        }
+    }
+
+    Future<void> disconnectBanks(Set<String> itemKeys) async {
+        final BankingService? service = banking;
+        if (service == null) return;
+        await service.disconnect(data, itemKeys);
+        await changed();
     }
 
     // ── Google Tasks ────────────────────────────────────────────────────────
@@ -194,6 +243,11 @@ class AppState extends ChangeNotifier {
     // what the Java app shows after clearing.
     Future<void> clearAllData({DateTime? today}) async {
         if (tasks != null && data.tasksSyncEnabled) await disconnectTasks(removeTasks: false);
+        // Banks too, revoking their access as the Java app's BankingPrefs.clear path did.
+        await banking?.disconnect(data, {for (final item in data.linkedItems) item.key});
+        data.linkedItems.clear();
+        data.balance.linkedAccountsRemoved({for (final a in data.balance.linkedAccounts) a.id});
+        data.lastBankSync = null;
         final AppData fresh = AppData(balance: BalanceModel(currentBalance: 0.00));
         seedSampleData(fresh.balance, today: today);
         data.replaceWith(fresh);

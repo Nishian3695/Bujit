@@ -30,6 +30,9 @@ class ExpenseItem {
     // card's name in sourceId.
     FundingSource source;
     String? sourceId;
+    // A linked bank account (credit or loan) whose balance sets this item's amount
+    // at each bank sync -- the Java app's "From Connected Account". Null = not linked.
+    String? linkedAccountId;
 
     // Displayed date and cost for the check currently on screen (see toCheck)
     late DateTime shownDate;
@@ -49,6 +52,7 @@ class ExpenseItem {
         this.remindInTasks = true,
         this.source = FundingSource.balance,
         this.sourceId,
+        this.linkedAccountId,
     }) : startDate = dateOnly(startDate),
          currentDueDate = dateOnly(currentDueDate ?? startDate),
          endDate = endDate == null ? null : dateOnly(endDate) {
