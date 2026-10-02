@@ -21,6 +21,13 @@ final Logger _logger = Logger("BujitMain");
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Log records go to the console (Logcat on Android, as "flutter").
+  Logger.root.level = Level.INFO;
+  Logger.root.onRecord.listen((record) => debugPrint([
+        "${record.level.name} ${record.loggerName}: ${record.message}",
+        if (record.error != null) "  ${record.error}",
+        if (record.stackTrace != null) "${record.stackTrace}",
+      ].join("\n")));
   runApp(const BujitApp());
 }
 

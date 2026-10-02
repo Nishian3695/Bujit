@@ -11,6 +11,7 @@
 //     the balance. (The Java app deleted linked expenses and cards; keeping them
 //     loses nothing.)
 import 'dart:math';
+import 'package:logging/logging.dart';
 import '../../storage_management/app_data_store.dart';
 import '../expense_activity/balance_model.dart';
 import '../expense_activity/credit_model.dart';
@@ -26,6 +27,8 @@ class BankSyncResult {
     final List<String> needsRelink = []; // Institutions whose connection expired
     String? error; // The last other failure
 }
+
+final Logger _logger = Logger("BujitBanking");
 
 class BankingService {
     static const Duration refreshInterval = Duration(minutes: 15); // The Java app's BALANCE_TTL_MS
@@ -99,10 +102,12 @@ class BankingService {
                     }
                 }
                 result.synced = true;
-            } on BankingAuthException {
+            } on BankingAuthException catch (e) {
+                _logger.warning("${item.institution}: connection expired", e);
                 item.needsRelink = true;
                 result.needsRelink.add(item.institution.isEmpty ? "A bank" : item.institution);
-            } catch (e) {
+            } catch (e, stack) {
+                _logger.severe("Syncing ${item.institution} failed", e, stack);
                 result.error = "$e";
             }
         }

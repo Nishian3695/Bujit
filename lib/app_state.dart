@@ -180,6 +180,7 @@ class AppState extends ChangeNotifier {
         do {
             _tasksAgain = false;
             lastTasksSync = await tasks!.reconcile(data, today: today);
+            if (!lastTasksSync!.ok) _logger.warning("Google Tasks sync: ${lastTasksSync!.summary()}");
             await save(); // Task ids (not changed(): that would sync again)
         } while (_tasksAgain && canSyncTasks);
         tasksSyncing = false;

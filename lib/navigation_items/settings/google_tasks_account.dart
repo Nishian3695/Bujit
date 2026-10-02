@@ -1,8 +1,11 @@
 // Google sign-in for Google Tasks sync, through the google_sign_in plugin. The
 // Java app's GoogleTasksHelper.buildSignInClient/getAccessToken equivalent.
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:logging/logging.dart';
 import '../../config/google_config.dart';
 import 'google_tasks_helper.dart';
+
+final Logger _logger = Logger("BujitTasks");
 
 class GoogleTasksAccount implements TasksAccount {
     static const List<String> scopes = ["https://www.googleapis.com/auth/tasks"];
@@ -28,6 +31,7 @@ class GoogleTasksAccount implements TasksAccount {
             await account.authorizationClient.authorizeScopes(scopes);
             return account.email;
         } on GoogleSignInException catch (e) {
+            _logger.warning("Google sign-in: ${e.code.name} ${e.description ?? ""}");
             if (e.code == GoogleSignInExceptionCode.canceled) return null;
             throw TasksAuthException("Google sign-in failed: ${e.description ?? e.code.name}");
         }

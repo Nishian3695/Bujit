@@ -7,7 +7,9 @@
 //   POST /plaid/exchange   {public_token} -> {access_token}
 //   GET  /plaid/accounts   -> [{id, name, type, subtype, mask, institution_name, ledger, available, limit}]
 //   POST /plaid/remove     revoke the access token with Plaid
-// HTTP 401 means the connection must be re-linked (BankingAuthException).
+// HTTP 401 on a call about a linked bank means its connection must be re-linked
+// (BankingAuthException); on other calls, the backend refused the app itself
+// (e.g. "Missing App Check token"), which is a BankingException.
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'bank_account_model.dart';
@@ -44,7 +46,7 @@ class PlaidBackendClient {
             Uri.https(host, "/plaid/accounts"),
             headers: await _headers(accessToken: item.accessToken),
         );
-        final Object? json = _decode(response, "/plaid/accounts");
+        final Object? json = _decode(response, "/plaid/accounts", aboutBank: true);
         if (json is! List) throw const BankingException("Unexpected /plaid/accounts response");
         return [
             for (final Object? o in json)
@@ -73,7 +75,7 @@ class PlaidBackendClient {
             },
             body: jsonEncode(body),
         );
-        final Object? json = _decode(response, path);
+        final Object? json = _decode(response, path, aboutBank: accessToken != null);
         return json is Map<String, dynamic> ? json : const {};
     }
 
@@ -83,14 +85,15 @@ class PlaidBackendClient {
         "X-Plaid-Token": ?accessToken,
     };
 
-    static Object? _decode(http.Response response, String path) {
+    static Object? _decode(http.Response response, String path, {required bool aboutBank}) {
         final String text = utf8.decode(response.bodyBytes);
         if (response.statusCode == 401) {
             String code = "AUTH_REQUIRED";
             try {
                 code = (jsonDecode(text) as Map<String, dynamic>)["error"] as String? ?? code;
             } catch (_) {}
-            throw BankingAuthException(code);
+            if (aboutBank) throw BankingAuthException(code);
+            throw BankingException("Bujit's server refused the request ($code)");
         }
         if (response.statusCode >= 300) throw BankingException("Backend $path failed: HTTP ${response.statusCode}");
         try {

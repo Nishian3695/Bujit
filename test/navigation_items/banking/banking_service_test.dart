@@ -307,6 +307,11 @@ void main() {
             client: MockClient((_) async => http.Response('{"error":"ITEM_LOGIN_REQUIRED"}', 401)));
         await expectLater(expired.fetchAccounts(LinkedItem(key: "k", accessToken: "a")),
             throwsA(isA<BankingAuthException>().having((e) => e.code, "code", "ITEM_LOGIN_REQUIRED")));
+        // A 401 before any bank is involved is the backend refusing the app, not an expired bank.
+        final PlaidBackendClient refused = PlaidBackendClient(host: "backend.test", auth: FakeAuth(),
+            client: MockClient((_) async => http.Response('{"error":"Missing App Check token"}', 401)));
+        await expectLater(refused.createLinkToken(), throwsA(isA<BankingException>().having(
+            (e) => e.message, "message", "Bujit's server refused the request (Missing App Check token)")));
     });
 
     test("links, accounts and the last sync are saved; access tokens never go in backups", () async {

@@ -4,6 +4,7 @@
 // (add/edit/delete). Which accounts make up the current balance is chosen in
 // Update Balance on the home screen ("From Accounts"), as in the Java app.
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import '../../utils/money.dart';
 import '../../app_state.dart';
 import '../../dialogs/manual_account_dialog.dart';
@@ -23,6 +24,8 @@ class BankingActivity extends StatefulWidget {
     @override
     State<BankingActivity> createState() => _BankingActivityState();
 }
+
+final Logger _logger = Logger("BujitBanking");
 
 class _BankingActivityState extends State<BankingActivity> {
     BalanceModel get _balance => widget.state.balance;
@@ -45,10 +48,11 @@ class _BankingActivityState extends State<BankingActivity> {
                     "${institution.isEmpty ? "Bank" : institution} linked. Pick its accounts for your balance "
                     "with \"From Accounts\" when you update it.")));
             }
-        } catch (e) {
+        } catch (e, stack) {
+            _logger.severe(replacing == null ? "Linking a bank failed" : "Reconnecting failed", e, stack);
             messenger.showSnackBar(SnackBar(content: Text(replacing == null
-                ? "Failed to start bank connection"
-                : "Failed to reconnect ${replacing.institution}")));
+                ? "Failed to start bank connection: $e"
+                : "Failed to reconnect ${replacing.institution}: $e")));
         } finally {
             if (mounted) setState(() => _linking = false);
         }
