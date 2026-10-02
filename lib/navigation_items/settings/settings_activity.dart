@@ -12,6 +12,34 @@ class SettingsActivity extends StatefulWidget {
 }
 
 class _SettingsActivityState extends State<SettingsActivity> {
+    // Asks how many days a single event stays listed after its last change (at least 1).
+    Future<void> _editExpiryDays() async {
+        final TextEditingController controller =
+            TextEditingController(text: widget.state.data.singleEventExpiryDays.toString());
+        final int? days = await showDialog<int>(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: const Text("Clear single events after"),
+                content: TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(suffixText: "days"),
+                ),
+                actions: [
+                    TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
+                    TextButton(
+                        onPressed: () => Navigator.of(context).pop(int.tryParse(controller.text.trim())),
+                        child: const Text("Save"),
+                    ),
+                ],
+            ),
+        );
+        controller.dispose();
+        if (days == null || days < 1) return;
+        setState(() => widget.state.data.singleEventExpiryDays = days);
+        await widget.state.changed();
+    }
+
     Future<void> _resetToSampleData() async {
         final bool? confirmed = await showDialog<bool>(
             context: context,
@@ -46,6 +74,11 @@ class _SettingsActivityState extends State<SettingsActivity> {
                             setState(() => widget.state.data.includeNextCheck = enabled);
                             widget.state.changed();
                         },
+                    ),
+                    ListTile(
+                        title: const Text("Clear single events after"),
+                        subtitle: Text("${widget.state.data.singleEventExpiryDays} days since they were last changed"),
+                        onTap: _editExpiryDays,
                     ),
                     const Divider(),
                     ListTile(

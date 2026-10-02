@@ -1397,12 +1397,24 @@ class $AppMetaRowsTable extends AppMetaRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _singleEventExpiryDaysMeta =
+      const VerificationMeta('singleEventExpiryDays');
+  @override
+  late final GeneratedColumn<int> singleEventExpiryDays = GeneratedColumn<int>(
+    'single_event_expiry_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(30),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     currentBalance,
     lastUpdated,
     includeNextCheck,
+    singleEventExpiryDays,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1448,6 +1460,15 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('single_event_expiry_days')) {
+      context.handle(
+        _singleEventExpiryDaysMeta,
+        singleEventExpiryDays.isAcceptableOrUnknown(
+          data['single_event_expiry_days']!,
+          _singleEventExpiryDaysMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1473,6 +1494,10 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.bool,
         data['${effectivePrefix}include_next_check'],
       )!,
+      singleEventExpiryDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}single_event_expiry_days'],
+      )!,
     );
   }
 
@@ -1487,11 +1512,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final double currentBalance;
   final DateTime lastUpdated;
   final bool includeNextCheck;
+  final int singleEventExpiryDays;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
     required this.lastUpdated,
     required this.includeNextCheck,
+    required this.singleEventExpiryDays,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1500,6 +1527,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['current_balance'] = Variable<double>(currentBalance);
     map['last_updated'] = Variable<DateTime>(lastUpdated);
     map['include_next_check'] = Variable<bool>(includeNextCheck);
+    map['single_event_expiry_days'] = Variable<int>(singleEventExpiryDays);
     return map;
   }
 
@@ -1509,6 +1537,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       currentBalance: Value(currentBalance),
       lastUpdated: Value(lastUpdated),
       includeNextCheck: Value(includeNextCheck),
+      singleEventExpiryDays: Value(singleEventExpiryDays),
     );
   }
 
@@ -1522,6 +1551,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
       includeNextCheck: serializer.fromJson<bool>(json['includeNextCheck']),
+      singleEventExpiryDays: serializer.fromJson<int>(
+        json['singleEventExpiryDays'],
+      ),
     );
   }
   @override
@@ -1532,6 +1564,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'currentBalance': serializer.toJson<double>(currentBalance),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
       'includeNextCheck': serializer.toJson<bool>(includeNextCheck),
+      'singleEventExpiryDays': serializer.toJson<int>(singleEventExpiryDays),
     };
   }
 
@@ -1540,11 +1573,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     double? currentBalance,
     DateTime? lastUpdated,
     bool? includeNextCheck,
+    int? singleEventExpiryDays,
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
     lastUpdated: lastUpdated ?? this.lastUpdated,
     includeNextCheck: includeNextCheck ?? this.includeNextCheck,
+    singleEventExpiryDays: singleEventExpiryDays ?? this.singleEventExpiryDays,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -1558,6 +1593,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       includeNextCheck: data.includeNextCheck.present
           ? data.includeNextCheck.value
           : this.includeNextCheck,
+      singleEventExpiryDays: data.singleEventExpiryDays.present
+          ? data.singleEventExpiryDays.value
+          : this.singleEventExpiryDays,
     );
   }
 
@@ -1567,14 +1605,20 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
           ..write('lastUpdated: $lastUpdated, ')
-          ..write('includeNextCheck: $includeNextCheck')
+          ..write('includeNextCheck: $includeNextCheck, ')
+          ..write('singleEventExpiryDays: $singleEventExpiryDays')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, currentBalance, lastUpdated, includeNextCheck);
+  int get hashCode => Object.hash(
+    id,
+    currentBalance,
+    lastUpdated,
+    includeNextCheck,
+    singleEventExpiryDays,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1582,7 +1626,8 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.id == this.id &&
           other.currentBalance == this.currentBalance &&
           other.lastUpdated == this.lastUpdated &&
-          other.includeNextCheck == this.includeNextCheck);
+          other.includeNextCheck == this.includeNextCheck &&
+          other.singleEventExpiryDays == this.singleEventExpiryDays);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
@@ -1590,29 +1635,35 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<double> currentBalance;
   final Value<DateTime> lastUpdated;
   final Value<bool> includeNextCheck;
+  final Value<int> singleEventExpiryDays;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.lastUpdated = const Value.absent(),
     this.includeNextCheck = const Value.absent(),
+    this.singleEventExpiryDays = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
     required DateTime lastUpdated,
     this.includeNextCheck = const Value.absent(),
+    this.singleEventExpiryDays = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
     Expression<double>? currentBalance,
     Expression<DateTime>? lastUpdated,
     Expression<bool>? includeNextCheck,
+    Expression<int>? singleEventExpiryDays,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (currentBalance != null) 'current_balance': currentBalance,
       if (lastUpdated != null) 'last_updated': lastUpdated,
       if (includeNextCheck != null) 'include_next_check': includeNextCheck,
+      if (singleEventExpiryDays != null)
+        'single_event_expiry_days': singleEventExpiryDays,
     });
   }
 
@@ -1621,12 +1672,15 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<double>? currentBalance,
     Value<DateTime>? lastUpdated,
     Value<bool>? includeNextCheck,
+    Value<int>? singleEventExpiryDays,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
       currentBalance: currentBalance ?? this.currentBalance,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       includeNextCheck: includeNextCheck ?? this.includeNextCheck,
+      singleEventExpiryDays:
+          singleEventExpiryDays ?? this.singleEventExpiryDays,
     );
   }
 
@@ -1645,6 +1699,11 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (includeNextCheck.present) {
       map['include_next_check'] = Variable<bool>(includeNextCheck.value);
     }
+    if (singleEventExpiryDays.present) {
+      map['single_event_expiry_days'] = Variable<int>(
+        singleEventExpiryDays.value,
+      );
+    }
     return map;
   }
 
@@ -1654,7 +1713,585 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('id: $id, ')
           ..write('currentBalance: $currentBalance, ')
           ..write('lastUpdated: $lastUpdated, ')
-          ..write('includeNextCheck: $includeNextCheck')
+          ..write('includeNextCheck: $includeNextCheck, ')
+          ..write('singleEventExpiryDays: $singleEventExpiryDays')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SingleEventRowsTable extends SingleEventRows
+    with TableInfo<$SingleEventRowsTable, SingleEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SingleEventRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 200,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isDebitMeta = const VerificationMeta(
+    'isDebit',
+  );
+  @override
+  late final GeneratedColumn<bool> isDebit = GeneratedColumn<bool>(
+    'is_debit',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_debit" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _createdDateMeta = const VerificationMeta(
+    'createdDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdDate = GeneratedColumn<DateTime>(
+    'created_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastModifiedDateMeta = const VerificationMeta(
+    'lastModifiedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastModifiedDate =
+      GeneratedColumn<DateTime>(
+        'last_modified_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _appliedAmountMeta = const VerificationMeta(
+    'appliedAmount',
+  );
+  @override
+  late final GeneratedColumn<double> appliedAmount = GeneratedColumn<double>(
+    'applied_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<EventTarget, String> target =
+      GeneratedColumn<String>(
+        'target',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<EventTarget>($SingleEventRowsTable.$convertertarget);
+  static const VerificationMeta _targetNameMeta = const VerificationMeta(
+    'targetName',
+  );
+  @override
+  late final GeneratedColumn<String> targetName = GeneratedColumn<String>(
+    'target_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    amount,
+    isDebit,
+    createdDate,
+    lastModifiedDate,
+    appliedAmount,
+    target,
+    targetName,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'single_event_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SingleEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('is_debit')) {
+      context.handle(
+        _isDebitMeta,
+        isDebit.isAcceptableOrUnknown(data['is_debit']!, _isDebitMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_isDebitMeta);
+    }
+    if (data.containsKey('created_date')) {
+      context.handle(
+        _createdDateMeta,
+        createdDate.isAcceptableOrUnknown(
+          data['created_date']!,
+          _createdDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdDateMeta);
+    }
+    if (data.containsKey('last_modified_date')) {
+      context.handle(
+        _lastModifiedDateMeta,
+        lastModifiedDate.isAcceptableOrUnknown(
+          data['last_modified_date']!,
+          _lastModifiedDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedDateMeta);
+    }
+    if (data.containsKey('applied_amount')) {
+      context.handle(
+        _appliedAmountMeta,
+        appliedAmount.isAcceptableOrUnknown(
+          data['applied_amount']!,
+          _appliedAmountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_appliedAmountMeta);
+    }
+    if (data.containsKey('target_name')) {
+      context.handle(
+        _targetNameMeta,
+        targetName.isAcceptableOrUnknown(data['target_name']!, _targetNameMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SingleEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SingleEventRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      isDebit: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_debit'],
+      )!,
+      createdDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_date'],
+      )!,
+      lastModifiedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_modified_date'],
+      )!,
+      appliedAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}applied_amount'],
+      )!,
+      target: $SingleEventRowsTable.$convertertarget.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}target'],
+        )!,
+      ),
+      targetName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_name'],
+      ),
+    );
+  }
+
+  @override
+  $SingleEventRowsTable createAlias(String alias) {
+    return $SingleEventRowsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<EventTarget, String, String> $convertertarget =
+      const EnumNameConverter<EventTarget>(EventTarget.values);
+}
+
+class SingleEventRow extends DataClass implements Insertable<SingleEventRow> {
+  final int id;
+  final String name;
+  final double amount;
+  final bool isDebit;
+  final DateTime createdDate;
+  final DateTime lastModifiedDate;
+  final double appliedAmount;
+  final EventTarget target;
+  final String? targetName;
+  const SingleEventRow({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.isDebit,
+    required this.createdDate,
+    required this.lastModifiedDate,
+    required this.appliedAmount,
+    required this.target,
+    this.targetName,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['amount'] = Variable<double>(amount);
+    map['is_debit'] = Variable<bool>(isDebit);
+    map['created_date'] = Variable<DateTime>(createdDate);
+    map['last_modified_date'] = Variable<DateTime>(lastModifiedDate);
+    map['applied_amount'] = Variable<double>(appliedAmount);
+    {
+      map['target'] = Variable<String>(
+        $SingleEventRowsTable.$convertertarget.toSql(target),
+      );
+    }
+    if (!nullToAbsent || targetName != null) {
+      map['target_name'] = Variable<String>(targetName);
+    }
+    return map;
+  }
+
+  SingleEventRowsCompanion toCompanion(bool nullToAbsent) {
+    return SingleEventRowsCompanion(
+      id: Value(id),
+      name: Value(name),
+      amount: Value(amount),
+      isDebit: Value(isDebit),
+      createdDate: Value(createdDate),
+      lastModifiedDate: Value(lastModifiedDate),
+      appliedAmount: Value(appliedAmount),
+      target: Value(target),
+      targetName: targetName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetName),
+    );
+  }
+
+  factory SingleEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SingleEventRow(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      amount: serializer.fromJson<double>(json['amount']),
+      isDebit: serializer.fromJson<bool>(json['isDebit']),
+      createdDate: serializer.fromJson<DateTime>(json['createdDate']),
+      lastModifiedDate: serializer.fromJson<DateTime>(json['lastModifiedDate']),
+      appliedAmount: serializer.fromJson<double>(json['appliedAmount']),
+      target: $SingleEventRowsTable.$convertertarget.fromJson(
+        serializer.fromJson<String>(json['target']),
+      ),
+      targetName: serializer.fromJson<String?>(json['targetName']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'amount': serializer.toJson<double>(amount),
+      'isDebit': serializer.toJson<bool>(isDebit),
+      'createdDate': serializer.toJson<DateTime>(createdDate),
+      'lastModifiedDate': serializer.toJson<DateTime>(lastModifiedDate),
+      'appliedAmount': serializer.toJson<double>(appliedAmount),
+      'target': serializer.toJson<String>(
+        $SingleEventRowsTable.$convertertarget.toJson(target),
+      ),
+      'targetName': serializer.toJson<String?>(targetName),
+    };
+  }
+
+  SingleEventRow copyWith({
+    int? id,
+    String? name,
+    double? amount,
+    bool? isDebit,
+    DateTime? createdDate,
+    DateTime? lastModifiedDate,
+    double? appliedAmount,
+    EventTarget? target,
+    Value<String?> targetName = const Value.absent(),
+  }) => SingleEventRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    amount: amount ?? this.amount,
+    isDebit: isDebit ?? this.isDebit,
+    createdDate: createdDate ?? this.createdDate,
+    lastModifiedDate: lastModifiedDate ?? this.lastModifiedDate,
+    appliedAmount: appliedAmount ?? this.appliedAmount,
+    target: target ?? this.target,
+    targetName: targetName.present ? targetName.value : this.targetName,
+  );
+  SingleEventRow copyWithCompanion(SingleEventRowsCompanion data) {
+    return SingleEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      isDebit: data.isDebit.present ? data.isDebit.value : this.isDebit,
+      createdDate: data.createdDate.present
+          ? data.createdDate.value
+          : this.createdDate,
+      lastModifiedDate: data.lastModifiedDate.present
+          ? data.lastModifiedDate.value
+          : this.lastModifiedDate,
+      appliedAmount: data.appliedAmount.present
+          ? data.appliedAmount.value
+          : this.appliedAmount,
+      target: data.target.present ? data.target.value : this.target,
+      targetName: data.targetName.present
+          ? data.targetName.value
+          : this.targetName,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SingleEventRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('amount: $amount, ')
+          ..write('isDebit: $isDebit, ')
+          ..write('createdDate: $createdDate, ')
+          ..write('lastModifiedDate: $lastModifiedDate, ')
+          ..write('appliedAmount: $appliedAmount, ')
+          ..write('target: $target, ')
+          ..write('targetName: $targetName')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    amount,
+    isDebit,
+    createdDate,
+    lastModifiedDate,
+    appliedAmount,
+    target,
+    targetName,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SingleEventRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.amount == this.amount &&
+          other.isDebit == this.isDebit &&
+          other.createdDate == this.createdDate &&
+          other.lastModifiedDate == this.lastModifiedDate &&
+          other.appliedAmount == this.appliedAmount &&
+          other.target == this.target &&
+          other.targetName == this.targetName);
+}
+
+class SingleEventRowsCompanion extends UpdateCompanion<SingleEventRow> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<double> amount;
+  final Value<bool> isDebit;
+  final Value<DateTime> createdDate;
+  final Value<DateTime> lastModifiedDate;
+  final Value<double> appliedAmount;
+  final Value<EventTarget> target;
+  final Value<String?> targetName;
+  const SingleEventRowsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.isDebit = const Value.absent(),
+    this.createdDate = const Value.absent(),
+    this.lastModifiedDate = const Value.absent(),
+    this.appliedAmount = const Value.absent(),
+    this.target = const Value.absent(),
+    this.targetName = const Value.absent(),
+  });
+  SingleEventRowsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required double amount,
+    required bool isDebit,
+    required DateTime createdDate,
+    required DateTime lastModifiedDate,
+    required double appliedAmount,
+    required EventTarget target,
+    this.targetName = const Value.absent(),
+  }) : name = Value(name),
+       amount = Value(amount),
+       isDebit = Value(isDebit),
+       createdDate = Value(createdDate),
+       lastModifiedDate = Value(lastModifiedDate),
+       appliedAmount = Value(appliedAmount),
+       target = Value(target);
+  static Insertable<SingleEventRow> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<double>? amount,
+    Expression<bool>? isDebit,
+    Expression<DateTime>? createdDate,
+    Expression<DateTime>? lastModifiedDate,
+    Expression<double>? appliedAmount,
+    Expression<String>? target,
+    Expression<String>? targetName,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (amount != null) 'amount': amount,
+      if (isDebit != null) 'is_debit': isDebit,
+      if (createdDate != null) 'created_date': createdDate,
+      if (lastModifiedDate != null) 'last_modified_date': lastModifiedDate,
+      if (appliedAmount != null) 'applied_amount': appliedAmount,
+      if (target != null) 'target': target,
+      if (targetName != null) 'target_name': targetName,
+    });
+  }
+
+  SingleEventRowsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<double>? amount,
+    Value<bool>? isDebit,
+    Value<DateTime>? createdDate,
+    Value<DateTime>? lastModifiedDate,
+    Value<double>? appliedAmount,
+    Value<EventTarget>? target,
+    Value<String?>? targetName,
+  }) {
+    return SingleEventRowsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+      isDebit: isDebit ?? this.isDebit,
+      createdDate: createdDate ?? this.createdDate,
+      lastModifiedDate: lastModifiedDate ?? this.lastModifiedDate,
+      appliedAmount: appliedAmount ?? this.appliedAmount,
+      target: target ?? this.target,
+      targetName: targetName ?? this.targetName,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (isDebit.present) {
+      map['is_debit'] = Variable<bool>(isDebit.value);
+    }
+    if (createdDate.present) {
+      map['created_date'] = Variable<DateTime>(createdDate.value);
+    }
+    if (lastModifiedDate.present) {
+      map['last_modified_date'] = Variable<DateTime>(lastModifiedDate.value);
+    }
+    if (appliedAmount.present) {
+      map['applied_amount'] = Variable<double>(appliedAmount.value);
+    }
+    if (target.present) {
+      map['target'] = Variable<String>(
+        $SingleEventRowsTable.$convertertarget.toSql(target.value),
+      );
+    }
+    if (targetName.present) {
+      map['target_name'] = Variable<String>(targetName.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SingleEventRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('amount: $amount, ')
+          ..write('isDebit: $isDebit, ')
+          ..write('createdDate: $createdDate, ')
+          ..write('lastModifiedDate: $lastModifiedDate, ')
+          ..write('appliedAmount: $appliedAmount, ')
+          ..write('target: $target, ')
+          ..write('targetName: $targetName')
           ..write(')'))
         .toString();
   }
@@ -1670,6 +2307,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $IncomeStreamModelRowsTable(this);
   late final $CategoryRowsTable categoryRows = $CategoryRowsTable(this);
   late final $AppMetaRowsTable appMetaRows = $AppMetaRowsTable(this);
+  late final $SingleEventRowsTable singleEventRows = $SingleEventRowsTable(
+    this,
+  );
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -1680,6 +2320,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     incomeStreamModelRows,
     categoryRows,
     appMetaRows,
+    singleEventRows,
   ];
 }
 
@@ -2389,6 +3030,7 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<double> currentBalance,
       required DateTime lastUpdated,
       Value<bool> includeNextCheck,
+      Value<int> singleEventExpiryDays,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
@@ -2396,6 +3038,7 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<double> currentBalance,
       Value<DateTime> lastUpdated,
       Value<bool> includeNextCheck,
+      Value<int> singleEventExpiryDays,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -2424,6 +3067,11 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<bool> get includeNextCheck => $composableBuilder(
     column: $table.includeNextCheck,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get singleEventExpiryDays => $composableBuilder(
+    column: $table.singleEventExpiryDays,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2456,6 +3104,11 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.includeNextCheck,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get singleEventExpiryDays => $composableBuilder(
+    column: $table.singleEventExpiryDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -2482,6 +3135,11 @@ class $$AppMetaRowsTableAnnotationComposer
 
   GeneratedColumn<bool> get includeNextCheck => $composableBuilder(
     column: $table.includeNextCheck,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get singleEventExpiryDays => $composableBuilder(
+    column: $table.singleEventExpiryDays,
     builder: (column) => column,
   );
 }
@@ -2521,11 +3179,13 @@ class $$AppMetaRowsTableTableManager
                 Value<double> currentBalance = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
                 Value<bool> includeNextCheck = const Value.absent(),
+                Value<int> singleEventExpiryDays = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
+                singleEventExpiryDays: singleEventExpiryDays,
               ),
           createCompanionCallback:
               ({
@@ -2533,11 +3193,13 @@ class $$AppMetaRowsTableTableManager
                 Value<double> currentBalance = const Value.absent(),
                 required DateTime lastUpdated,
                 Value<bool> includeNextCheck = const Value.absent(),
+                Value<int> singleEventExpiryDays = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
                 includeNextCheck: includeNextCheck,
+                singleEventExpiryDays: singleEventExpiryDays,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2564,6 +3226,291 @@ typedef $$AppMetaRowsTableProcessedTableManager =
       AppMetaRow,
       PrefetchHooks Function()
     >;
+typedef $$SingleEventRowsTableCreateCompanionBuilder =
+    SingleEventRowsCompanion Function({
+      Value<int> id,
+      required String name,
+      required double amount,
+      required bool isDebit,
+      required DateTime createdDate,
+      required DateTime lastModifiedDate,
+      required double appliedAmount,
+      required EventTarget target,
+      Value<String?> targetName,
+    });
+typedef $$SingleEventRowsTableUpdateCompanionBuilder =
+    SingleEventRowsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<double> amount,
+      Value<bool> isDebit,
+      Value<DateTime> createdDate,
+      Value<DateTime> lastModifiedDate,
+      Value<double> appliedAmount,
+      Value<EventTarget> target,
+      Value<String?> targetName,
+    });
+
+class $$SingleEventRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $SingleEventRowsTable> {
+  $$SingleEventRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDebit => $composableBuilder(
+    column: $table.isDebit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdDate => $composableBuilder(
+    column: $table.createdDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastModifiedDate => $composableBuilder(
+    column: $table.lastModifiedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get appliedAmount => $composableBuilder(
+    column: $table.appliedAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<EventTarget, EventTarget, String> get target =>
+      $composableBuilder(
+        column: $table.target,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get targetName => $composableBuilder(
+    column: $table.targetName,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SingleEventRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SingleEventRowsTable> {
+  $$SingleEventRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDebit => $composableBuilder(
+    column: $table.isDebit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdDate => $composableBuilder(
+    column: $table.createdDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastModifiedDate => $composableBuilder(
+    column: $table.lastModifiedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get appliedAmount => $composableBuilder(
+    column: $table.appliedAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get target => $composableBuilder(
+    column: $table.target,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetName => $composableBuilder(
+    column: $table.targetName,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SingleEventRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SingleEventRowsTable> {
+  $$SingleEventRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDebit =>
+      $composableBuilder(column: $table.isDebit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdDate => $composableBuilder(
+    column: $table.createdDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastModifiedDate => $composableBuilder(
+    column: $table.lastModifiedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get appliedAmount => $composableBuilder(
+    column: $table.appliedAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<EventTarget, String> get target =>
+      $composableBuilder(column: $table.target, builder: (column) => column);
+
+  GeneratedColumn<String> get targetName => $composableBuilder(
+    column: $table.targetName,
+    builder: (column) => column,
+  );
+}
+
+class $$SingleEventRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SingleEventRowsTable,
+          SingleEventRow,
+          $$SingleEventRowsTableFilterComposer,
+          $$SingleEventRowsTableOrderingComposer,
+          $$SingleEventRowsTableAnnotationComposer,
+          $$SingleEventRowsTableCreateCompanionBuilder,
+          $$SingleEventRowsTableUpdateCompanionBuilder,
+          (
+            SingleEventRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SingleEventRowsTable,
+              SingleEventRow
+            >,
+          ),
+          SingleEventRow,
+          PrefetchHooks Function()
+        > {
+  $$SingleEventRowsTableTableManager(
+    _$AppDatabase db,
+    $SingleEventRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SingleEventRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SingleEventRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SingleEventRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<bool> isDebit = const Value.absent(),
+                Value<DateTime> createdDate = const Value.absent(),
+                Value<DateTime> lastModifiedDate = const Value.absent(),
+                Value<double> appliedAmount = const Value.absent(),
+                Value<EventTarget> target = const Value.absent(),
+                Value<String?> targetName = const Value.absent(),
+              }) => SingleEventRowsCompanion(
+                id: id,
+                name: name,
+                amount: amount,
+                isDebit: isDebit,
+                createdDate: createdDate,
+                lastModifiedDate: lastModifiedDate,
+                appliedAmount: appliedAmount,
+                target: target,
+                targetName: targetName,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required double amount,
+                required bool isDebit,
+                required DateTime createdDate,
+                required DateTime lastModifiedDate,
+                required double appliedAmount,
+                required EventTarget target,
+                Value<String?> targetName = const Value.absent(),
+              }) => SingleEventRowsCompanion.insert(
+                id: id,
+                name: name,
+                amount: amount,
+                isDebit: isDebit,
+                createdDate: createdDate,
+                lastModifiedDate: lastModifiedDate,
+                appliedAmount: appliedAmount,
+                target: target,
+                targetName: targetName,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SingleEventRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SingleEventRowsTable,
+      SingleEventRow,
+      $$SingleEventRowsTableFilterComposer,
+      $$SingleEventRowsTableOrderingComposer,
+      $$SingleEventRowsTableAnnotationComposer,
+      $$SingleEventRowsTableCreateCompanionBuilder,
+      $$SingleEventRowsTableUpdateCompanionBuilder,
+      (
+        SingleEventRow,
+        BaseReferences<_$AppDatabase, $SingleEventRowsTable, SingleEventRow>,
+      ),
+      SingleEventRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2576,4 +3523,6 @@ class $AppDatabaseManager {
       $$CategoryRowsTableTableManager(_db, _db.categoryRows);
   $$AppMetaRowsTableTableManager get appMetaRows =>
       $$AppMetaRowsTableTableManager(_db, _db.appMetaRows);
+  $$SingleEventRowsTableTableManager get singleEventRows =>
+      $$SingleEventRowsTableTableManager(_db, _db.singleEventRows);
 }

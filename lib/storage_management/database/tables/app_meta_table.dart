@@ -27,6 +27,8 @@ class AppMetaRows extends Table {
   DateTimeColumn get lastUpdated => dateTime()();
   // Settings: show "Next Check" (After This Check plus the next paycheck).
   BoolColumn get includeNextCheck => boolean().withDefault(const Constant(false))();
+  // Settings: days after its last change that a single event is cleared (Java default 30).
+  IntColumn get singleEventExpiryDays => integer().withDefault(const Constant(30))();
 
   @override
   Set<Column> get primaryKey => {id};

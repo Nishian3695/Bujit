@@ -8,18 +8,29 @@ import '../utils/category_manager.dart';
 import 'database/app_database.dart';
 import 'database/mappers/expense_mapper.dart';
 import 'database/mappers/income_stream_mapper.dart';
+import 'database/mappers/single_event_mapper.dart';
+import '../navigation_items/single_events/single_event_model.dart';
+import '../navigation_items/single_events/single_events_ledger.dart';
 
 // Everything the app persists, in domain form.
 class AppData {
     final BalanceModel balance;
     final List<String> categories; // User categories (getCategories() adds "Other")
+    final List<SingleEventModel> singleEvents; // Newest-changed first
     bool includeNextCheck; // Settings: show "Next Check" instead of "After This Check"
+    int singleEventExpiryDays; // Settings: days after its last change a single event is cleared
 
     AppData({
         required this.balance,
         List<String>? categories,
+        List<SingleEventModel>? singleEvents,
         this.includeNextCheck = false,
-    }) : categories = categories ?? defaultCategories();
+        this.singleEventExpiryDays = 30,
+    }) : categories = categories ?? defaultCategories(),
+         singleEvents = singleEvents ?? [];
+
+    // Single events applied against this data's balance and cards.
+    SingleEventsLedger get singleEventsLedger => SingleEventsLedger(balance, singleEvents);
 }
 
 class AppDataStore {
@@ -51,10 +62,15 @@ class AppDataStore {
         final categoryRows = await (db.select(db.categoryRows)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
             .get();
+        final eventRows = await (db.select(db.singleEventRows)
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
         return AppData(
             balance: balance,
             categories: categoryRows.map((row) => row.name).toList(),
+            singleEvents: eventRows.map((row) => row.toDomain()).toList(),
             includeNextCheck: meta.includeNextCheck,
+            singleEventExpiryDays: meta.singleEventExpiryDays,
         );
     }
 
@@ -77,11 +93,16 @@ class AppDataStore {
                 if (name == otherCategory || name == newCategory) continue;
                 await db.into(db.categoryRows).insert(CategoryRowsCompanion.insert(name: name));
             }
+            await db.delete(db.singleEventRows).go();
+            for (final SingleEventModel event in data.singleEvents) {
+                event.id = await db.into(db.singleEventRows).insert(event.toInsertCompanion());
+            }
             await db.into(db.appMetaRows).insertOnConflictUpdate(AppMetaRowsCompanion.insert(
                 id: const Value(0),
                 currentBalance: Value(balance.currentBalance),
                 lastUpdated: balance.lastUpdated,
                 includeNextCheck: Value(data.includeNextCheck),
+                singleEventExpiryDays: Value(data.singleEventExpiryDays),
             ));
         });
     }

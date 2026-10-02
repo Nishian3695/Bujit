@@ -5,6 +5,7 @@ import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
+import 'package:bujit/navigation_items/single_events/single_event_model.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/database/app_database.dart';
 import 'package:bujit/utils/date_utils.dart';
@@ -36,7 +37,16 @@ AppData _sampleData() {
         frequency: 2, frequencyUnits: FrequencyUnit.weekly);
     balance.incomeStreams.addAll([side, job]);
     balance.activeIncome = job;
-    return AppData(balance: balance, categories: ["Housing", "Health"], includeNextCheck: true);
+    return AppData(
+        balance: balance,
+        categories: ["Housing", "Health"],
+        includeNextCheck: true,
+        singleEventExpiryDays: 14,
+        singleEvents: [
+            SingleEventModel(name: "Dinner", amount: 60.0, isDebit: true, target: EventTarget.creditCard,
+                targetName: "Card", createdDate: day(-3), lastModifiedDate: day(-1)),
+        ],
+    );
 }
 
 void main() {
@@ -71,6 +81,16 @@ void main() {
             expect(balance.incomeStreams.map((s) => s.name), ["Side", "Job"]);
             expect(balance.activeIncome!.name, "Job");
             expect(balance.activeIncome!.frequencyUnits, FrequencyUnit.weekly);
+
+            expect(loaded.singleEventExpiryDays, 14);
+            final SingleEventModel event = loaded.singleEvents.single;
+            expect(event.name, "Dinner");
+            expect(event.isDebit, isTrue);
+            expect(event.appliedAmount, -60.0);
+            expect(event.target, EventTarget.creditCard);
+            expect(event.targetName, "Card");
+            expect(event.createdDate, day(-3));
+            expect(event.lastModifiedDate, day(-1));
         });
 
         test("saving again replaces rather than duplicates", () async {

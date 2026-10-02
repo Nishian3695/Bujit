@@ -30,6 +30,8 @@ class AppState extends ChangeNotifier {
             seedSampleData(data.balance, today: today);
         } else {
             data.balance.makeRecent(today: today);
+            // Expired single events leave the list; their effects stay (they happened).
+            data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
         }
         final AppState state = AppState(data, store);
         await state.save();
@@ -57,6 +59,7 @@ class AppState extends ChangeNotifier {
     // Replaces everything with the tutorial's sample data (Settings).
     Future<void> resetToSampleData({DateTime? today}) {
         seedSampleData(data.balance, today: today);
+        data.singleEvents.clear();
         return changed();
     }
 }
