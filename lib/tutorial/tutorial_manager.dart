@@ -31,10 +31,11 @@ class TutorialManager {
             "expense due this check is paid -- including anything due on payday itself."),
         TutorialStep(TutorialScreen.home, "expense_list", "Expense list",
             "Recurring expenses and credit cards appear here with their due date and the amount "
-            "due this check. Tap any row to edit or delete it."),
-        TutorialStep(TutorialScreen.home, "add_button", "Add a recurring expense",
-            "Tap + to add a recurring expense (rent, subscriptions, utilities). Set the amount, "
-            "frequency, start date, optional end date and category."),
+            "due this check. Tap any row to edit or delete it; hold and drag to reorder. Swipe "
+            "to page between checks."),
+        TutorialStep(TutorialScreen.home, "add_button", "Add an expense",
+            "Tap + to add a recurring expense (rent, subscriptions, utilities) -- with its amount, "
+            "frequency, dates, category and what pays for it -- or a one-off single event."),
         TutorialStep(TutorialScreen.home, "menu_button", "Navigation menu",
             "Tap ☰ (top-left) to reach all of Bujit's features. Let's start with Income Streams.",
             TutorialScreen.incomeStreams),

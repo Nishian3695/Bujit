@@ -27,6 +27,7 @@ import 'check_window.dart';
 import 'credit_model.dart';
 import 'expense_item.dart';
 import 'funding_source.dart';
+import 'projection_settings.dart';
 
 // One check's numbers, as computed by BalanceModel.check().
 class CheckSummary {
@@ -67,6 +68,15 @@ class BalanceModel {
     // "Additional funds" in Update Balance: money tracked outside any account
     // (the Java app's manualBalanceAddition), part of currentBalance.
     double balanceExtra;
+
+    // Projection Settings for this session (never saved). Dropped once its stream
+    // is deleted or edited (edits replace the stream).
+    ProjectionSettings? _projection;
+    ProjectionSettings? get projection {
+        final ProjectionSettings? settings = _projection;
+        return settings != null && incomeStreams.any((s) => identical(s, settings.stream)) ? settings : null;
+    }
+    set projection(ProjectionSettings? settings) => _projection = settings;
 
     BalanceModel({
         required this.currentBalance,
@@ -304,9 +314,18 @@ class BalanceModel {
         return total;
     }
 
-    // The payday check [index] opens on (index 0 = the current check).
+    // The payday check [index] opens on (index 0 = the current check). With
+    // projection settings, checks after the current one follow them instead.
     DateTime payday(int index, {DateTime? today}) {
         final DateTime day = dateOnly(today ?? todayDate());
+        final ProjectionSettings? settings = projection;
+        if (settings != null && index >= 2) {
+            return settings.checkStart(_realPayday(1, day), index - 1);
+        }
+        return _realPayday(index, day);
+    }
+
+    DateTime _realPayday(int index, DateTime day) {
         final IncomeStreamModel? income = activeIncome;
         if (income == null) return addDays(day, fallbackCheckDays * index);
         if (index == 0) return income.paydayOnOrBefore(day) ?? day;
@@ -332,6 +351,8 @@ class BalanceModel {
     // current check's has already arrived (it's in currentBalance), so it's 0.
     double incomeForCheck(CheckWindow check) {
         if (check.isCurrent) return 0.00;
+        final ProjectionSettings? settings = projection;
+        if (settings != null) return settings.amountPerCheck(today: check.today);
         double total = 0.00;
         for (final IncomeStreamModel income in incomeStreams) {
             total += income.amountInPeriod(check.start, check.end);

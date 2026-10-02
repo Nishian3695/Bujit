@@ -7,7 +7,9 @@
 import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
+import '../../dialogs/projection_settings_dialog.dart';
 import '../../dialogs/recurring_expenses.dart';
+import '../../dialogs/single_event_dialog.dart';
 import '../../dialogs/update_balance_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
@@ -16,6 +18,8 @@ import 'balance_model.dart';
 import 'credit_model.dart';
 import 'expense_item.dart';
 import 'expense_model.dart';
+import '../single_events/single_event_model.dart';
+import '../single_events/single_events_ledger.dart';
 
 enum StorageAction { read, write }
 enum DialogOption { add, edit, delete }
@@ -81,6 +85,75 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     void _goHome() {
         _checkIndex = 0;
         _refresh();
+    }
+
+    // Swiping the list pages between checks, as in the Java app: left = next.
+    void _onSwipe(DragEndDetails details) {
+        final double velocity = details.primaryVelocity ?? 0;
+        if (velocity < -300) _nextCheck();
+        if (velocity > 300) _previousCheck();
+    }
+
+    // Projection Settings (session only; see ProjectionSettings). Applying or
+    // resetting returns to the current check, as in the Java app.
+    Future<void> _openProjectionSettings() async {
+        if (_balance.incomeStreams.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Add an income stream first.")));
+            return;
+        }
+        final ProjectionChoice? choice = await showProjectionSettingsDialog(
+            context,
+            streams: _balance.incomeStreams,
+            activeStream: _balance.activeIncome,
+            current: _balance.projection,
+        );
+        if (choice == null) return;
+        _balance.projection = choice.settings;
+        _goHome();
+    }
+
+    // The + button's menu (the Java app's speed dial): a recurring expense or a single event.
+    Future<void> _openAddMenu() async {
+        final String? choice = await showModalBottomSheet<String>(
+            context: context,
+            builder: (context) => SafeArea(
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        ListTile(
+                            leading: const Icon(Icons.repeat),
+                            title: const Text("Recurring expense"),
+                            onTap: () => Navigator.of(context).pop("recurring"),
+                        ),
+                        ListTile(
+                            leading: const Icon(Icons.event),
+                            title: const Text("Single event"),
+                            onTap: () => Navigator.of(context).pop("single"),
+                        ),
+                    ],
+                ),
+            ),
+        );
+        if (choice == "recurring") await _addExpense();
+        if (choice == "single") await _addSingleEvent();
+    }
+
+    // Adds a single event from the home screen, applied right away (as on the Single Events screen).
+    Future<void> _addSingleEvent() async {
+        final SingleEventsLedger ledger = _state.data.singleEventsLedger;
+        final SingleEventModel? draft = await showSingleEventDialog(context, targets: ledger.targets);
+        if (draft == null) return;
+        ledger.add(draft);
+        await _state.changed();
+    }
+
+    // Drag-to-reorder on the current check; the order is saved.
+    // ([newIndex] already allows for the row's removal, as onReorderItem gives it.)
+    void _reorder(int oldIndex, int newIndex) {
+        final ExpenseItem item = _balance.expenses.removeAt(oldIndex);
+        _balance.expenses.insert(newIndex, item);
+        _state.changed();
     }
 
     // Adds a user category the dialog created, so it's offered next time.
@@ -183,8 +256,20 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
             ),
         )),
-        title: Text(_onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}"),
+        title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                Text(_onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}"),
+                if (_balance.projection != null)
+                    Text("Projecting: ${_balance.projection!.describe()}", style: const TextStyle(fontSize: 12)),
+            ],
+        ),
         actions: [
+            IconButton(
+                onPressed: _openProjectionSettings,
+                icon: const Icon(Icons.tune),
+                tooltip: "Projection settings",
+            ),
             TutorialTarget(
                 id: "check_nav",
                 child: Row(
@@ -217,29 +302,39 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // Expense list for the check on screen. Rows can be edited from the
-    // current check only, as in the Java app (projections are read-only).
+    // One row of the expense list.
+    Widget _expenseRow(ExpenseItem expense) {
+        final String paidFrom = _balance.paidFromLabel(expense);
+        return ListTile(
+            key: ObjectKey(expense),
+            title: Text(expense.name),
+            subtitle: Text([
+                expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}",
+                if (paidFrom != "Current Balance") "from $paidFrom",
+            ].join(" · ")),
+            trailing: Text(_money(expense.periodAmount)),
+            onTap: _onHomeScreen ? () => _editItem(expense) : null,
+        );
+    }
+
+    // Expense list for the check on screen. Rows can be edited and dragged into
+    // a new order on the current check only, as in the Java app (projections
+    // are read-only).
     Widget get expenseList => RefreshIndicator(
         onRefresh: () async {
             // TODO: Refresh linked bank balances
             _refresh();
         },
-        child: ListView.builder(
-            itemCount: _balance.expenses.length,
-            itemBuilder: (context, index) {
-                final ExpenseItem expense = _balance.expenses[index];
-                final String paidFrom = _balance.paidFromLabel(expense);
-                return ListTile(
-                    title: Text(expense.name),
-                    subtitle: Text([
-                        expense.hasEnded ? "Ended" : "Due ${_date(expense.shownDate)}",
-                        if (paidFrom != "Current Balance") "from $paidFrom",
-                    ].join(" · ")),
-                    trailing: Text(_money(expense.periodAmount)),
-                    onTap: _onHomeScreen ? () => _editItem(expense) : null,
-                );
-            },
-        ),
+        child: _onHomeScreen
+            ? ReorderableListView.builder(
+                itemCount: _balance.expenses.length,
+                onReorderItem: _reorder,
+                itemBuilder: (context, index) => _expenseRow(_balance.expenses[index]),
+            )
+            : ListView.builder(
+                itemCount: _balance.expenses.length,
+                itemBuilder: (context, index) => _expenseRow(_balance.expenses[index]),
+            ),
     );
 
     // Main activity
@@ -256,29 +351,41 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             const Divider(), // Divider between header and list
             // Expanded gives the ListView a bounded height; a scrollable list
             // directly inside a Column fails at runtime with "unbounded height".
-            Expanded(child: TutorialTarget(id: "expense_list", child: expenseList)),
+            Expanded(
+                child: GestureDetector(
+                    onHorizontalDragEnd: _onSwipe,
+                    child: TutorialTarget(id: "expense_list", child: expenseList),
+                ),
+            ),
         ],
     );
 
     @override
     Widget build(BuildContext context) {
-        return TutorialOverlay(
+        // Back steps back through projected checks before leaving, as in the Java app.
+        return PopScope(
+            canPop: _onHomeScreen,
+            onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) _previousCheck();
+            },
+            child: TutorialOverlay(
             state: _state,
             screen: TutorialScreen.home,
             child: Scaffold(
                 appBar: appBar,
                 drawer: AppDrawer(state: _state, onReturn: _refresh),
                 body: mainActivity,
-                // Adds an expense on the current check; while viewing a projected check
-                // it becomes a home button that returns to the current one.
+                // Adds a recurring expense or single event on the current check; while
+                // viewing a projected check it becomes a home button that returns to it.
                 floatingActionButton: TutorialTarget(
                     id: "add_button",
                     child: FloatingActionButton(
-                        onPressed: _onHomeScreen ? _addExpense : _goHome,
-                        tooltip: _onHomeScreen ? "Add expense" : "Back to this check",
+                        onPressed: _onHomeScreen ? _openAddMenu : _goHome,
+                        tooltip: _onHomeScreen ? "Add" : "Back to this check",
                         child: Icon(_onHomeScreen ? Icons.add : Icons.home),
                     ),
                 ),
+            ),
             ),
         );
     }
