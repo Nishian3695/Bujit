@@ -18,9 +18,9 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # The build number (after +) is Android's versionCode, which Play requires to keep
 # rising across the Java app's releases too: major*10000 + minor*1000 + patch, the
-# Java release workflow's formula (its last release, 0.3.16, was 3016). The
-# release workflow sets both from the git tag (v1.2.3 -> 1.2.3+10203).
-version: 1.0.0+10000
+# Java release workflow's formula (its last release, 0.4.5, was 4005). The
+# release workflow sets both from the git tag (v1.2.3 -> 1.2.3+12003).
+version: 0.5.0+5000
 
 environment:
   sdk: ^3.12.2

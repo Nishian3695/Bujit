@@ -151,12 +151,13 @@ $4.99, and tapping one says "Store unavailable".
   accepts them as an update. Locally, the values come from
   `android/keystore.properties` (copied from the Java repo; never committed; see
   `android/keystore.properties.example`).
-- **Version.** It's `1.0.0`, with version code 10000. The Java app's last release
-  was 3016.
+- **Version.** The first Flutter release is `0.5.0` (version code 5000), tagged
+  `v0.5.0-closed` for internal and closed testers. The Java app's last release
+  was 0.4.5 (4005). The release workflow takes both from the tag.
 - **Workflows.** [.github/workflows/release.yml](.github/workflows/release.yml)
   builds, signs and uploads to Play when you push a tag like `v1.0.0`. CI analyzes
   and tests every push.
-- **Database.** The layout is frozen as version 1 (see the steps in
+- **Database.** Every released layout is kept (version 2 now; see the steps in
   [app_database.dart](lib/storage_management/database/app_database.dart)), so from
   now on updates migrate data instead of needing a reinstall.
 - **Data from the Java app** is imported on the first launch after updating over
