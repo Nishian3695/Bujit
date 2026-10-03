@@ -136,7 +136,7 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
 1. [x] **Apple Team ID** `QY53K7TM87` is in
        [apple-app-site-association](backend/hosting/.well-known/apple-app-site-association)
        and the Xcode project.
-2. [ ] Then deploy hosting: in `backend/`, `firebase deploy --only hosting`.
+2. [x] Hosting deployed with the Team ID (`firebase deploy --only hosting` in `backend/`).
 3. [ ] **Plaid dashboard → Developers → API → Allowed redirect URIs:** add
        `https://bujit-89ac6.web.app/plaid-oauth`.
 4. [ ] **Apple developer account → Identifiers → io.github.nishian3695.bujit:**
@@ -184,7 +184,7 @@ uploaded to Appetize; the run's summary links to it.
 ### Publishing (needs the Apple developer account, $99/year)
 1. [x] Enroll in the **Apple Developer Program** (Team ID `QY53K7TM87`).
 2. [ ] Do the rest of the [iPhone bank logins](#iphone-bank-logins) steps
-       (hosting deploy, capabilities, App Check).
+       (Plaid redirect URI, capabilities, App Check).
 3. [ ] **App Store Connect → Apps → +:** new iOS app with bundle ID
        `io.github.nishian3695.bujit` (register it under Identifiers first if it
        isn't listed). App names must be unique on the App Store.
