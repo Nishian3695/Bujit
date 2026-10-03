@@ -13,7 +13,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 | Apple Reminders sync | n/a | **Ready**; try it in Appetize |
 | Bank linking (Plaid) | **Works** in release builds | Needs the [Apple setup](#iphone-bank-logins) |
 | Tips | **Works** (Play products exist) | Needs App Store products |
-| Rating | "Rate Bujit" in Settings opens the store page | "Rate Bujit" appears once there's an App Store ID |
+| Rating | "Rate Bujit" in Settings opens the store page | "Rate Bujit" is greyed out until there's an App Store ID |
 
 ---
 
@@ -161,7 +161,7 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
 - [ ] Create three **Consumable** in-app purchases: `tip_small`, `tip_medium`,
       `tip_large`. In review notes, say they're tips that unlock nothing.
 - [ ] Once the app record exists, send me its **Apple ID** (App Information) for
-      `appStoreId` in [legal.dart](lib/utils/legal.dart), so "Rate Bujit" shows on iPhone.
+      `appStoreId` in [legal.dart](lib/utils/legal.dart), so "Rate Bujit" works on iPhone.
 
 ---
 

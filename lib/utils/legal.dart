@@ -26,8 +26,12 @@ class Links {
     static const String plaidPrivacy = "https://plaid.com/legal/#privacy-statement";
     static const String packageName = "io.github.nishian3695.bujit";
     // The App Store's numeric ID for Bujit, once it has a listing (App Store
-    // Connect > App Information > Apple ID). Until then Rate Bujit is Android only.
+    // Connect > App Information > Apple ID). Until then Rate Bujit is shown on
+    // iPhone but disabled, since there's no page to open.
     static const String appStoreId = "";
+
+    static bool get showsRate =>
+        defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
 
     static bool get canRate =>
         defaultTargetPlatform == TargetPlatform.android ||
