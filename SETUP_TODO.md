@@ -28,7 +28,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
   none = internal, `-closed` = internal + both closed tracks, `-open` = open
   testing, `-all` = every testing track. Production is a promotion in Play Console.
 - **Versions.** The version code is major·10000 + minor·1000 + patch, continuing
-  from the Java app's 0.4.5 (4005). Latest: `v0.5.4-closed` (5004). Never reuse one.
+  from the Java app's 0.4.5 (4005). Latest: `v0.5.5-closed` (5005). Never reuse one.
 - **Signing.** Builds are signed with the Java app's upload key; Play re-signs them
   with its app signing key (SHA-1 `41:97:BF:65:17:8D:63:1A:83:A5:7D:B0:3C:3E:CC:4C:F0:E5:FA:83`).
 - **CI** analyzes and tests every push to `main`, and fails on any analyzer issue.
@@ -45,6 +45,10 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
       to the Android OAuth client in Google Cloud Console (Credentials), and its
       **SHA-1 and SHA-256** (Play Console → Test and release → App integrity) to the
       Android app in Firebase → Project settings.
+- [ ] **New logo on the Play listing.** Play Console → Grow users → Store presence →
+      Main store listing → App icon: upload
+      [site-assets/bujit-logo-512.png](site-assets/bujit-logo-512.png) (512×512).
+      The app's own icon and launch screen already use it from the next release.
 - [ ] **Check the update path on your phone** with your real data: data, settings,
       banks (pull down to sync), Google Tasks after signing in again, and a tip.
 - [ ] **When testing is done:** delete the App Check debug tokens in Firebase →
@@ -194,6 +198,7 @@ uploaded to Appetize; the run's summary links to it.
 6. [ ] **TestFlight** on a real iPhone: bank linking, Face ID app lock, Apple
        Reminders, a sandbox tip purchase.
 7. [ ] App Store listing:
+   - **App icon:** taken from the build (the logo); nothing to upload.
    - **App Privacy** ("nutrition label"): no tracking; data is on the device; bank
      data goes through Plaid; diagnostics through Firebase.
    - **Encryption:** the app uses standard encryption (HTTPS and its encrypted
