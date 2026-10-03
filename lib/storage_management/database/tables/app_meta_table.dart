@@ -54,11 +54,8 @@ class AppMetaRows extends Table {
   TextColumn get accentColor => text().withDefault(const Constant("blue"))();
   IntColumn get customAccent => integer().withDefault(const Constant(0xFF2979FF))();
   // Added in schema v3: which service task sync uses ("google" for Google Tasks,
-  // "apple" for Apple Reminders on iPhone); how many times the app has been
-  // opened, and whether the store's review prompt was asked for (once).
+  // "apple" for Apple Reminders on iPhone).
   TextColumn get tasksProvider => text().withDefault(const Constant("google"))();
-  IntColumn get launchCount => integer().withDefault(const Constant(0))();
-  BoolColumn get reviewRequested => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};

@@ -1078,8 +1078,6 @@ final class Schema3 extends i0.VersionedSchema {
         _column_35,
         _column_36,
         _column_65,
-        _column_66,
-        _column_67,
       ],
       attachedDatabase: database,
     ),
@@ -1227,10 +1225,6 @@ class Shape10 extends i0.VersionedTable {
       columnsByName['custom_accent']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<String> get tasksProvider =>
       columnsByName['tasks_provider']! as i1.GeneratedColumn<String>;
-  i1.GeneratedColumn<int> get launchCount =>
-      columnsByName['launch_count']! as i1.GeneratedColumn<int>;
-  i1.GeneratedColumn<int> get reviewRequested =>
-      columnsByName['review_requested']! as i1.GeneratedColumn<int>;
 }
 
 i1.GeneratedColumn<String> _column_65(String aliasedName) =>
@@ -1241,25 +1235,6 @@ i1.GeneratedColumn<String> _column_65(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL DEFAULT \'google\'',
       defaultValue: const i1.CustomExpression('\'google\''),
-    );
-i1.GeneratedColumn<int> _column_66(String aliasedName) =>
-    i1.GeneratedColumn<int>(
-      'launch_count',
-      aliasedName,
-      false,
-      type: i1.DriftSqlType.int,
-      $customConstraints: 'NOT NULL DEFAULT 0',
-      defaultValue: const i1.CustomExpression('0'),
-    );
-i1.GeneratedColumn<int> _column_67(String aliasedName) =>
-    i1.GeneratedColumn<int>(
-      'review_requested',
-      aliasedName,
-      false,
-      type: i1.DriftSqlType.int,
-      $customConstraints:
-          'NOT NULL DEFAULT 0 CHECK (review_requested IN (0, 1))',
-      defaultValue: const i1.CustomExpression('0'),
     );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,

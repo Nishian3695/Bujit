@@ -69,9 +69,6 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         // A fresh install shows the disclaimer first; the tutorial follows it.
         if (!_state.data.disclaimerAccepted) {
             WidgetsBinding.instance.addPostFrameCallback((_) => _showDisclaimer());
-        } else {
-            // Once, after a while: the store's own rating prompt (see askForReviewIfDue).
-            WidgetsBinding.instance.addPostFrameCallback((_) => _state.askForReviewIfDue());
         }
     }
 

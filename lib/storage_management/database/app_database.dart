@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   // test/drift/app_database/schema_test.dart fails if step 1 happens without the rest.
   //
   // Versions: 1, the first; 2, Settings > Appearance (theme mode and accent color);
-  // 3, Apple Reminders as a task sync service, and the review prompt's counters.
+  // 3, Apple Reminders as a task sync service.
   @override
   int get schemaVersion => 3;
 
@@ -61,8 +61,6 @@ class AppDatabase extends _$AppDatabase {
           },
           from2To3: (m, schema) async {
             await m.addColumn(schema.appMetaRows, schema.appMetaRows.tasksProvider);
-            await m.addColumn(schema.appMetaRows, schema.appMetaRows.launchCount);
-            await m.addColumn(schema.appMetaRows, schema.appMetaRows.reviewRequested);
           },
         ),
       );

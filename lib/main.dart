@@ -17,7 +17,6 @@ import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/java_migration.dart';
 import 'storage_management/storage_manager.dart';
-import 'utils/legal.dart';
 import 'utils/sample_data.dart';
 import 'utils/theme_helper.dart';
 
@@ -55,8 +54,7 @@ Future<AppState> openAppState() async {
     );
     return state
       ..deviceAuth = deviceAuth
-      ..tipJar = (TipJar(InAppPurchaseTipStore())..load())
-      ..requestReview = Links.requestReview;
+      ..tipJar = (TipJar(InAppPurchaseTipStore())..load());
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);
     final AppData data = AppData(balance: BalanceModel(currentBalance: 0.00));

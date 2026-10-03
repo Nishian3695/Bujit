@@ -608,30 +608,6 @@
             "default_dart": "const CustomExpression('\\'google\\'')",
             "default_client_dart": null,
             "dsl_features": []
-          },
-          {
-            "name": "launch_count",
-            "getter_name": "launchCount",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": "const CustomExpression('0')",
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "review_requested",
-            "getter_name": "reviewRequested",
-            "moor_type": "bool",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "CHECK (\"review_requested\" IN (0, 1))",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "CHECK (\"review_requested\" IN (0, 1))"
-            },
-            "default_dart": "const CustomExpression('0')",
-            "default_client_dart": null,
-            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -1204,7 +1180,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"app_meta_rows\" (\"id\" INTEGER NOT NULL DEFAULT 0 CHECK (id = 0), \"current_balance\" REAL NOT NULL DEFAULT 0.0, \"balance_extra\" REAL NOT NULL DEFAULT 0.0, \"last_updated\" INTEGER NOT NULL, \"include_next_check\" INTEGER NOT NULL DEFAULT 0 CHECK (\"include_next_check\" IN (0, 1)), \"single_event_expiry_days\" INTEGER NOT NULL DEFAULT 30, \"tutorial_step\" INTEGER NOT NULL DEFAULT 0, \"tutorial_seen\" INTEGER NOT NULL DEFAULT 0 CHECK (\"tutorial_seen\" IN (0, 1)), \"use_comma_separators\" INTEGER NOT NULL DEFAULT 0 CHECK (\"use_comma_separators\" IN (0, 1)), \"app_lock_enabled\" INTEGER NOT NULL DEFAULT 0 CHECK (\"app_lock_enabled\" IN (0, 1)), \"disclaimer_accepted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"disclaimer_accepted\" IN (0, 1)), \"last_bank_sync\" INTEGER NULL, \"pending_linked_balance_ids\" TEXT NOT NULL DEFAULT '', \"tasks_sync_enabled\" INTEGER NOT NULL DEFAULT 0 CHECK (\"tasks_sync_enabled\" IN (0, 1)), \"tasks_list_id\" TEXT NULL, \"tasks_account\" TEXT NULL, \"theme_mode\" TEXT NOT NULL DEFAULT 'system', \"accent_color\" TEXT NOT NULL DEFAULT 'blue', \"custom_accent\" INTEGER NOT NULL DEFAULT 4280908287, \"tasks_provider\" TEXT NOT NULL DEFAULT 'google', \"launch_count\" INTEGER NOT NULL DEFAULT 0, \"review_requested\" INTEGER NOT NULL DEFAULT 0 CHECK (\"review_requested\" IN (0, 1)), PRIMARY KEY (\"id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"app_meta_rows\" (\"id\" INTEGER NOT NULL DEFAULT 0 CHECK (id = 0), \"current_balance\" REAL NOT NULL DEFAULT 0.0, \"balance_extra\" REAL NOT NULL DEFAULT 0.0, \"last_updated\" INTEGER NOT NULL, \"include_next_check\" INTEGER NOT NULL DEFAULT 0 CHECK (\"include_next_check\" IN (0, 1)), \"single_event_expiry_days\" INTEGER NOT NULL DEFAULT 30, \"tutorial_step\" INTEGER NOT NULL DEFAULT 0, \"tutorial_seen\" INTEGER NOT NULL DEFAULT 0 CHECK (\"tutorial_seen\" IN (0, 1)), \"use_comma_separators\" INTEGER NOT NULL DEFAULT 0 CHECK (\"use_comma_separators\" IN (0, 1)), \"app_lock_enabled\" INTEGER NOT NULL DEFAULT 0 CHECK (\"app_lock_enabled\" IN (0, 1)), \"disclaimer_accepted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"disclaimer_accepted\" IN (0, 1)), \"last_bank_sync\" INTEGER NULL, \"pending_linked_balance_ids\" TEXT NOT NULL DEFAULT '', \"tasks_sync_enabled\" INTEGER NOT NULL DEFAULT 0 CHECK (\"tasks_sync_enabled\" IN (0, 1)), \"tasks_list_id\" TEXT NULL, \"tasks_account\" TEXT NULL, \"theme_mode\" TEXT NOT NULL DEFAULT 'system', \"accent_color\" TEXT NOT NULL DEFAULT 'blue', \"custom_accent\" INTEGER NOT NULL DEFAULT 4280908287, \"tasks_provider\" TEXT NOT NULL DEFAULT 'google', PRIMARY KEY (\"id\"));"
         }
       ]
     },

@@ -1519,24 +1519,6 @@ class AppMetaRows extends Table with TableInfo<AppMetaRows, AppMetaRowsData> {
     $customConstraints: 'NOT NULL DEFAULT \'google\'',
     defaultValue: const CustomExpression('\'google\''),
   );
-  late final GeneratedColumn<int> launchCount = GeneratedColumn<int>(
-    'launch_count',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT 0',
-    defaultValue: const CustomExpression('0'),
-  );
-  late final GeneratedColumn<int> reviewRequested = GeneratedColumn<int>(
-    'review_requested',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (review_requested IN (0, 1))',
-    defaultValue: const CustomExpression('0'),
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1559,8 +1541,6 @@ class AppMetaRows extends Table with TableInfo<AppMetaRows, AppMetaRowsData> {
     accentColor,
     customAccent,
     tasksProvider,
-    launchCount,
-    reviewRequested,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1653,14 +1633,6 @@ class AppMetaRows extends Table with TableInfo<AppMetaRows, AppMetaRowsData> {
         DriftSqlType.string,
         data['${effectivePrefix}tasks_provider'],
       )!,
-      launchCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}launch_count'],
-      )!,
-      reviewRequested: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}review_requested'],
-      )!,
     );
   }
 
@@ -1696,8 +1668,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
   final String accentColor;
   final int customAccent;
   final String tasksProvider;
-  final int launchCount;
-  final int reviewRequested;
   const AppMetaRowsData({
     required this.id,
     required this.currentBalance,
@@ -1719,8 +1689,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
     required this.accentColor,
     required this.customAccent,
     required this.tasksProvider,
-    required this.launchCount,
-    required this.reviewRequested,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1753,8 +1721,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
     map['accent_color'] = Variable<String>(accentColor);
     map['custom_accent'] = Variable<int>(customAccent);
     map['tasks_provider'] = Variable<String>(tasksProvider);
-    map['launch_count'] = Variable<int>(launchCount);
-    map['review_requested'] = Variable<int>(reviewRequested);
     return map;
   }
 
@@ -1786,8 +1752,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
       accentColor: Value(accentColor),
       customAccent: Value(customAccent),
       tasksProvider: Value(tasksProvider),
-      launchCount: Value(launchCount),
-      reviewRequested: Value(reviewRequested),
     );
   }
 
@@ -1821,8 +1785,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
       accentColor: serializer.fromJson<String>(json['accentColor']),
       customAccent: serializer.fromJson<int>(json['customAccent']),
       tasksProvider: serializer.fromJson<String>(json['tasksProvider']),
-      launchCount: serializer.fromJson<int>(json['launchCount']),
-      reviewRequested: serializer.fromJson<int>(json['reviewRequested']),
     );
   }
   @override
@@ -1851,8 +1813,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
       'accentColor': serializer.toJson<String>(accentColor),
       'customAccent': serializer.toJson<int>(customAccent),
       'tasksProvider': serializer.toJson<String>(tasksProvider),
-      'launchCount': serializer.toJson<int>(launchCount),
-      'reviewRequested': serializer.toJson<int>(reviewRequested),
     };
   }
 
@@ -1877,8 +1837,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
     String? accentColor,
     int? customAccent,
     String? tasksProvider,
-    int? launchCount,
-    int? reviewRequested,
   }) => AppMetaRowsData(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
@@ -1901,8 +1859,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
     accentColor: accentColor ?? this.accentColor,
     customAccent: customAccent ?? this.customAccent,
     tasksProvider: tasksProvider ?? this.tasksProvider,
-    launchCount: launchCount ?? this.launchCount,
-    reviewRequested: reviewRequested ?? this.reviewRequested,
   );
   AppMetaRowsData copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRowsData(
@@ -1962,12 +1918,6 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
       tasksProvider: data.tasksProvider.present
           ? data.tasksProvider.value
           : this.tasksProvider,
-      launchCount: data.launchCount.present
-          ? data.launchCount.value
-          : this.launchCount,
-      reviewRequested: data.reviewRequested.present
-          ? data.reviewRequested.value
-          : this.reviewRequested,
     );
   }
 
@@ -1993,15 +1943,13 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
           ..write('themeMode: $themeMode, ')
           ..write('accentColor: $accentColor, ')
           ..write('customAccent: $customAccent, ')
-          ..write('tasksProvider: $tasksProvider, ')
-          ..write('launchCount: $launchCount, ')
-          ..write('reviewRequested: $reviewRequested')
+          ..write('tasksProvider: $tasksProvider')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hashAll([
+  int get hashCode => Object.hash(
     id,
     currentBalance,
     balanceExtra,
@@ -2022,9 +1970,7 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
     accentColor,
     customAccent,
     tasksProvider,
-    launchCount,
-    reviewRequested,
-  ]);
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2048,9 +1994,7 @@ class AppMetaRowsData extends DataClass implements Insertable<AppMetaRowsData> {
           other.themeMode == this.themeMode &&
           other.accentColor == this.accentColor &&
           other.customAccent == this.customAccent &&
-          other.tasksProvider == this.tasksProvider &&
-          other.launchCount == this.launchCount &&
-          other.reviewRequested == this.reviewRequested);
+          other.tasksProvider == this.tasksProvider);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
@@ -2074,8 +2018,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
   final Value<String> accentColor;
   final Value<int> customAccent;
   final Value<String> tasksProvider;
-  final Value<int> launchCount;
-  final Value<int> reviewRequested;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
@@ -2097,8 +2039,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
     this.accentColor = const Value.absent(),
     this.customAccent = const Value.absent(),
     this.tasksProvider = const Value.absent(),
-    this.launchCount = const Value.absent(),
-    this.reviewRequested = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2121,8 +2061,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
     this.accentColor = const Value.absent(),
     this.customAccent = const Value.absent(),
     this.tasksProvider = const Value.absent(),
-    this.launchCount = const Value.absent(),
-    this.reviewRequested = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRowsData> custom({
     Expression<int>? id,
@@ -2145,8 +2083,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
     Expression<String>? accentColor,
     Expression<int>? customAccent,
     Expression<String>? tasksProvider,
-    Expression<int>? launchCount,
-    Expression<int>? reviewRequested,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2172,8 +2108,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
       if (accentColor != null) 'accent_color': accentColor,
       if (customAccent != null) 'custom_accent': customAccent,
       if (tasksProvider != null) 'tasks_provider': tasksProvider,
-      if (launchCount != null) 'launch_count': launchCount,
-      if (reviewRequested != null) 'review_requested': reviewRequested,
     });
   }
 
@@ -2198,8 +2132,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
     Value<String>? accentColor,
     Value<int>? customAccent,
     Value<String>? tasksProvider,
-    Value<int>? launchCount,
-    Value<int>? reviewRequested,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
@@ -2224,8 +2156,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
       accentColor: accentColor ?? this.accentColor,
       customAccent: customAccent ?? this.customAccent,
       tasksProvider: tasksProvider ?? this.tasksProvider,
-      launchCount: launchCount ?? this.launchCount,
-      reviewRequested: reviewRequested ?? this.reviewRequested,
     );
   }
 
@@ -2296,12 +2226,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
     if (tasksProvider.present) {
       map['tasks_provider'] = Variable<String>(tasksProvider.value);
     }
-    if (launchCount.present) {
-      map['launch_count'] = Variable<int>(launchCount.value);
-    }
-    if (reviewRequested.present) {
-      map['review_requested'] = Variable<int>(reviewRequested.value);
-    }
     return map;
   }
 
@@ -2327,9 +2251,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRowsData> {
           ..write('themeMode: $themeMode, ')
           ..write('accentColor: $accentColor, ')
           ..write('customAccent: $customAccent, ')
-          ..write('tasksProvider: $tasksProvider, ')
-          ..write('launchCount: $launchCount, ')
-          ..write('reviewRequested: $reviewRequested')
+          ..write('tasksProvider: $tasksProvider')
           ..write(')'))
         .toString();
   }

@@ -47,14 +47,6 @@ class Links {
         messenger.showSnackBar(const SnackBar(content: Text("No browser found")));
     }
 
-    // The store's own review prompt, shown inside the app (Apple's star rating
-    // sheet, Google Play's in-app review). The stores decide whether it actually
-    // appears, so it's only asked for once (see AppState.askForReviewIfDue).
-    static Future<void> requestReview() async {
-        final InAppReview review = InAppReview.instance;
-        if (await review.isAvailable()) await review.requestReview();
-    }
-
     // Opens [url] in the browser, saying so if there isn't one (as in the Java app).
     static Future<void> open(BuildContext context, String url) async {
         final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);

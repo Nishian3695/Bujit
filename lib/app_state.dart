@@ -35,8 +35,6 @@ class AppState extends ChangeNotifier {
     BankingService? banking;
     // The tip jar (Settings); null = not available (tests).
     TipJar? tipJar;
-    // Shows the store's review prompt (Links.requestReview); null = never (tests).
-    Future<void> Function()? requestReview;
 
     AppState(this.data, [this._store]) {
         Money.useCommaSeparators = data.useCommaSeparators;
@@ -81,7 +79,6 @@ class AppState extends ChangeNotifier {
             // Expired single events leave the list; their effects stay (they happened).
             data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
         }
-        data.launchCount++; // Saved below, with everything else
         final AppState state = AppState(data, store)
             ..tasks = tasks
             ..reminders = reminders
@@ -281,28 +278,6 @@ class AppState extends ChangeNotifier {
         await sync.disconnect(data, removeTasks: removeTasks);
         lastTasksSync = null;
         await changed();
-    }
-
-    // ── Review prompt ───────────────────────────────────────────────────────
-
-    // Opens of the app before the store's review prompt is asked for.
-    static const int reviewAfterLaunches = 8;
-
-    // Asks once for the store's review prompt (Apple's and Google's own rating
-    // sheets), when someone has clearly been using Bujit: from the
-    // [reviewAfterLaunches]th open, past the tutorial, with expenses entered. The
-    // stores limit how often it really appears, so it's never asked again.
-    Future<void> askForReviewIfDue() async {
-        final Future<void> Function()? request = requestReview;
-        if (request == null || data.reviewRequested) return;
-        if (data.launchCount < reviewAfterLaunches || !data.tutorialSeen || data.balance.expenses.isEmpty) return;
-        data.reviewRequested = true;
-        await save();
-        try {
-            await request();
-        } catch (e) {
-            _logger.info("Review prompt unavailable: $e");
-        }
     }
 
     // The tutorial step to show now, or null once it's finished or skipped (or

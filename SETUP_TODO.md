@@ -13,7 +13,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 | Apple Reminders sync | n/a | **Ready**; try it in Appetize |
 | Bank linking (Plaid) | **Works** in release builds | Needs the [Apple setup](#iphone-bank-logins) |
 | Tips | **Works** (Play products exist) | Needs App Store products |
-| Rating | Store page + in-app prompt | In-app prompt; store link once there's an App Store ID |
+| Rating | "Rate Bujit" in Settings opens the store page | "Rate Bujit" appears once there's an App Store ID |
 
 ---
 
@@ -152,8 +152,8 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
 
 - **Tips** sell `tip_small`, `tip_medium` and `tip_large` (one-time, consumable).
   On Play they already exist. Purchases only work in builds installed from a store.
-- **Rating:** "Rate Bujit" opens the store's review page, and the store's own
-  in-app rating prompt is asked for once, from the 8th time the app is opened.
+- **Rating:** only "Rate Bujit" in Settings, which opens the store's review page.
+  The app never pops up a rating prompt on its own.
 
 **For you (App Store):**
 - [ ] App Store Connect → **Business:** accept the **Paid Apps agreement**, and add

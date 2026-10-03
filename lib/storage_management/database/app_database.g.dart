@@ -1917,33 +1917,6 @@ class $AppMetaRowsTable extends AppMetaRows
     requiredDuringInsert: false,
     defaultValue: const Constant("google"),
   );
-  static const VerificationMeta _launchCountMeta = const VerificationMeta(
-    'launchCount',
-  );
-  @override
-  late final GeneratedColumn<int> launchCount = GeneratedColumn<int>(
-    'launch_count',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _reviewRequestedMeta = const VerificationMeta(
-    'reviewRequested',
-  );
-  @override
-  late final GeneratedColumn<bool> reviewRequested = GeneratedColumn<bool>(
-    'review_requested',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("review_requested" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1966,8 +1939,6 @@ class $AppMetaRowsTable extends AppMetaRows
     accentColor,
     customAccent,
     tasksProvider,
-    launchCount,
-    reviewRequested,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2154,24 +2125,6 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
-    if (data.containsKey('launch_count')) {
-      context.handle(
-        _launchCountMeta,
-        launchCount.isAcceptableOrUnknown(
-          data['launch_count']!,
-          _launchCountMeta,
-        ),
-      );
-    }
-    if (data.containsKey('review_requested')) {
-      context.handle(
-        _reviewRequestedMeta,
-        reviewRequested.isAcceptableOrUnknown(
-          data['review_requested']!,
-          _reviewRequestedMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -2261,14 +2214,6 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.string,
         data['${effectivePrefix}tasks_provider'],
       )!,
-      launchCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}launch_count'],
-      )!,
-      reviewRequested: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}review_requested'],
-      )!,
     );
   }
 
@@ -2299,8 +2244,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final String accentColor;
   final int customAccent;
   final String tasksProvider;
-  final int launchCount;
-  final bool reviewRequested;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
@@ -2322,8 +2265,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.accentColor,
     required this.customAccent,
     required this.tasksProvider,
-    required this.launchCount,
-    required this.reviewRequested,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2356,8 +2297,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     map['accent_color'] = Variable<String>(accentColor);
     map['custom_accent'] = Variable<int>(customAccent);
     map['tasks_provider'] = Variable<String>(tasksProvider);
-    map['launch_count'] = Variable<int>(launchCount);
-    map['review_requested'] = Variable<bool>(reviewRequested);
     return map;
   }
 
@@ -2389,8 +2328,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       accentColor: Value(accentColor),
       customAccent: Value(customAccent),
       tasksProvider: Value(tasksProvider),
-      launchCount: Value(launchCount),
-      reviewRequested: Value(reviewRequested),
     );
   }
 
@@ -2424,8 +2361,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       accentColor: serializer.fromJson<String>(json['accentColor']),
       customAccent: serializer.fromJson<int>(json['customAccent']),
       tasksProvider: serializer.fromJson<String>(json['tasksProvider']),
-      launchCount: serializer.fromJson<int>(json['launchCount']),
-      reviewRequested: serializer.fromJson<bool>(json['reviewRequested']),
     );
   }
   @override
@@ -2454,8 +2389,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'accentColor': serializer.toJson<String>(accentColor),
       'customAccent': serializer.toJson<int>(customAccent),
       'tasksProvider': serializer.toJson<String>(tasksProvider),
-      'launchCount': serializer.toJson<int>(launchCount),
-      'reviewRequested': serializer.toJson<bool>(reviewRequested),
     };
   }
 
@@ -2480,8 +2413,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     String? accentColor,
     int? customAccent,
     String? tasksProvider,
-    int? launchCount,
-    bool? reviewRequested,
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
@@ -2504,8 +2435,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     accentColor: accentColor ?? this.accentColor,
     customAccent: customAccent ?? this.customAccent,
     tasksProvider: tasksProvider ?? this.tasksProvider,
-    launchCount: launchCount ?? this.launchCount,
-    reviewRequested: reviewRequested ?? this.reviewRequested,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -2565,12 +2494,6 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tasksProvider: data.tasksProvider.present
           ? data.tasksProvider.value
           : this.tasksProvider,
-      launchCount: data.launchCount.present
-          ? data.launchCount.value
-          : this.launchCount,
-      reviewRequested: data.reviewRequested.present
-          ? data.reviewRequested.value
-          : this.reviewRequested,
     );
   }
 
@@ -2596,15 +2519,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('themeMode: $themeMode, ')
           ..write('accentColor: $accentColor, ')
           ..write('customAccent: $customAccent, ')
-          ..write('tasksProvider: $tasksProvider, ')
-          ..write('launchCount: $launchCount, ')
-          ..write('reviewRequested: $reviewRequested')
+          ..write('tasksProvider: $tasksProvider')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hashAll([
+  int get hashCode => Object.hash(
     id,
     currentBalance,
     balanceExtra,
@@ -2625,9 +2546,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     accentColor,
     customAccent,
     tasksProvider,
-    launchCount,
-    reviewRequested,
-  ]);
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2651,9 +2570,7 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.themeMode == this.themeMode &&
           other.accentColor == this.accentColor &&
           other.customAccent == this.customAccent &&
-          other.tasksProvider == this.tasksProvider &&
-          other.launchCount == this.launchCount &&
-          other.reviewRequested == this.reviewRequested);
+          other.tasksProvider == this.tasksProvider);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
@@ -2677,8 +2594,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<String> accentColor;
   final Value<int> customAccent;
   final Value<String> tasksProvider;
-  final Value<int> launchCount;
-  final Value<bool> reviewRequested;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
@@ -2700,8 +2615,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.accentColor = const Value.absent(),
     this.customAccent = const Value.absent(),
     this.tasksProvider = const Value.absent(),
-    this.launchCount = const Value.absent(),
-    this.reviewRequested = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2724,8 +2637,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.accentColor = const Value.absent(),
     this.customAccent = const Value.absent(),
     this.tasksProvider = const Value.absent(),
-    this.launchCount = const Value.absent(),
-    this.reviewRequested = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
@@ -2748,8 +2659,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<String>? accentColor,
     Expression<int>? customAccent,
     Expression<String>? tasksProvider,
-    Expression<int>? launchCount,
-    Expression<bool>? reviewRequested,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2775,8 +2684,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (accentColor != null) 'accent_color': accentColor,
       if (customAccent != null) 'custom_accent': customAccent,
       if (tasksProvider != null) 'tasks_provider': tasksProvider,
-      if (launchCount != null) 'launch_count': launchCount,
-      if (reviewRequested != null) 'review_requested': reviewRequested,
     });
   }
 
@@ -2801,8 +2708,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<String>? accentColor,
     Value<int>? customAccent,
     Value<String>? tasksProvider,
-    Value<int>? launchCount,
-    Value<bool>? reviewRequested,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
@@ -2827,8 +2732,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       accentColor: accentColor ?? this.accentColor,
       customAccent: customAccent ?? this.customAccent,
       tasksProvider: tasksProvider ?? this.tasksProvider,
-      launchCount: launchCount ?? this.launchCount,
-      reviewRequested: reviewRequested ?? this.reviewRequested,
     );
   }
 
@@ -2899,12 +2802,6 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (tasksProvider.present) {
       map['tasks_provider'] = Variable<String>(tasksProvider.value);
     }
-    if (launchCount.present) {
-      map['launch_count'] = Variable<int>(launchCount.value);
-    }
-    if (reviewRequested.present) {
-      map['review_requested'] = Variable<bool>(reviewRequested.value);
-    }
     return map;
   }
 
@@ -2930,9 +2827,7 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('themeMode: $themeMode, ')
           ..write('accentColor: $accentColor, ')
           ..write('customAccent: $customAccent, ')
-          ..write('tasksProvider: $tasksProvider, ')
-          ..write('launchCount: $launchCount, ')
-          ..write('reviewRequested: $reviewRequested')
+          ..write('tasksProvider: $tasksProvider')
           ..write(')'))
         .toString();
   }
@@ -6449,8 +6344,6 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<String> accentColor,
       Value<int> customAccent,
       Value<String> tasksProvider,
-      Value<int> launchCount,
-      Value<bool> reviewRequested,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
@@ -6474,8 +6367,6 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<String> accentColor,
       Value<int> customAccent,
       Value<String> tasksProvider,
-      Value<int> launchCount,
-      Value<bool> reviewRequested,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -6584,16 +6475,6 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<String> get tasksProvider => $composableBuilder(
     column: $table.tasksProvider,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get launchCount => $composableBuilder(
-    column: $table.launchCount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get reviewRequested => $composableBuilder(
-    column: $table.reviewRequested,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6706,16 +6587,6 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.tasksProvider,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get launchCount => $composableBuilder(
-    column: $table.launchCount,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get reviewRequested => $composableBuilder(
-    column: $table.reviewRequested,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -6822,16 +6693,6 @@ class $$AppMetaRowsTableAnnotationComposer
     column: $table.tasksProvider,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get launchCount => $composableBuilder(
-    column: $table.launchCount,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get reviewRequested => $composableBuilder(
-    column: $table.reviewRequested,
-    builder: (column) => column,
-  );
 }
 
 class $$AppMetaRowsTableTableManager
@@ -6885,8 +6746,6 @@ class $$AppMetaRowsTableTableManager
                 Value<String> accentColor = const Value.absent(),
                 Value<int> customAccent = const Value.absent(),
                 Value<String> tasksProvider = const Value.absent(),
-                Value<int> launchCount = const Value.absent(),
-                Value<bool> reviewRequested = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
@@ -6908,8 +6767,6 @@ class $$AppMetaRowsTableTableManager
                 accentColor: accentColor,
                 customAccent: customAccent,
                 tasksProvider: tasksProvider,
-                launchCount: launchCount,
-                reviewRequested: reviewRequested,
               ),
           createCompanionCallback:
               ({
@@ -6933,8 +6790,6 @@ class $$AppMetaRowsTableTableManager
                 Value<String> accentColor = const Value.absent(),
                 Value<int> customAccent = const Value.absent(),
                 Value<String> tasksProvider = const Value.absent(),
-                Value<int> launchCount = const Value.absent(),
-                Value<bool> reviewRequested = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
@@ -6956,8 +6811,6 @@ class $$AppMetaRowsTableTableManager
                 accentColor: accentColor,
                 customAccent: customAccent,
                 tasksProvider: tasksProvider,
-                launchCount: launchCount,
-                reviewRequested: reviewRequested,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

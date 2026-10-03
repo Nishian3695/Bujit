@@ -37,8 +37,6 @@ class AppData {
     String accentColor; // Settings: an AccentColor's name
     int customAccent; // Settings: the custom accent color (ARGB)
     String tasksProvider; // Task sync's service: "google" (Google Tasks) or "apple" (Apple Reminders)
-    int launchCount; // Times the app has been opened (for the review prompt)
-    bool reviewRequested; // The store's review prompt was asked for (it's asked once)
     // Google Task id -> the JSON last sent for it, for every task the app created
     // (see TasksSync).
     final Map<String, String> syncedTasks;
@@ -66,8 +64,6 @@ class AppData {
         this.accentColor = "blue",
         this.customAccent = 0xFF2979FF,
         this.tasksProvider = "google",
-        this.launchCount = 0,
-        this.reviewRequested = false,
         Map<String, String>? syncedTasks,
         List<LinkedItem>? linkedItems,
         this.lastBankSync,
@@ -234,8 +230,6 @@ class AppDataStore {
             accentColor: meta.accentColor,
             customAccent: meta.customAccent,
             tasksProvider: meta.tasksProvider,
-            launchCount: meta.launchCount,
-            reviewRequested: meta.reviewRequested,
             syncedTasks: {for (final row in syncedRows) row.taskId: row.body},
             linkedItems: [
                 for (final row in itemRows)
@@ -345,8 +339,6 @@ class AppDataStore {
                 accentColor: Value(data.accentColor),
                 customAccent: Value(data.customAccent),
                 tasksProvider: Value(data.tasksProvider),
-                launchCount: Value(data.launchCount),
-                reviewRequested: Value(data.reviewRequested),
             ));
         });
     }
