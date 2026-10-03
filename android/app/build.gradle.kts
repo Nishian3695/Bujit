@@ -52,6 +52,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
+            // Flutter shrinks release builds with R8; these rules keep what's created
+            // by reflection (see the file).
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
