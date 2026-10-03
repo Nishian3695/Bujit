@@ -102,7 +102,7 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
     @override
     Widget build(BuildContext context) {
         final bool adding = widget.existing == null;
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: Text(adding ? "Add Single Event" : "Edit Single Event"),
             content: Form(
                 key: _formKey,

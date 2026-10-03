@@ -115,8 +115,8 @@ void main() {
     testWidgets("Credit Utilization totals every card", (tester) async {
         await tester.pumpWidget(MaterialApp(home: CreditUtilActivity(state: _sampleState())));
         // 450 + 1200 + 6000 = 7650 of 2000 + 3000 + 6200 = 11200 -> 68%
-        expect(find.text("\$7650.00"), findsOneWidget);
-        expect(find.text("\$11200.00"), findsOneWidget);
+        expect(find.textContaining("Owed  \$7650.00", findRichText: true), findsOneWidget);
+        expect(find.textContaining("Total limit  \$11200.00", findRichText: true), findsOneWidget);
         expect(find.text("68%"), findsOneWidget);
     });
 }

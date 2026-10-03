@@ -75,7 +75,7 @@ class _ManualAccountDialogState extends State<_ManualAccountDialog> {
             ...ManualAccountModel.accountTypes,
             if (!ManualAccountModel.accountTypes.contains(_type)) _type,
         ];
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: Text(adding ? "Add Account" : "Edit Account"),
             content: Form(
                 key: _formKey,

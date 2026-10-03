@@ -73,6 +73,16 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
         if (mounted) setState(() {});
     }
 
+    // "Owed  $7650.00": a quiet label and a medium amount, shrinking rather than wrapping.
+    Widget _amountLine(String label, double amount) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text.rich(TextSpan(children: [
+            TextSpan(text: "$label  ", style: RowStyles.details(context)),
+            TextSpan(text: Money.format(amount), style: RowStyles.amount(context)),
+        ])),
+    );
+
     // The Java app's totals row: everything owed against every limit (current
     // balances), the overall percentage colored like the cards', and a sync hint
     // when any card is linked to a bank. Laid out like the home screen's balance card.
@@ -88,12 +98,24 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                 child: Column(
                     children: [
+                        // The percentage leads; the amounts behind it sit beside it, smaller,
+                        // so the row fits a phone's width.
                         Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                                Expanded(child: Figure(label: "OWED", value: Money.format(owed))),
-                                Expanded(child: Figure(label: "TOTAL LIMIT", value: Money.format(limit))),
-                                Expanded(child: Figure(label: "UTILIZATION",
-                                    value: "${(utilization * 100).clamp(0, 100).round()}%", color: color)),
+                                Figure(label: "UTILIZATION",
+                                    value: "${(utilization * 100).clamp(0, 100).round()}%", color: color),
+                                const SizedBox(width: 20),
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                            _amountLine("Owed", owed),
+                                            const SizedBox(height: 4),
+                                            _amountLine("Total limit", limit),
+                                        ],
+                                    ),
+                                ),
                             ],
                         ),
                         const SizedBox(height: 12),

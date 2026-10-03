@@ -66,7 +66,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
     @override
     Widget build(BuildContext context) {
         final IncomeStreamModel? existing = widget.existing;
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: Text(existing == null ? "Add Income Stream" : "Edit Income Stream"),
             content: Form(
                 key: _formKey,

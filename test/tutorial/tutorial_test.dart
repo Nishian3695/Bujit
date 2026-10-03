@@ -104,6 +104,32 @@ void main() {
         expect(state.tutorialStep!.title, "Navigate pay periods");
     });
 
+    // The last steps point at rows far down Settings. On a phone those start out of
+    // sight; the card must still be on screen (the overlay blocks everything else).
+    testWidgets("the Settings steps scroll to their rows and can be finished", (tester) async {
+        tester.view.physicalSize = const Size(393, 852);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final AppState state = _freshState(step: TutorialManager.steps.length - 2);
+        await tester.pumpWidget(MaterialApp(home: screenFor(TutorialScreen.settings, state)));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Import from CSV"), findsWidgets);
+        expect(find.text("Next").hitTestable(), findsOneWidget);
+        await tester.tap(find.text("Next"));
+        await tester.pumpAndSettle();
+
+        expect(find.text("You're all set!"), findsOneWidget);
+        final Rect row = tester.getRect(find.text("Replay tutorial"));
+        expect(row.top >= 0 && row.bottom <= 852, isTrue, reason: "the spotlighted row is scrolled into view");
+        expect(find.text("Done").hitTestable(), findsOneWidget);
+        await tester.tap(find.text("Done"));
+        await tester.pumpAndSettle();
+
+        expect(state.data.tutorialSeen, isTrue);
+        expect(find.text("Done"), findsNothing);
+    });
+
     test("finishing the last step marks the tutorial seen", () async {
         final AppState state = _freshState(step: TutorialManager.steps.length - 1);
         await state.advanceTutorial();

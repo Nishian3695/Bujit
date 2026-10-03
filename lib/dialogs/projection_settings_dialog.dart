@@ -83,7 +83,7 @@ class _ProjectionSettingsDialogState extends State<_ProjectionSettingsDialog> {
 
     @override
     Widget build(BuildContext context) {
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: const Text("Projection Settings"),
             content: Form(
                 key: _formKey,

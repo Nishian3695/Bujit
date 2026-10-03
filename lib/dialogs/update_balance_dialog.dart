@@ -128,7 +128,7 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
     Widget build(BuildContext context) {
         final bool hasAccounts = _choices.isNotEmpty;
         final Set<String>? ids = _accountIds;
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: const Text("Update Balance"),
             content: Form(
                 key: _formKey,

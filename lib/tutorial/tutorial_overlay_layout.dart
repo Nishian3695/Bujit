@@ -61,21 +61,35 @@ class _SpotlightState extends State<_Spotlight> {
     }
 
     // The target is laid out by the screen underneath, so measure after this frame.
+    // A target scrolled out of sight (e.g. far down Settings) is scrolled into view
+    // first, then measured where it ends up.
     void _measureAfterLayout() {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
             final BuildContext? targetContext = TutorialManager.targetKey(widget.step.targetId).currentContext;
-            final RenderObject? target = targetContext?.findRenderObject();
-            final RenderObject? overlay = context.findRenderObject();
-            Rect? hole;
-            if (target is RenderBox && target.hasSize && target.attached && overlay is RenderBox) {
-                // The target is beside the overlay, not inside it, so compare global
-                // positions (which also cancels a route transition's slide).
-                final Offset topLeft = target.localToGlobal(Offset.zero) - overlay.localToGlobal(Offset.zero);
-                hole = (topLeft & target.size).inflate(_padding);
+            if (targetContext != null && targetContext.mounted && Scrollable.maybeOf(targetContext) != null) {
+                await Scrollable.ensureVisible(targetContext, alignment: 0.3, duration: const Duration(milliseconds: 250));
+                if (!mounted) return;
             }
-            setState(() => _hole = hole);
+            _measure();
         });
+    }
+
+    void _measure() {
+        final BuildContext? targetContext = TutorialManager.targetKey(widget.step.targetId).currentContext;
+        final RenderObject? target = targetContext?.findRenderObject();
+        final RenderObject? overlay = context.findRenderObject();
+        Rect? hole;
+        if (target is RenderBox && target.hasSize && target.attached && overlay is RenderBox) {
+            // The target is beside the overlay, not inside it, so compare global
+            // positions (which also cancels a route transition's slide).
+            final Offset topLeft = target.localToGlobal(Offset.zero) - overlay.localToGlobal(Offset.zero);
+            hole = (topLeft & target.size).inflate(_padding);
+            // Still out of sight (it couldn't be scrolled to): no spotlight, and the
+            // card goes in the middle, where it can always be dismissed.
+            if (!hole.overlaps(Offset.zero & overlay.size)) hole = null;
+        }
+        setState(() => _hole = hole);
     }
 
     // Next: advance, and open the next screen if this step leads to one. From a
@@ -101,8 +115,9 @@ class _SpotlightState extends State<_Spotlight> {
             final double height = constraints.maxHeight;
             // Card on whichever side of the target has more room; over the bottom of
             // a target that leaves room on neither side (a whole-screen list).
-            final double roomAbove = hole == null ? 0 : hole.top;
-            final double roomBelow = hole == null ? 0 : height - hole.bottom;
+            // Measured within the screen, so a target partly off it can't push the card off too.
+            final double roomAbove = hole == null ? 0 : hole.top.clamp(0.0, height);
+            final double roomBelow = hole == null ? 0 : (height - hole.bottom).clamp(0.0, height);
             final bool fitsBeside = roomAbove >= _minCardRoom || roomBelow >= _minCardRoom;
             final bool cardBelow = roomBelow >= roomAbove;
             final Widget card = Card(

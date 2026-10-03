@@ -205,7 +205,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
 
     @override
     Widget build(BuildContext context) {
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: Text((widget.existing == null) ? "Add Expense" : "Edit Expense"),
             // Form with GlobalKey<FormState> lets single validate() check TextFormFields
             content: Form(

@@ -161,7 +161,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
     @override
     Widget build(BuildContext context) {
         final CreditModel? existing = widget.existing;
-        return AlertDialog.adaptive(
+        return AlertDialog(
             title: Text(existing == null ? "Add Credit Card" : "Edit Credit Card"),
             content: Form(
                 key: _formKey,

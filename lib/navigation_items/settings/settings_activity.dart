@@ -426,7 +426,11 @@ class _SettingsActivityState extends State<SettingsActivity> {
             screen: TutorialScreen.settings,
             child: Scaffold(
                 appBar: AppBar(title: const Text("Settings")),
-                body: ListView(
+                // Not a lazy ListView: every row is built, so the tutorial can scroll
+                // its targets near the bottom (Import from CSV, Replay tutorial) into view.
+                body: SingleChildScrollView(
+                    child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                         _header("APPEARANCE"),
                         _appearanceSection(),
@@ -549,6 +553,7 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         _link("Plaid Legal and Privacy Policy", "Third-party banking data provider", Links.plaidPrivacy),
                         ListTile(title: const Text("Disclaimer"), onTap: _showDisclaimer),
                     ],
+                    ),
                 ),
             ),
         );
