@@ -27,6 +27,10 @@ AppState _sampleState({bool disclaimerAccepted = true}) {
 
 Future<AppState> _pumpHome(WidgetTester tester, [AppState? state]) async {
     final AppState s = state ?? _sampleState();
+    // Tall enough for every sample row under the balance cards (the default 800x600 isn't).
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(home: ExpenseActivity(state: s)));
     await tester.pumpAndSettle();
     return s;

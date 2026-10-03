@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../utils/frequency_unit.dart';
 import '../../utils/legal.dart';
 import '../../utils/money.dart';
+import '../../utils/theme_helper.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/projection_settings_dialog.dart';
@@ -321,35 +322,125 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         return today ? "Synced today at $clock" : "Synced ${months[time.month - 1]} ${time.day} at $clock";
     }
 
-    // Balance summary Card. With the Next Check setting on, the right-hand figure
-    // adds the next paycheck and is labelled "NEXT CHECK", as in the Java app.
-    // On this check, tapping the current balance updates it.
-    Card get balanceSummary {
-        final bool nextCheck = _state.data.includeNextCheck;
+    // The Java app's check bar: a card in the accent color with ◀ the check ▶, and
+    // what's being projected under it. Long-pressing the title opens the
+    // projection settings, as in the Java app.
+    Widget get checkBar {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        final String? subtitle = _balance.projection == null ? null : "Projecting: ${_balance.projection!.describe()}";
         return Card(
-            child: IntrinsicHeight(
+            color: scheme.primary,
+            margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: TutorialTarget(
+                id: "check_nav",
                 child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                        InkWell(
-                            onTap: _onHomeScreen ? _updateBalance : null,
-                            onLongPress: _onHomeScreen ? _updateBalance : null,
-                            child: Tooltip(
-                                message: _onHomeScreen ? "Update balance" : "",
-                                child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                        const Text("CURRENT BALANCE"),
-                                        Text(_money(_summary.startBalance)),
-                                    ],
+                        IconButton(
+                            onPressed: _onHomeScreen ? null : _previousCheck,
+                            icon: const Icon(Icons.chevron_left),
+                            color: scheme.onPrimary,
+                            disabledColor: scheme.onPrimary.withValues(alpha: 0.35),
+                            tooltip: "Previous check",
+                        ),
+                        Expanded(
+                            child: GestureDetector(
+                                onLongPress: _openProjectionSettings,
+                                child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    child: Column(
+                                        children: [
+                                            Text(
+                                                _onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}",
+                                                style: TextStyle(color: scheme.onPrimary, fontSize: 17,
+                                                    fontWeight: FontWeight.w500),
+                                            ),
+                                            if (subtitle != null)
+                                                Text(subtitle,
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(color: scheme.onPrimary.withValues(alpha: 0.75),
+                                                        fontSize: 11)),
+                                        ],
+                                    ),
                                 ),
                             ),
                         ),
-                        const VerticalDivider(),
-                        Text(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK"),
-                        Text(_money(nextCheck ? _summary.endBalanceWithNextCheck : _summary.endBalance)),
+                        IconButton(
+                            onPressed: _nextCheck,
+                            icon: const Icon(Icons.chevron_right),
+                            color: scheme.onPrimary,
+                            tooltip: "Next check",
+                        ),
                     ],
                 ),
+            ),
+        );
+    }
+
+    // Balance summary card, laid out as in the Java app: two halves with a small
+    // label over a large figure. With the Next Check setting on, the right-hand
+    // figure adds the next paycheck and is labelled "NEXT CHECK". On this check,
+    // tapping the current balance updates it.
+    Widget get balanceSummary {
+        final bool nextCheck = _state.data.includeNextCheck;
+        final double after = nextCheck ? _summary.endBalanceWithNextCheck : _summary.endBalance;
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        final String? syncLabel = _syncLabel;
+        return Card(
+            margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+                children: [
+                    IntrinsicHeight(
+                        child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                                Expanded(
+                                    child: Tooltip(
+                                        message: _onHomeScreen ? "Update balance" : "",
+                                        child: InkWell(
+                                            onTap: _onHomeScreen ? _updateBalance : null,
+                                            onLongPress: _onHomeScreen ? _updateBalance : null,
+                                            child: _balanceFigure("CURRENT BALANCE", _summary.startBalance,
+                                                scheme.primary),
+                                        ),
+                                    ),
+                                ),
+                                const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+                                Expanded(
+                                    child: _balanceFigure(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK", after,
+                                        BujitColors.of(context).forAmount(after)),
+                                ),
+                            ],
+                        ),
+                    ),
+                    if (syncLabel != null)
+                        Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(syncLabel, style: TextStyle(fontSize: 11,
+                                color: scheme.onSurface.withValues(alpha: 0.6))),
+                        ),
+                ],
+            ),
+        );
+    }
+
+    // A label over a large amount; the amount shrinks to fit rather than overflowing.
+    Widget _balanceFigure(String label, double amount, Color color) {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                    Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.7,
+                        color: scheme.onSurface.withValues(alpha: 0.6))),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(_money(amount),
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500, color: color)),
+                    ),
+                ],
             ),
         );
     }
@@ -383,14 +474,8 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
             ),
         )),
-        title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                Text(_onHomeScreen ? "This Check" : "Check of ${_date(_summary.window.start)}"),
-                if (_balance.projection != null)
-                    Text("Projecting: ${_balance.projection!.describe()}", style: const TextStyle(fontSize: 12)),
-            ],
-        ),
+        title: const Text("Bujit"),
+        actionsPadding: const EdgeInsets.only(right: 8),
         actions: [
             if (_onHomeScreen && _balance.expenses.isNotEmpty)
                 IconButton(
@@ -403,37 +488,21 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 icon: const Icon(Icons.tune),
                 tooltip: "Projection settings",
             ),
-            TutorialTarget(
-                id: "check_nav",
-                child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        IconButton(
-                            onPressed: _onHomeScreen ? null : _previousCheck,
-                            icon: const Icon(Icons.chevron_left),
-                            tooltip: "Previous check",
-                        ),
-                        IconButton(
-                            onPressed: _nextCheck,
-                            icon: const Icon(Icons.chevron_right),
-                            tooltip: "Next check",
-                        ),
-                    ],
-                ),
-            ),
         ],
     );
 
-    // Expense list header
-    final Row expenseListHeader = const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-            Text("EXPENSE"),
-            Text("DUE DATE"),
-            Text("RATE"),
-            Text("AMOUNT")
-        ],
-    );
+    // Expense list header, over the rows' name (with its details) and amount.
+    Widget get expenseListHeader {
+        final TextStyle style = TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.9,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55));
+        return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [Text("EXPENSE", style: style), Text("AMOUNT", style: style)],
+            ),
+        );
+    }
 
     // The Java app's Rate column: the amount per period ("$15.99/mo", "$40.00/2wk").
     // A card has no fixed rate, so it shows what it owes as of this check
@@ -485,7 +554,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                     if (expense is CreditModel)
                         LinearProgressIndicator(
                             value: expense.creditUtilization.clamp(0.0, 1.0),
-                            color: _utilizationColor(expense.creditUtilization),
+                            color: BujitColors.of(context).forUtilization(expense.creditUtilization),
                         ),
                 ],
             ),
@@ -495,13 +564,6 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 : _onHomeScreen ? () => _editItem(expense) : null,
             onLongPress: selected != null ? () => _toggleSelected(expense) : null,
         );
-    }
-
-    // Green under 30%, amber under 70%, red from 70%, as in the Java app.
-    static Color _utilizationColor(double utilization) {
-        if (utilization < 0.30) return Colors.green;
-        if (utilization < 0.70) return Colors.amber;
-        return Colors.red;
     }
 
     // Expense list for the check on screen. Rows can be edited and dragged into
@@ -530,10 +592,10 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                     content: Text("Storage couldn't be opened, so changes won't be saved."),
                     actions: [SizedBox.shrink()],
                 ),
+            if (!_selecting) checkBar,
             TutorialTarget(id: "balance_card", child: balanceSummary),
-            if (_syncLabel != null) Text(_syncLabel!, style: const TextStyle(fontSize: 12)),
             expenseListHeader,
-            const Divider(), // Divider between header and list
+            const Divider(indent: 16, endIndent: 16), // Divider between header and list
             // Expanded gives the ListView a bounded height; a scrollable list
             // directly inside a Column fails at runtime with "unbounded height".
             Expanded(
