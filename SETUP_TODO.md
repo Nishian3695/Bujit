@@ -1,179 +1,211 @@
 # Setup TODO: things only you can do
 
-These need your Google accounts or your signing keys, so they can't be done in
-code. The code is ready for them; each feature stays off until its part is done,
-and everything else works.
+These need your accounts (Google, Apple, Plaid, Play) or your keys, so they can't
+be done in code. The code is ready for each; a feature stays off until its part is
+done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
+
+## At a glance
+
+| Area | Android | iPhone |
+|---|---|---|
+| The app itself | **Live** for internal and closed testers (0.5.4) | Builds and runs in the simulator ([previews](#previewing-on-ios-without-a-mac)); not released |
+| Google Tasks sync | Works for test users; [verification](#google-tasks) pending | Same |
+| Apple Reminders sync | n/a | **Ready**; try it in Appetize |
+| Bank linking (Plaid) | **Works** in release builds | Needs the [Apple setup](#iphone-bank-logins) |
+| Tips | **Works** (Play products exist) | Needs App Store products |
+| Rating | Store page + in-app prompt | In-app prompt; store link once there's an App Store ID |
 
 ---
 
-## Google Tasks sync
+## Android and Google Play
 
-**Done:** in project `bujit-89ac6`, the Tasks API is on, the consent
-screen has your test users, there are Android clients for each signing key, and
-the Web and iOS client IDs are in [lib/config/google_config.dart](lib/config/google_config.dart).
-The Java app's old OAuth clients were gone, which is why its Tasks sync stopped
-working. The new Play-signing client fixes it there too.
+**Done:**
+- **Repositories.** Code goes to `Nishian3695/BujitDEV` and the release repo
+  `Nishian3695/Bujit`. The release repo's `main` is the Flutter app; the Java app's
+  last `main` is kept on the `java-main` branch.
+- **Releases.** Pushing a tag to the release repo builds, signs and uploads to Play
+  ([release.yml](.github/workflows/release.yml)). The suffix picks the tracks:
+  none = internal, `-closed` = internal + both closed tracks, `-open` = open
+  testing, `-all` = every testing track. Production is a promotion in Play Console.
+- **Versions.** The version code is major·10000 + minor·1000 + patch, continuing
+  from the Java app's 0.4.5 (4005). Latest: `v0.5.4-closed` (5004). Never reuse one.
+- **Signing.** Builds are signed with the Java app's upload key; Play re-signs them
+  with its app signing key (SHA-1 `41:97:BF:65:17:8D:63:1A:83:A5:7D:B0:3C:3E:CC:4C:F0:E5:FA:83`).
+- **CI** analyzes and tests every push to `main`, and fails on any analyzer issue.
+- **Database.** Every released layout is kept (version 3 now; steps in
+  [app_database.dart](lib/storage_management/database/app_database.dart)), so
+  updates migrate data.
+- **Java app data** is imported on the first open after updating over it (checked
+  with a release build over the Java app's 0.4.5): data, settings, counted
+  accounts and bank logins. Google Tasks needs signing in again.
+- **Play listing links:** privacy policy and data deletion pages are live (below).
 
-### 1. Try it on Android
-- [ ] Run the app and go to **Settings → Sync to Google Tasks**. You should see:
-  1. the account picker, then
-  2. Google's permission screen, then
-  3. "Connected as you@gmail.com" and a line like "5 added, 0 updated, 0 removed".
-- [ ] Open <https://tasks.google.com>. The **Bujit** list should have:
-  - one task per expense and card, due on its next date;
-  - one "Paycheck: …" task per income stream.
-- [ ] Edit an expense in the app. Its task should update within a few seconds.
+**For you:**
+- [ ] **Google sign-in in Play builds.** Add the app signing key's **SHA-1** above
+      to the Android OAuth client in Google Cloud Console (Credentials), and its
+      **SHA-1 and SHA-256** (Play Console → Test and release → App integrity) to the
+      Android app in Firebase → Project settings.
+- [ ] **Check the update path on your phone** with your real data: data, settings,
+      banks (pull down to sync), Google Tasks after signing in again, and a tip.
+- [ ] **When testing is done:** delete the App Check debug tokens in Firebase →
+      App Check → Apps → Manage debug tokens.
+- [ ] **Going public:** tag `v1.0.0-all` (or promote in Play Console), then
+      promote to production in Play Console. Edit
+      [play/whatsnew/whatsnew-en-US](play/whatsnew/whatsnew-en-US) first.
 
-Avoid syncing the Java app and this app to the same Google account at the same
-time: every item would show up twice in the Bujit list.
+---
 
-### 2. iOS
-The iOS client's ID and URL scheme are in place (`iosClientId` in
-[lib/config/google_config.dart](lib/config/google_config.dart), and `CFBundleURLTypes`
-in [ios/Runner/Info.plist](ios/Runner/Info.plist)).
-- [ ] Try it once you can build on a Mac with Xcode (same steps as Android).
+## Website
 
-### 3. Before a public release
-- [ ] The Tasks permission is "sensitive". While the consent screen is in
-      *Testing*, only test users can sign in, and their sign-ins expire after 7
-      days. Going to *Production* needs Google's verification: a privacy policy
-      URL, a homepage, and a short demo video of the sign-in. Plan a few weeks.
-- [ ] **Keep clients in use.** Google deletes OAuth clients that go unused for
-      about six months (the likely reason the Java app's clients disappeared).
+`https://nishian3695.github.io/Bujit/`: GitHub Pages, built from the root of the
+release repo's `main`. It has the home page, privacy policy, data deletion page,
+CSV import reference and the CSV template (a test keeps it identical to the app's).
 
-### If it goes wrong
+- Keep these at the repo root: `index.html`, `privacy-policy.html`,
+  `data-deletion.html`, `csv-import-reference.html`, `bujit_import_template.csv`,
+  `site.css`, `site-assets/`, `.nojekyll` and `google47d20b5a7bb30863.html` (Google
+  Search Console's ownership check). Removing them took the site down once and got
+  a release rejected.
+- [ ] Read over the privacy policy and data deletion page; they're your text. The
+      deletion page sends requests to GitHub issues (public); add an email if you
+      prefer.
+
+---
+
+## Google Tasks
+
+**Done:** in project `bujit-89ac6` the Tasks API is on, there are Android, Web and
+iOS OAuth clients (IDs in [lib/config/google_config.dart](lib/config/google_config.dart)),
+the website is verified in Search Console, and the privacy policy has Google's
+Limited Use statement.
+
+**While the consent screen isn't verified,** users see "Google hasn't verified this
+app" and continue with **Advanced → Go to Bujit (unsafe)**; only listed test users
+can sign in, and sign-ins expire after 7 days.
+
+**For you (verification):** in Google Cloud Console → Google Auth Platform:
+- [ ] **Branding:** home page `https://nishian3695.github.io/Bujit/`, privacy policy
+      `https://nishian3695.github.io/Bujit/privacy-policy.html`, authorized domain
+      `nishian3695.github.io` (allow ~24 hours after the Search Console check).
+- [ ] **Data Access:** only `https://www.googleapis.com/auth/tasks`. Remove the
+      read-only Tasks scope if it's listed; Bujit doesn't use it.
+- [ ] **Audience:** publish to **In production**.
+- [ ] **Verification Center:** submit with a reason like: *"Bujit creates a 'Bujit'
+      task list in the user's Google Tasks and keeps one task per expense and
+      paycheck, with its due date, so the user gets Google's reminders. It only
+      reads list names (to find its own list) and only changes tasks in that list;
+      the user can remove them when turning sync off."* Add an unlisted YouTube
+      video: Settings → Sync to Google Tasks, the consent screen, and the Bujit list
+      in Google Tasks. Review takes days to weeks.
+- [ ] **Keep clients in use:** Google deletes OAuth clients unused for ~6 months
+      (likely why the Java app's clients vanished).
+
 | Symptom | Usual cause |
 |---|---|
-| Android: "Developer console is not set up correctly" or "[16]/[10]" errors | The build's signing key has no Android client, or `webClientId` isn't the Web client's ID |
-| "Access blocked: … has not completed the Google verification process" | That account isn't a test user (Google Auth Platform → Audience) |
-| iOS crashes when sign-in starts | The URL scheme is missing from `Info.plist` |
-| "Google Tasks needs permission again" in Settings | The sign-in expired (7 days in Testing) or access was removed from the Google account. Turn the switch off and on. |
-| The switch flips back with no message | The sign-in was cancelled |
+| "Developer console is not set up correctly", errors [10]/[16] | The build's signing key isn't on an Android client (see the Play SHA-1 above) |
+| "Access blocked: … has not completed the Google verification process" | That account isn't a test user |
+| "Google Tasks needs permission again" | The 7-day test sign-in expired, or access was removed. Turn the switch off and on. |
+
+---
+
+## Apple Reminders (iPhone)
+
+**Done:** on iPhone, Settings offers **Sync to Apple Reminders** next to Google
+Tasks (one at a time). It keeps the same "Bujit" list in Reminders, synced to the
+user's Apple devices by iCloud, with no sign-in. Native code:
+[AppDelegate.swift](ios/Runner/AppDelegate.swift); permission text in
+[Info.plist](ios/Runner/Info.plist).
+- [ ] Try it in Appetize (allow Reminders when asked), and again on a real iPhone
+      in TestFlight.
 
 ---
 
 ## Linked Accounts (Plaid)
 
-The app reaches Plaid through the Bujit backend, a Firebase Cloud Function (Cloud
-Run URL `tellerproxy-kswzrkdipq-uc.a.run.app`). Its source now lives in this repo,
-under [backend/](backend/), copied from the Java repo. The backend holds the Plaid
-keys (in Secret Manager) and checks each request for a Firebase ID token and an
-App Check token.
+**Done:** the backend (a Firebase Cloud Function, source in [backend/](backend/))
+is deployed from this repo with Firebase Hosting, holds the Plaid keys in Secret
+Manager, and checks each request's Firebase sign-in and App Check token. Android
+release builds pass App Check with Play Integrity.
 
-**Done (Android):**
-- Firebase settings are in [lib/firebase_options.dart](lib/firebase_options.dart).
-- Anonymous sign-in works.
-- This phone's App Check debug token is registered. Delete it when you're done
-  testing debug builds, and add a new one for any other test device.
-- Android release builds prove they're genuine the way the Java app did: a Play
-  Integrity token exchanged at the backend. Play Console is already linked for
-  this, since the Java app's Play version links banks.
-
-### iOS bank logins (OAuth: Chase, Capital One, Wells Fargo, …)
-After logging in on the bank's own site, Plaid sends iOS users to
-`https://bujit-89ac6.web.app/plaid-oauth`, which opens Bujit (a universal link).
-The code for this is ready; these steps aren't:
-1. [ ] **Apple Team ID.** Find it in your Apple developer account under
-       *Membership*. Replace `TEAMID` in
-       [backend/hosting/.well-known/apple-app-site-association](backend/hosting/.well-known/apple-app-site-association)
-       with it, or send it to me.
-2. [ ] **Plaid dashboard → Developers → API → Allowed redirect URIs:** add
+### iPhone bank logins
+For banks that log in on their own site (Chase, Capital One, …), Plaid returns to
+`https://bujit-89ac6.web.app/plaid-oauth`, which opens Bujit. The code is ready:
+1. [ ] **Apple Team ID** (Apple developer account → Membership): send it to me, and
+       I'll put it in [apple-app-site-association](backend/hosting/.well-known/apple-app-site-association).
+2. [ ] Then deploy hosting: in `backend/`, `firebase deploy --only hosting`.
+3. [ ] **Plaid dashboard → Developers → API → Allowed redirect URIs:** add
        `https://bujit-89ac6.web.app/plaid-oauth`.
-3. [ ] **Deploy the backend and the hosting** (see "Deploying the backend" below).
-       This also publishes the app-link file and the redirect page.
 4. [ ] **Apple developer account → Identifiers → io.github.nishian3695.bujit:**
-       turn on **Associated Domains** and **App Attest**. The app already asks for
-       both in [ios/Runner/Runner.entitlements](ios/Runner/Runner.entitlements).
-5. [ ] **Firebase console → App Check:** register the iOS app with **App Attest**
-       (with DeviceCheck as the fallback, which needs a key from your Apple
-       developer account).
-
-Android needs none of this. Its link token names the app's package, as before.
-
-### Deploying the backend
-The backend's source is in [backend/](backend/), and the Java repo's copy can be
-retired with it. Deploying from here sends the same `tellerProxy` function, plus
-the iOS redirect change and Firebase Hosting.
-1. [ ] Install the Firebase CLI once: `npm install -g firebase-tools`, then
-       `firebase login`. Node 24 is already on this PC.
-2. [ ] `cd backend/functions` then `npm ci`.
-3. [ ] `cd ..` (into `backend/`) then `firebase deploy --only functions,hosting`.
-4. [ ] Check that `https://bujit-89ac6.web.app/.well-known/apple-app-site-association`
-       shows the JSON with your Team ID.
-
-### Try it (in Sandbox)
-- [ ] Linked Accounts → **Link a bank or credit card**. In Plaid's sandbox, pick
-      any bank and log in with `user_good` / `pass_good`.
-- [ ] Home → tap **Current Balance → From Accounts**, pick the checking account,
-      then Save. The balance becomes that account's balance (plus any additional
-      funds).
-- [ ] Pull down on the home screen to sync right away. Otherwise it syncs on
-      opening, at most every 15 minutes.
+       turn on **Associated Domains** and **App Attest**.
+5. [ ] **Firebase → App Check:** register the iOS app with **App Attest** (and
+       DeviceCheck as the fallback, which needs a DeviceCheck key from Apple).
+6. [ ] Test on a real iPhone (TestFlight); App Attest doesn't work in the simulator.
 
 | Symptom | Usual cause |
 |---|---|
-| "Bujit's server refused the request (Missing App Check token)" | A debug build on a device whose App Check debug token isn't registered |
-| "Failed to start bank connection" (another cause) | The backend is down, or Plaid refused the request (the log says which) |
-| A bank says "connection expired" | Its login changed or access was revoked. Use **Reconnect** under the bank's name. |
-
-### Differences from the Java app
-- **Disconnecting a bank keeps** the expenses and cards that used it, with their
-  last amounts, paid from the current balance. The Java app deleted them.
-- **Reconnecting an expired bank keeps settings.** Which accounts count toward
-  the balance, and what's paid from or synced with them, carries over to the
-  reconnected accounts.
-- **Linking a bank offers to add its credit cards,** asking for what the bank
-  can't share: due dates, and limits the bank doesn't report.
-- **Only Plaid is ported.** The Java app's Teller option isn't, since Plaid was
-  the one in use.
+| "Bujit's server refused the request (Missing App Check token)" | A debug build whose App Check debug token isn't registered, or iOS App Check not set up |
+| A bank says "connection expired" | Its login changed or access was revoked; use **Reconnect** |
 
 ---
 
-## Tip jar and ratings
+## Tips and ratings
 
-The tip buttons sell the Java app's one-time products: `tip_small`, `tip_medium`
-and `tip_large`. Until the store returns them, the buttons show $0.99, $2.99 and
-$4.99, and tapping one says "Store unavailable".
-- [ ] **Google Play:** these products already exist for the Java app. Purchases
-      only work in builds installed from Play (internal testing track or later).
-- [ ] **App Store:** in App Store Connect, create three **Consumable** in-app
-      purchases with the same product IDs, and accept the Paid Apps agreement.
-- [ ] **Rate Bujit** opens the Play Store and only shows on Android. Once the app
-      has an App Store listing, send me its numeric App Store ID and I'll add the
-      iOS link.
+- **Tips** sell `tip_small`, `tip_medium` and `tip_large` (one-time, consumable).
+  On Play they already exist. Purchases only work in builds installed from a store.
+- **Rating:** "Rate Bujit" opens the store's review page, and the store's own
+  in-app rating prompt is asked for once, from the 8th time the app is opened.
+
+**For you (App Store):**
+- [ ] App Store Connect → **Business:** accept the **Paid Apps agreement**, and add
+      tax and bank details.
+- [ ] Create three **Consumable** in-app purchases: `tip_small`, `tip_medium`,
+      `tip_large`. In review notes, say they're tips that unlock nothing.
+- [ ] Once the app record exists, send me its **Apple ID** (App Information) for
+      `appStoreId` in [legal.dart](lib/utils/legal.dart), so "Rate Bujit" shows on iPhone.
 
 ---
 
-## Releasing on Android
+## iPhone release
 
-**Done:**
-- **Signing.** Release builds are signed with the Java app's keystore, so Play
-  accepts them as an update. Locally, the values come from
-  `android/keystore.properties` (copied from the Java repo; never committed; see
-  `android/keystore.properties.example`).
-- **Version.** The first Flutter release is `0.5.0` (version code 5000), tagged
-  `v0.5.0-closed` for internal and closed testers. The Java app's last release
-  was 0.4.5 (4005). The release workflow takes both from the tag.
-- **Workflows.** [.github/workflows/release.yml](.github/workflows/release.yml)
-  builds, signs and uploads to Play when you push a tag like `v1.0.0`. CI analyzes
-  and tests every push.
-- **Database.** Every released layout is kept (version 2 now; see the steps in
-  [app_database.dart](lib/storage_management/database/app_database.dart)), so from
-  now on updates migrate data instead of needing a reinstall.
-- **Data from the Java app** is imported on the first launch after updating over
-  it. That covers its data, settings, counted accounts and bank logins. Google
-  Tasks needs signing in again.
+### Previewing on iOS without a Mac
+[ios-simulator.yml](.github/workflows/ios-simulator.yml) builds a simulator app on
+GitHub's Macs (no Apple account needed) whenever `ios-preview` is pushed, or from
+Actions → iOS Simulator Build → Run workflow. With the `APPETIZE_TOKEN` secret it's
+uploaded to Appetize; the run's summary links to it.
+- [ ] `APPETIZE_TOKEN` repository secret (Appetize → Organization → API Tokens),
+      if not added yet; without it, download the build from the run instead.
+- [ ] Optional: add the repository **variable** `APPETIZE_APP_KEY` (shown in the
+      run's summary) so every build replaces the same Appetize app and link.
 
-**For you:**
-- [ ] **Repository secrets.** Add the Java repo's release secrets to the repository
-      that will run the release workflow: `KEYSTORE_BASE64`, `STORE_PASSWORD`,
-      `KEY_ALIAS`, `KEY_PASSWORD` and `SERVICE_ACCOUNT_JSON` (GitHub → Settings →
-      Secrets and variables → Actions). The Firebase settings are committed, so
-      `GOOGLE_SERVICES_JSON` and `TELLER_APP_ID` aren't needed.
-- [ ] **Test the update path once** before releasing:
-  1. install the Java app's Play version on a test device and use it;
-  2. install the Flutter app's release build over it (the internal testing track
-     does this);
-  3. check that the data, settings and linked banks came across.
-- [ ] Edit [play/whatsnew/whatsnew-en-US](play/whatsnew/whatsnew-en-US) (the Play
-      release notes) as you like.
+### Publishing (needs the Apple developer account, $99/year)
+1. [ ] Enroll in the **Apple Developer Program**.
+2. [ ] Do the [iPhone bank logins](#iphone-bank-logins) steps (Team ID, capabilities,
+       App Check).
+3. [ ] **App Store Connect → Apps → +:** new iOS app with bundle ID
+       `io.github.nishian3695.bujit` (register it under Identifiers first if it
+       isn't listed). App names must be unique on the App Store.
+4. [ ] **App Store Connect API key** for releases: Users and Access → Integrations
+       → App Store Connect API → **Generate**, role **Admin**. Add repository
+       secrets `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`,
+       `APPSTORE_API_KEY_P8` (the .p8 file's contents) and `APPLE_TEAM_ID`.
+5. [ ] Push a tag like `ios-v0.5.4` to the release repo:
+       [ios-release.yml](.github/workflows/ios-release.yml) builds, signs (Xcode's
+       cloud signing) and uploads to **TestFlight**. Its first run may need fixes.
+6. [ ] **TestFlight** on a real iPhone: bank linking, Face ID app lock, Apple
+       Reminders, a sandbox tip purchase.
+7. [ ] App Store listing:
+   - **App Privacy** ("nutrition label"): no tracking; data is on the device; bank
+     data goes through Plaid; diagnostics through Firebase.
+   - **Encryption:** the app uses standard encryption (HTTPS and its encrypted
+     database); answer App Store Connect's export questions (typically exempt).
+   - **Screenshots** (the simulator can produce them), description, support URL
+     (the website), privacy policy URL.
+8. [ ] Submit for review.
+
+---
+
+## Name (optional)
+
+"Bujit" is used elsewhere, and a "Budgit" budgeting app exists. If protecting the
+name matters, ask a trademark attorney before the iOS launch; a rename is easy now
+(store titles and the in-app name), while the package name never changes.
