@@ -1,0 +1,78 @@
+name: iOS Simulator Build
+
+# Builds the iOS app for the iPhone Simulator on a GitHub-hosted Mac, so it can be
+# tried without a Mac or an Apple developer account (simulator builds aren't
+# signed). The build is attached to the run as "Bujit-ios-simulator" (a zipped
+# Runner.app). With an APPETIZE_TOKEN secret, it's also uploaded to Appetize.io,
+# which runs it in the browser; the run's summary links to it.
+#
+# Start it from Actions > iOS Simulator Build > Run workflow, or by pushing to the
+# ios-preview branch.
+#
+# Optional repository settings:
+#   secret   APPETIZE_TOKEN    Appetize API token (Account > API token)
+#   variable APPETIZE_APP_KEY  the app's Appetize public key, to update that app in
+#                              place (same link every time) instead of adding a new one
+on:
+  workflow_dispatch:
+  push:
+    branches: [ ios-preview ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build for the iOS Simulator
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.5'
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      # Debug: Flutter only builds the simulator in debug mode.
+      - name: Build
+        run: flutter build ios --simulator --debug
+
+      - name: Zip the app
+        run: |
+          cd build/ios/iphonesimulator
+          ditto -c -k --sequesterRsrc --keepParent Runner.app "$GITHUB_WORKSPACE/Bujit-ios-simulator.zip"
+
+      - name: Attach the build to the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bujit-ios-simulator
+          path: Bujit-ios-simulator.zip
+
+      - name: Upload to Appetize
+        env:
+          APPETIZE_TOKEN: ${{ secrets.APPETIZE_TOKEN }}
+          APPETIZE_APP_KEY: ${{ vars.APPETIZE_APP_KEY }}
+        run: |
+          if [ -z "$APPETIZE_TOKEN" ]; then
+            echo "No APPETIZE_TOKEN secret: skipping. Download the build from this run's artifacts instead." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          url="https://api.appetize.io/v1/apps${APPETIZE_APP_KEY:+/$APPETIZE_APP_KEY}"
+          curl --fail-with-body -sS "$url" \
+            -H "X-API-KEY: $APPETIZE_TOKEN" \
+            -F "file=@Bujit-ios-simulator.zip" \
+            -F "platform=ios" \
+            -F "note=Bujit ${GITHUB_SHA::7}" > appetize.json
+          key=$(python3 -c "import json; print(json.load(open('appetize.json'))['publicKey'])")
+          {
+            echo "### Try it in the browser"
+            echo "https://appetize.io/app/$key"
+            echo
+            echo "To keep this link for future builds, add a repository variable APPETIZE_APP_KEY = \`$key\`."
+          } >> "$GITHUB_STEP_SUMMARY"
