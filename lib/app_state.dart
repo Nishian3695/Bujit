@@ -24,14 +24,19 @@ class AppState extends ChangeNotifier {
     final AppData data;
     final AppDataStore? _store; // null = nothing is saved (tests, or storage failed to open)
 
-    // Google Tasks sync; null = not available (tests, or storage failed to open).
-    GoogleTasksSync? tasks;
+    // Task sync with Google Tasks, and with Apple Reminders on iPhone; null = not
+    // available (tests, other platforms, or storage failed to open). One at a
+    // time: AppData.tasksProvider says which.
+    TasksSync? tasks;
+    TasksSync? reminders;
     // Asks for the fingerprint/face/PIN (the app lock); null in tests unless faked.
     DeviceAuth? deviceAuth;
     // Linked banks through Plaid; null = not available (tests, or storage failed to open).
     BankingService? banking;
     // The tip jar (Settings); null = not available (tests).
     TipJar? tipJar;
+    // Shows the store's review prompt (Links.requestReview); null = never (tests).
+    Future<void> Function()? requestReview;
 
     AppState(this.data, [this._store]) {
         Money.useCommaSeparators = data.useCommaSeparators;
@@ -53,7 +58,8 @@ class AppState extends ChangeNotifier {
     // was installed over it ([javaData]), else the tutorial's sample data is loaded,
     // as the Java app does.
     static Future<AppState> open(AppDataStore store,
-            {DateTime? today, GoogleTasksSync? tasks, BankingService? banking, JavaDataSource? javaData}) async {
+            {DateTime? today, TasksSync? tasks, TasksSync? reminders, BankingService? banking,
+            JavaDataSource? javaData}) async {
         AppData? data = await store.load();
         bool fromJava = false;
         if (data == null && javaData != null) {
@@ -75,8 +81,10 @@ class AppState extends ChangeNotifier {
             // Expired single events leave the list; their effects stay (they happened).
             data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: today);
         }
+        data.launchCount++; // Saved below, with everything else
         final AppState state = AppState(data, store)
             ..tasks = tasks
+            ..reminders = reminders
             ..banking = banking
             .._caughtUpTo = dateOnly(today ?? DateTime.now());
         if (fromJava) {
@@ -203,9 +211,18 @@ class AppState extends ChangeNotifier {
         await changed();
     }
 
-    // ── Google Tasks ────────────────────────────────────────────────────────
+    // ── Task sync (Google Tasks or Apple Reminders) ─────────────────────────
 
-    bool get canSyncTasks => tasks != null && data.tasksSyncEnabled;
+    static const String googleTasks = "google";
+    static const String appleReminders = "apple";
+
+    // The sync for [provider] ("google" or "apple"), if this device has it.
+    TasksSync? taskSyncFor(String provider) => provider == appleReminders ? reminders : tasks;
+
+    // The sync in use (whether or not it's turned on).
+    TasksSync? get activeTasks => taskSyncFor(data.tasksProvider);
+
+    bool get canSyncTasks => activeTasks != null && data.tasksSyncEnabled;
     bool tasksSyncing = false;
     TasksSyncResult? lastTasksSync; // Shown in Settings
     Future<void>? _tasksRun;
@@ -231,35 +248,61 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         do {
             _tasksAgain = false;
-            lastTasksSync = await tasks!.reconcile(data, today: today);
-            if (!lastTasksSync!.ok) _logger.warning("Google Tasks sync: ${lastTasksSync!.summary()}");
+            lastTasksSync = await activeTasks!.reconcile(data, today: today);
+            if (!lastTasksSync!.ok) _logger.warning("Task sync: ${lastTasksSync!.summary()}");
             await save(); // Task ids (not changed(): that would sync again)
         } while (_tasksAgain && canSyncTasks);
         tasksSyncing = false;
         notifyListeners();
     }
 
-    // Signs in to Google and turns sync on (Settings). Returns false if the user
-    // cancelled; throws TasksAuthException if signing in failed.
-    Future<bool> connectTasks() async {
-        final GoogleTasksSync? sync = tasks;
+    // Turns sync on with [provider] (Settings): signs in to Google, or asks for
+    // Reminders access. Sync with the other service, if on, is turned off first
+    // (its tasks are left where they are). Returns false if the user cancelled;
+    // throws TasksAuthException if signing in or access failed.
+    Future<bool> connectTasks({String provider = googleTasks}) async {
+        final TasksSync? sync = taskSyncFor(provider);
         if (sync == null) return false;
-        final String? email = await sync.account.connect();
-        if (email == null) return false;
+        final String? account = await sync.account.connect();
+        if (account == null) return false;
+        if (data.tasksSyncEnabled && data.tasksProvider != provider) await disconnectTasks(removeTasks: false);
+        data.tasksProvider = provider;
         data.tasksSyncEnabled = true;
-        data.tasksAccount = email;
+        data.tasksAccount = account;
         await changed();
         return true;
     }
 
     // Turns sync off and signs out; with [removeTasks], deletes Bujit's tasks first.
     Future<void> disconnectTasks({required bool removeTasks}) async {
-        final GoogleTasksSync? sync = tasks;
+        final TasksSync? sync = activeTasks;
         if (sync == null) return;
         await _tasksRun; // Let a running sync finish, so it can't recreate tasks after
         await sync.disconnect(data, removeTasks: removeTasks);
         lastTasksSync = null;
         await changed();
+    }
+
+    // ── Review prompt ───────────────────────────────────────────────────────
+
+    // Opens of the app before the store's review prompt is asked for.
+    static const int reviewAfterLaunches = 8;
+
+    // Asks once for the store's review prompt (Apple's and Google's own rating
+    // sheets), when someone has clearly been using Bujit: from the
+    // [reviewAfterLaunches]th open, past the tutorial, with expenses entered. The
+    // stores limit how often it really appears, so it's never asked again.
+    Future<void> askForReviewIfDue() async {
+        final Future<void> Function()? request = requestReview;
+        if (request == null || data.reviewRequested) return;
+        if (data.launchCount < reviewAfterLaunches || !data.tutorialSeen || data.balance.expenses.isEmpty) return;
+        data.reviewRequested = true;
+        await save();
+        try {
+            await request();
+        } catch (e) {
+            _logger.info("Review prompt unavailable: $e");
+        }
     }
 
     // The tutorial step to show now, or null once it's finished or skipped (or
@@ -307,11 +350,11 @@ class AppState extends ChangeNotifier {
     }
 
     // Settings' Clear All Data (the Java app's performClearData): every setting
-    // back to its default, Google Tasks disconnected (its tasks are left alone) and
+    // back to its default, task sync turned off (its tasks are left alone) and
     // the app lock off, then the tutorial's sample data and the tutorial again --
     // what the Java app shows after clearing.
     Future<void> clearAllData({DateTime? today}) async {
-        if (tasks != null && data.tasksSyncEnabled) await disconnectTasks(removeTasks: false);
+        if (activeTasks != null && data.tasksSyncEnabled) await disconnectTasks(removeTasks: false);
         // Banks too, revoking their access as the Java app's BankingPrefs.clear path did.
         await banking?.disconnect(data, {for (final item in data.linkedItems) item.key});
         data.linkedItems.clear();
@@ -323,6 +366,7 @@ class AppState extends ChangeNotifier {
         data
             ..appLockEnabled = false
             ..tasksSyncEnabled = false
+            ..tasksProvider = googleTasks
             ..tasksListId = null
             ..tasksAccount = null
             ..syncedTasks.clear();

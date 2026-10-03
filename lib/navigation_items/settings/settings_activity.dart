@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -95,15 +96,21 @@ class _SettingsActivityState extends State<SettingsActivity> {
 
     bool _connectingTasks = false;
 
+    static String _serviceName(String provider) =>
+        provider == AppState.appleReminders ? "Apple Reminders" : "Google Tasks";
+
     // Turning sync on signs in to Google (the account picker and permission
-    // screen); turning it off asks whether to remove the tasks Bujit added.
-    Future<void> _toggleTasks(bool enable) async {
+    // screen) or asks for Reminders access; with the other service on, that one
+    // is turned off (its tasks stay). Turning it off asks whether to remove the
+    // tasks Bujit added.
+    Future<void> _toggleTasks(String provider, bool enable) async {
         final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+        final String service = _serviceName(provider);
         if (enable) {
             setState(() => _connectingTasks = true);
             try {
-                if (await widget.state.connectTasks()) {
-                    messenger.showSnackBar(const SnackBar(content: Text("Connected to Google Tasks")));
+                if (await widget.state.connectTasks(provider: provider)) {
+                    messenger.showSnackBar(SnackBar(content: Text("Connected to $service")));
                 }
             } on TasksAuthException catch (e) {
                 messenger.showSnackBar(SnackBar(content: Text(e.message)));
@@ -112,15 +119,16 @@ class _SettingsActivityState extends State<SettingsActivity> {
             }
             return;
         }
+        final String items = provider == AppState.appleReminders ? "reminders" : "tasks";
         final bool? removeTasks = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-                title: const Text("Stop syncing to Google Tasks?"),
-                content: const Text("Remove the tasks Bujit added to your \"Bujit\" list, or keep them?"),
+                title: Text("Stop syncing to $service?"),
+                content: Text("Remove the $items Bujit added to your \"Bujit\" list, or keep them?"),
                 actions: [
                     TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Keep tasks")),
-                    TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Remove tasks")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text("Keep $items")),
+                    TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text("Remove $items")),
                 ],
             ),
         );
@@ -128,32 +136,43 @@ class _SettingsActivityState extends State<SettingsActivity> {
         await widget.state.disconnectTasks(removeTasks: removeTasks);
     }
 
-    // The Google Tasks switch, its status, and Sync now. Rebuilt as syncs run.
-    Widget _googleTasksSection() {
+    // A switch for each task sync service this device has (Google Tasks; Apple
+    // Reminders on iPhone), their status, and Sync now. Rebuilt as syncs run.
+    Widget _tasksSection() {
         return ListenableBuilder(
             listenable: widget.state,
             builder: (context, _) {
                 final AppState state = widget.state;
-                final bool configured = state.tasks?.account.isConfigured ?? false;
-                final bool on = state.data.tasksSyncEnabled;
-                final TasksSyncResult? last = state.lastTasksSync;
-                final String status = !configured
-                    ? "Not set up in this build"
-                    : !on
-                        ? "Add expenses, cards and paychecks to a \"Bujit\" list, with reminders on due dates"
-                        : [
-                            "Connected as ${state.data.tasksAccount ?? "your Google account"}",
-                            if (state.tasksSyncing) "Syncing…" else if (last != null) last.summary(),
-                        ].join("\n");
+                final bool remindersAvailable = state.reminders?.account.isConfigured ?? false;
+                Widget serviceTile(String provider) {
+                    final bool configured = state.taskSyncFor(provider)?.account.isConfigured ?? false;
+                    final bool on = state.data.tasksSyncEnabled && state.data.tasksProvider == provider;
+                    final TasksSyncResult? last = state.lastTasksSync;
+                    final String status = !configured
+                        ? "Not set up in this build"
+                        : !on
+                            ? provider == AppState.appleReminders
+                                ? "Add expenses, cards and paychecks to a \"Bujit\" list in Reminders, on all your Apple devices"
+                                : "Add expenses, cards and paychecks to a \"Bujit\" list, with reminders on due dates"
+                            : [
+                                provider == AppState.appleReminders
+                                    ? "Syncing to the \"Bujit\" list in Reminders"
+                                    : "Connected as ${state.data.tasksAccount ?? "your Google account"}",
+                                if (state.tasksSyncing) "Syncing…" else if (last != null) last.summary(),
+                            ].join("\n");
+                    return SwitchListTile(
+                        title: Text("Sync to ${_serviceName(provider)}"),
+                        subtitle: Text(status),
+                        value: on,
+                        onChanged: configured && !_connectingTasks ? (enable) => _toggleTasks(provider, enable) : null,
+                    );
+                }
+
                 return Column(
                     children: [
-                        SwitchListTile(
-                            title: const Text("Sync to Google Tasks"),
-                            subtitle: Text(status),
-                            value: on,
-                            onChanged: configured && !_connectingTasks ? _toggleTasks : null,
-                        ),
-                        if (on && configured)
+                        serviceTile(AppState.googleTasks),
+                        if (remindersAvailable) serviceTile(AppState.appleReminders),
+                        if (state.canSyncTasks)
                             ListTile(
                                 title: const Text("Sync now"),
                                 enabled: !state.tasksSyncing,
@@ -189,7 +208,7 @@ class _SettingsActivityState extends State<SettingsActivity> {
             builder: (context) => AlertDialog(
                 title: const Text("Clear All Data"),
                 content: const Text("This will permanently delete all expenses, your balance, accounts and "
-                    "settings, and disconnect Google Tasks. Bujit starts over with the tutorial's sample "
+                    "settings, and turn off task sync. Bujit starts over with the tutorial's sample "
                     "data. This cannot be undone."),
                 actions: [
                     TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
@@ -454,7 +473,7 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         ),
                         const Divider(),
                         _header("INTEGRATIONS"),
-                        _googleTasksSection(),
+                        _tasksSection(),
                         const Divider(),
                         _header("CATEGORIES"),
                         ListTile(
@@ -499,7 +518,8 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         if (Links.canRate)
                             ListTile(
                                 title: const Text("Rate Bujit"),
-                                subtitle: const Text("Leave a rating on the Play Store"),
+                                subtitle: Text(defaultTargetPlatform == TargetPlatform.iOS
+                                    ? "Leave a rating on the App Store" : "Leave a rating on the Play Store"),
                                 onTap: () => Links.rate(context),
                             ),
                         const Divider(),

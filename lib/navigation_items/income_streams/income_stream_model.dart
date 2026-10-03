@@ -14,7 +14,7 @@ class IncomeStreamModel {
     int frequency; // Frequency
     FrequencyUnit frequencyUnits; // Tag to track frequency
     bool isActive; // Whether this stream sets the pay periods (see BalanceModel)
-    String? googleTaskId; // Its task in Google Tasks, once synced (see GoogleTasksSync)
+    String? googleTaskId; // Its task in Google Tasks, once synced (see TasksSync)
     double periodAmount = 0.00; // Amount for the check currently on screen
 
     IncomeStreamModel({

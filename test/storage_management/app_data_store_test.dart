@@ -198,6 +198,33 @@ void main() {
             expect(state.balance.currentBalance, closeTo(3500.0 + 2400.0 - paid, 1e-6));
         });
 
+        test("each open is counted, and the review prompt is asked for once, when due", () async {
+            final store = _memoryStore();
+            AppState state = await AppState.open(store, today: today);
+            expect(state.data.launchCount, 1);
+            int asked = 0;
+            state.requestReview = () async => asked++;
+
+            await state.askForReviewIfDue(); // first open, tutorial not done: too soon
+            expect(asked, 0);
+
+            state.data.tutorialSeen = true;
+            await state.save();
+            for (int i = 2; i <= AppState.reviewAfterLaunches; i++) {
+                state = await AppState.open(store, today: today);
+            }
+            expect(state.data.launchCount, AppState.reviewAfterLaunches);
+            state.requestReview = () async => asked++;
+            await state.askForReviewIfDue();
+            await state.askForReviewIfDue();
+            expect(asked, 1);
+
+            final AppState reopened = await AppState.open(store, today: today)..requestReview = () async => asked++;
+            await reopened.askForReviewIfDue();
+            expect(asked, 1, reason: "asked for once, ever");
+            expect(reopened.data.reviewRequested, isTrue);
+        });
+
         test("changed() saves", () async {
             final store = _memoryStore();
             final AppState state = await AppState.open(store, today: today);

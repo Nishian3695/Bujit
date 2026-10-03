@@ -16,6 +16,10 @@
 	<string>6.0</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Bujit uses Face ID to unlock when App lock is on.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Bujit keeps a "Bujit" list in Reminders with your expenses and paychecks, due on their next dates.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Bujit keeps a "Bujit" list in Reminders with your expenses and paychecks, due on their next dates.</string>
 	<key>CFBundleName</key>
 	<string>bujit</string>
 	<key>CFBundlePackageType</key>

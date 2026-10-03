@@ -16,7 +16,7 @@ import '../utils/date_utils.dart';
 // or the expense was deleted. [categories] are the user's categories ("Other"
 // and a "New Category" option are added). When editing, Delete asks for
 // confirmation and then calls [onDelete]. [showTasksOption] adds the Google
-// Tasks reminder switch (while Google Tasks sync is on). [sources] are the
+// Tasks reminder switch (while task sync is on). [sources] are the
 // "Paid from" choices (BalanceModel.paymentOptions(forCard: false)); [connectable]
 // the linked credit/loan accounts its amount can sync from.
 Future<ExpenseModel?> showRecurringExpenseDialog(
@@ -351,8 +351,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                             if (widget.showTasksOption)
                                 SwitchListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: const Text("Remind me in Google Tasks"),
-                                    subtitle: const Text("Its task gets the next due date"),
+                                    title: const Text("Remind me on its due date"),
+                                    subtitle: const Text("Its synced task or reminder gets the next due date"),
                                     value: _remindInTasks,
                                     onChanged: (value) => setState(() => _remindInTasks = value),
                                 ),

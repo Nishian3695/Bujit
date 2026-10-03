@@ -9,6 +9,7 @@ import 'navigation_items/banking/plaid_api.dart';
 import 'navigation_items/banking/plaid_backend_client.dart';
 import 'navigation_items/expense_activity/balance_model.dart';
 import 'navigation_items/expense_activity/expense_activity.dart';
+import 'navigation_items/settings/apple_reminders.dart';
 import 'navigation_items/settings/google_tasks_account.dart';
 import 'navigation_items/settings/google_tasks_helper.dart';
 import 'navigation_items/settings/tip_jar.dart';
@@ -16,6 +17,7 @@ import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/java_migration.dart';
 import 'storage_management/storage_manager.dart';
+import 'utils/legal.dart';
 import 'utils/sample_data.dart';
 import 'utils/theme_helper.dart';
 
@@ -42,7 +44,9 @@ Future<AppState> openAppState() async {
     final storage = await StorageManager.create(await getApplicationDocumentsDirectory());
     final AppState state = await AppState.open(
       storage.store,
-      tasks: GoogleTasksSync(GoogleTasksApi(GoogleTasksAccount())),
+      tasks: TasksSync(GoogleTasksApi(GoogleTasksAccount())),
+      // Apple Reminders, an alternative to Google Tasks on iPhone.
+      reminders: RemindersAccess().isConfigured ? TasksSync(AppleRemindersStore()) : null,
       banking: BankingService(
         PlaidBackendClient(host: bankingBackendHost, auth: FirebaseBankingAuth()),
         PlaidFlutterLauncher(),
@@ -51,7 +55,8 @@ Future<AppState> openAppState() async {
     );
     return state
       ..deviceAuth = deviceAuth
-      ..tipJar = (TipJar(InAppPurchaseTipStore())..load());
+      ..tipJar = (TipJar(InAppPurchaseTipStore())..load())
+      ..requestReview = Links.requestReview;
   } catch (e, stack) {
     _logger.severe("Couldn't open storage", e, stack);
     final AppData data = AppData(balance: BalanceModel(currentBalance: 0.00));

@@ -22,7 +22,7 @@ class ExpenseItem {
     // Last date an occurrence may fall on, inclusive; null = never ends.
     DateTime? endDate;
     String category = otherCategory; // Category of the expense
-    String? googleTaskId; // Its task in Google Tasks, once synced (see GoogleTasksSync)
+    String? googleTaskId; // Its task in Google Tasks, once synced (see TasksSync)
     // Whether its Google Task gets the next due date (Google Tasks reminds you
     // on due dates); the Java app's per-expense "calendar notifications".
     bool remindInTasks;

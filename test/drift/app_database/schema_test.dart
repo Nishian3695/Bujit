@@ -52,4 +52,21 @@ void main() {
         expect(data.customAccent, 0xFF2979FF);
         await db.close();
     });
+
+    // Version 3 added the task sync service and the review prompt's counters: a
+    // Google Tasks user stays on Google Tasks.
+    test("upgrading from version 2 keeps Google Tasks sync and starts the counters", () async {
+        final schema = await verifier.schemaAt(2);
+        schema.rawDatabase.execute("INSERT INTO app_meta_rows (id, current_balance, last_updated, "
+            "tasks_sync_enabled, tasks_account, theme_mode) VALUES (0, 50.0, 1767225600, 1, 'me@example.com', 'dark')");
+        final AppDatabase db = AppDatabase(schema.newConnection());
+        final AppData data = (await AppDataStore(db).load())!;
+        expect(data.tasksSyncEnabled, isTrue);
+        expect(data.tasksAccount, "me@example.com");
+        expect(data.themeMode, "dark");
+        expect(data.tasksProvider, "google");
+        expect(data.launchCount, 0);
+        expect(data.reviewRequested, isFalse);
+        await db.close();
+    });
 }

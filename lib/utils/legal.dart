@@ -2,6 +2,7 @@
 // SettingsActivity's openHelpEmail/openPrivacyPolicy/openTellerPrivacy/...).
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const String disclaimerText =
@@ -24,16 +25,34 @@ class Links {
     static const String privacyPolicy = "https://nishian3695.github.io/Bujit/privacy-policy.html";
     static const String plaidPrivacy = "https://plaid.com/legal/#privacy-statement";
     static const String packageName = "io.github.nishian3695.bujit";
+    // The App Store's numeric ID for Bujit, once it has a listing (App Store
+    // Connect > App Information > Apple ID). Until then Rate Bujit is Android only.
+    static const String appStoreId = "";
 
-    // Rating: the Play Store app, else its web page (Android only until there's
-    // an App Store listing -- see SETUP_TODO.md).
-    static bool get canRate => defaultTargetPlatform == TargetPlatform.android;
+    static bool get canRate =>
+        defaultTargetPlatform == TargetPlatform.android ||
+        (defaultTargetPlatform == TargetPlatform.iOS && appStoreId.isNotEmpty);
 
+    // Rate Bujit (Settings): the store's page for writing a review (Play Store,
+    // or the App Store's "Write a Review"), falling back to Play's web page.
     static Future<void> rate(BuildContext context) async {
         final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-        if (await _launch("market://details?id=$packageName")) return;
+        try {
+            await InAppReview.instance.openStoreListing(appStoreId: appStoreId.isEmpty ? null : appStoreId);
+            return;
+        } catch (_) {
+            // No store app (e.g. an emulator without Play): try the web page.
+        }
         if (await _launch("https://play.google.com/store/apps/details?id=$packageName")) return;
         messenger.showSnackBar(const SnackBar(content: Text("No browser found")));
+    }
+
+    // The store's own review prompt, shown inside the app (Apple's star rating
+    // sheet, Google Play's in-app review). The stores decide whether it actually
+    // appears, so it's only asked for once (see AppState.askForReviewIfDue).
+    static Future<void> requestReview() async {
+        final InAppReview review = InAppReview.instance;
+        if (await review.isAvailable()) await review.requestReview();
     }
 
     // Opens [url] in the browser, saying so if there isn't one (as in the Java app).

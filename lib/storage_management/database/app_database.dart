@@ -45,9 +45,10 @@ class AppDatabase extends _$AppDatabase {
   //      drift_schemas/app_database/ test/drift/app_database/generated/` and the tests.
   // test/drift/app_database/schema_test.dart fails if step 1 happens without the rest.
   //
-  // Versions: 1, the first; 2, Settings > Appearance (theme mode and accent color).
+  // Versions: 1, the first; 2, Settings > Appearance (theme mode and accent color);
+  // 3, Apple Reminders as a task sync service, and the review prompt's counters.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,6 +58,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(schema.appMetaRows, schema.appMetaRows.themeMode);
             await m.addColumn(schema.appMetaRows, schema.appMetaRows.accentColor);
             await m.addColumn(schema.appMetaRows, schema.appMetaRows.customAccent);
+          },
+          from2To3: (m, schema) async {
+            await m.addColumn(schema.appMetaRows, schema.appMetaRows.tasksProvider);
+            await m.addColumn(schema.appMetaRows, schema.appMetaRows.launchCount);
+            await m.addColumn(schema.appMetaRows, schema.appMetaRows.reviewRequested);
           },
         ),
       );

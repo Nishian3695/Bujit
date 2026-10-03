@@ -102,7 +102,7 @@ class FakeTasksServer {
 
 late FakeTasksServer server;
 late FakeAccount account;
-late GoogleTasksSync sync;
+late TasksSync sync;
 
 AppData _data() {
     final BalanceModel balance = BalanceModel(currentBalance: 1000.0, lastUpdated: today);
@@ -127,7 +127,7 @@ void main() {
     setUp(() {
         server = FakeTasksServer();
         account = FakeAccount();
-        sync = GoogleTasksSync(GoogleTasksApi(account, server.client));
+        sync = TasksSync(GoogleTasksApi(account, server.client));
     });
 
     test("the first sync makes a Bujit list with a task for each expense, card and stream", () async {

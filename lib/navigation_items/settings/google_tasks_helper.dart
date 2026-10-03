@@ -52,10 +52,26 @@ class TasksApiException implements Exception {
     String toString() => "Google Tasks error $statusCode: $body";
 }
 
+// Where synced tasks live: Google Tasks (GoogleTasksApi) or, on iPhone, Apple
+// Reminders (AppleRemindersStore). TasksSync does the same reconcile against
+// either. Tasks are JSON-like maps in Google Tasks' shape ("title", "notes",
+// "status", and "due" as "YYYY-MM-DDT00:00:00.000Z"). A missing list or task is
+// a TasksApiException with isNotFound.
+abstract class TaskStore {
+    TasksAccount get account;
+    Future<bool> listExists(String listId);
+    Future<String?> findList(String title); // The first list titled [title], or null
+    Future<String> insertList(String title);
+    Future<String> insertTask(String listId, Map<String, dynamic> task);
+    Future<void> patchTask(String listId, String taskId, Map<String, dynamic> task);
+    Future<void> deleteTask(String listId, String taskId); // Already gone counts as deleted
+}
+
 // The few Google Tasks REST calls the app needs (https://developers.google.com/tasks/reference/rest).
-class GoogleTasksApi {
+class GoogleTasksApi implements TaskStore {
     static const String _base = "https://tasks.googleapis.com/tasks/v1";
 
+    @override
     final TasksAccount account;
     final http.Client _client;
 
@@ -89,6 +105,7 @@ class GoogleTasksApi {
 
     static String _id(String id) => Uri.encodeComponent(id);
 
+    @override
     Future<bool> listExists(String listId) async {
         try {
             await _send("GET", "/users/@me/lists/${_id(listId)}");
@@ -100,6 +117,7 @@ class GoogleTasksApi {
     }
 
     // The id of the user's first task list titled [title], or null.
+    @override
     Future<String?> findList(String title) async {
         final Map<String, dynamic>? json = await _send("GET", "/users/@me/lists?maxResults=100");
         for (final dynamic item in (json?["items"] as List<dynamic>? ?? const [])) {
@@ -108,17 +126,21 @@ class GoogleTasksApi {
         return null;
     }
 
+    @override
     Future<String> insertList(String title) async =>
         (await _send("POST", "/users/@me/lists", {"title": title}))!["id"] as String;
 
+    @override
     Future<String> insertTask(String listId, Map<String, dynamic> task) async =>
         (await _send("POST", "/lists/${_id(listId)}/tasks", task))!["id"] as String;
 
     // Replaces the given fields of a task (others, like notes the user added, stay).
+    @override
     Future<void> patchTask(String listId, String taskId, Map<String, dynamic> task) =>
         _send("PATCH", "/lists/${_id(listId)}/tasks/${_id(taskId)}", task);
 
     // Deletes a task; one that's already gone counts as deleted.
+    @override
     Future<void> deleteTask(String listId, String taskId) async {
         try {
             await _send("DELETE", "/lists/${_id(listId)}/tasks/${_id(taskId)}");
@@ -147,11 +169,11 @@ class TasksSyncResult {
     }
 }
 
-class GoogleTasksSync {
+class TasksSync {
     static const String listTitle = "Bujit"; // Same list as the Java app
 
-    final GoogleTasksApi api;
-    GoogleTasksSync(this.api);
+    final TaskStore api;
+    TasksSync(this.api);
 
     TasksAccount get account => api.account;
 
