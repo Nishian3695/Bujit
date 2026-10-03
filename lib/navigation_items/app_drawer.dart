@@ -20,6 +20,26 @@ class AppDrawer extends StatelessWidget {
         onReturn();
     }
 
+    // The app's name and tagline on the accent color, like the home screen's check bar.
+    Widget _header(BuildContext context) {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        return DrawerHeader(
+            decoration: BoxDecoration(color: scheme.primary),
+            child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                        Text("Bujit", style: TextStyle(color: scheme.onPrimary, fontSize: 28, fontWeight: FontWeight.w600)),
+                        Text("Budget by paycheck",
+                            style: TextStyle(color: scheme.onPrimary.withValues(alpha: 0.8), fontSize: 14)),
+                    ],
+                ),
+            ),
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         ListTile item(IconData icon, String title, Widget screen) => ListTile(
@@ -30,8 +50,9 @@ class AppDrawer extends StatelessWidget {
 
         return Drawer(
             child: ListView(
+                padding: EdgeInsets.zero, // the header runs up under the status bar
                 children: [
-                    const DrawerHeader(child: Text("Bujit")),
+                    _header(context),
                     item(Icons.payments, "Income Streams", screenFor(TutorialScreen.incomeStreams, state)),
                     item(Icons.credit_card, "Credit Utilization", screenFor(TutorialScreen.creditUtil, state)),
                     item(Icons.account_balance, "Linked Accounts", screenFor(TutorialScreen.linkedAccounts, state)),

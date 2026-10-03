@@ -3,6 +3,8 @@
 // Effects are applied through SingleEventsLedger.
 import 'package:flutter/material.dart';
 import '../../utils/money.dart';
+import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../../app_state.dart';
 import '../../dialogs/single_event_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -78,18 +80,23 @@ class _SingleEventsActivityState extends State<SingleEventsActivity> {
             child: Scaffold(
             appBar: AppBar(title: const Text("Single Events")),
             body: TutorialTarget(id: "single_events_list", child: events.isEmpty
-                ? const Center(child: Text("No single events. Tap + to add a one-off expense or windfall."))
+                ? const EmptyState(icon: Icons.event,
+                    message: "No single events. Tap + to add a one-off expense or windfall.")
                 : ListView.builder(
                     itemCount: events.length,
                     itemBuilder: (context, index) {
                         final SingleEventModel event = events[index];
                         final String sign = event.isDebit ? "-" : "+";
                         final int daysLeft = event.daysUntilExpiry(expiryDays);
+                        final BujitColors colors = BujitColors.of(context);
                         return ListTile(
-                            title: Text(event.name),
+                            leading: Icon(event.isDebit ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                                color: event.isDebit ? colors.negative : colors.positive),
+                            title: Text(event.name, style: RowStyles.title),
                             subtitle: Text("${event.targetDisplayName} · clears in $daysLeft "
-                                "day${daysLeft == 1 ? "" : "s"}"),
-                            trailing: Text("$sign${Money.format(event.amount)}"),
+                                "day${daysLeft == 1 ? "" : "s"}", style: RowStyles.details(context)),
+                            trailing: Text("$sign${Money.format(event.amount)}", style: RowStyles.amount(context,
+                                color: event.isDebit ? colors.negative : colors.positive)),
                             onTap: showExamples ? null : () => _edit(event),
                         );
                     },

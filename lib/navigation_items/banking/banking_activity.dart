@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import '../../utils/money.dart';
+import '../../utils/ui.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/manual_account_dialog.dart';
@@ -269,49 +270,66 @@ class _BankingActivityState extends State<BankingActivity> {
         final AppState state = widget.state;
         final List<LinkedItem> items = state.data.linkedItems;
         final bool configured = state.canLinkBanks;
+        final ColorScheme scheme = Theme.of(context).colorScheme;
         return [
             TutorialTarget(
                 id: "connect_bank",
-                child: ListTile(
-                    enabled: configured && !_linking,
-                    leading: const Icon(Icons.link),
-                    title: const Text("Link a bank or credit card"),
-                    subtitle: Text(configured
-                        ? "Connect securely through Plaid. Bujit never sees your login."
-                        : "Not set up in this build"),
-                    trailing: _linking ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator()) : null,
-                    onTap: () => _link(),
+                child: Card(
+                    margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                        enabled: configured && !_linking,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        leading: CircleAvatar(
+                            backgroundColor: scheme.primaryContainer,
+                            foregroundColor: scheme.onPrimaryContainer,
+                            child: const Icon(Icons.link),
+                        ),
+                        title: const Text("Link a bank or credit card", style: RowStyles.title),
+                        subtitle: Text(configured
+                            ? "Connect securely through Plaid. Bujit never sees your login."
+                            : "Not set up in this build", style: RowStyles.details(context)),
+                        trailing: _linking ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator()) : null,
+                        onTap: () => _link(),
+                    ),
                 ),
             ),
             for (final LinkedItem item in items) ...[
-                ListTile(
-                    dense: true,
-                    title: Text(item.institution.isEmpty ? "BANK" : item.institution.toUpperCase()),
-                    trailing: item.needsRelink
-                        ? TextButton(onPressed: configured ? () => _link(replacing: item) : null, child: const Text("Reconnect"))
-                        : null,
+                Row(
+                    children: [
+                        Expanded(child: SectionLabel(item.institution.isEmpty ? "Bank" : item.institution)),
+                        if (item.needsRelink)
+                            Padding(
+                                padding: const EdgeInsets.only(right: 8, top: 12),
+                                child: TextButton(onPressed: configured ? () => _link(replacing: item) : null,
+                                    child: const Text("Reconnect")),
+                            ),
+                    ],
                 ),
                 for (final BankAccountModel account in _balance.linkedAccounts.where((a) => a.itemKey == item.key))
                     ListTile(
-                        title: Text("${account.name}${account.mask.isEmpty ? "" : " …${account.mask}"}"),
+                        title: Text("${account.name}${account.mask.isEmpty ? "" : " …${account.mask}"}",
+                            style: RowStyles.title),
                         subtitle: Text([
                             account.displayType,
                             if (account.countsTowardBalance) "in your current balance",
                             if (_untrackedCard(account)) "tap to add to Credit Utilization",
                             if (item.needsRelink) "not syncing",
-                        ].where((s) => s.isNotEmpty).join(" · ")),
-                        trailing: Text(account.ledger == null ? "—" : _money(account.ledger!)),
+                        ].where((s) => s.isNotEmpty).join(" · "), style: RowStyles.details(context)),
+                        trailing: Text(account.ledger == null ? "—" : _money(account.ledger!),
+                            style: RowStyles.amount(context)),
                         onTap: _untrackedCard(account) ? () => _addCard(account) : null,
                     ),
             ],
             if (items.isNotEmpty)
-                ListTile(
-                    dense: true,
-                    subtitle: Text(state.bankSyncing
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Text(state.bankSyncing
                         ? "Syncing…"
                         : state.data.lastBankSync == null
                             ? "Pull down to sync"
-                            : "Last synced ${_ago(state.data.lastBankSync!)} · pull down to sync"),
+                            : "Last synced ${_ago(state.data.lastBankSync!)} · pull down to sync",
+                        style: RowStyles.details(context)),
                 ),
         ];
     }
@@ -350,24 +368,26 @@ class _BankingActivityState extends State<BankingActivity> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                                 ..._linkedSection(),
-                                const Divider(),
                                 TutorialTarget(
                                     id: "manual_accounts",
                                     child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
-                                            const ListTile(title: Text("MY ACCOUNTS")),
+                                            const SectionLabel("My accounts"),
                                             if (accounts.isEmpty)
-                                                const ListTile(
-                                                    subtitle: Text("No manual accounts yet. Tap + to track an account by hand."),
+                                                Padding(
+                                                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                                                    child: Text("No manual accounts yet. Tap + to track an account by hand.",
+                                                        style: RowStyles.details(context)),
                                                 ),
                                             for (final ManualAccountModel account in accounts)
                                                 ListTile(
-                                                    title: Text(account.name),
+                                                    title: Text(account.name, style: RowStyles.title),
                                                     subtitle: Text(account.countsTowardBalance
                                                         ? "${account.accountType} · in your current balance"
-                                                        : account.accountType),
-                                                    trailing: Text(_money(account.balance)),
+                                                        : account.accountType, style: RowStyles.details(context)),
+                                                    trailing: Text(_money(account.balance),
+                                                        style: RowStyles.amount(context)),
                                                     onTap: () => _edit(account),
                                                 ),
                                         ],

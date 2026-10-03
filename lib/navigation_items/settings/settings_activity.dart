@@ -18,6 +18,7 @@ import '../../tutorial/tutorial_overlay_layout.dart';
 import '../../utils/custom_views/color_wheel_view.dart';
 import '../../utils/legal.dart';
 import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../../storage_management/app_data_store.dart';
 import 'backup_flow.dart';
 import 'category_manager_activity.dart';
@@ -302,7 +303,7 @@ class _SettingsActivityState extends State<SettingsActivity> {
         );
     }
 
-    static Widget _header(String title) => ListTile(dense: true, title: Text(title));
+    static Widget _header(String title) => SectionLabel(title);
 
     // App theme (System/Light/Dark) and the accent color: Java's presets as
     // swatches, then one for a custom color picked on the color wheel.

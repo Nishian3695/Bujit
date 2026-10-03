@@ -1,10 +1,12 @@
 // Mirrors NavigationItems/Visuals/VisualsActivity.java in the original Java app:
 // a Cash Flow tab (income vs expenses per pay period, GROSS or NET, by year) and
 // a Categories tab (per-check spending by category, with and without credit
-// cards). The numbers come from VisualsData; styling is a placeholder.
+// cards). The numbers come from VisualsData.
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../utils/money.dart';
+import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../../app_state.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
@@ -62,45 +64,60 @@ class _VisualsActivityState extends State<VisualsActivity> {
 
     Widget _cashFlowTab() {
         final List<CashFlowPeriod> periods = _data.cashFlow(_year);
+        final BujitColors colors = BujitColors.of(context);
         return ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                        IconButton(
-                            onPressed: () => setState(() => _year--),
-                            icon: const Icon(Icons.chevron_left),
-                            tooltip: "Previous year",
+                Card(
+                    child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+                        child: Column(
+                            children: [
+                                Row(
+                                    children: [
+                                        IconButton(
+                                            onPressed: () => setState(() => _year--),
+                                            icon: const Icon(Icons.chevron_left),
+                                            tooltip: "Previous year",
+                                        ),
+                                        Expanded(child: Text("$_year", textAlign: TextAlign.center,
+                                            style: Theme.of(context).textTheme.titleLarge)),
+                                        IconButton(
+                                            onPressed: () => setState(() => _year++),
+                                            icon: const Icon(Icons.chevron_right),
+                                            tooltip: "Next year",
+                                        ),
+                                    ],
+                                ),
+                                SegmentedButton<bool>(
+                                    segments: const [
+                                        ButtonSegment(value: true, label: Text("GROSS")),
+                                        ButtonSegment(value: false, label: Text("NET")),
+                                    ],
+                                    selected: {_gross},
+                                    showSelectedIcon: false,
+                                    onSelectionChanged: (selection) => setState(() => _gross = selection.first),
+                                ),
+                                const SizedBox(height: 16),
+                                TutorialTarget(id: "cash_flow_chart",
+                                    child: SizedBox(height: 240, child: _cashFlowChart(periods))),
+                            ],
                         ),
-                        Text("$_year"),
-                        IconButton(
-                            onPressed: () => setState(() => _year++),
-                            icon: const Icon(Icons.chevron_right),
-                            tooltip: "Next year",
-                        ),
-                    ],
-                ),
-                Center(
-                    child: SegmentedButton<bool>(
-                        segments: const [
-                            ButtonSegment(value: true, label: Text("GROSS")),
-                            ButtonSegment(value: false, label: Text("NET")),
-                        ],
-                        selected: {_gross},
-                        onSelectionChanged: (selection) => setState(() => _gross = selection.first),
                     ),
                 ),
-                TutorialTarget(id: "cash_flow_chart", child: SizedBox(height: 260, child: _cashFlowChart(periods))),
-                const Divider(),
+                const SectionLabel("Pay periods"),
                 for (final CashFlowPeriod period in periods)
                     ListTile(
-                        dense: true,
-                        title: Text("${_shortDate(period.start)} – ${_shortDate(addDays(period.end, -1))}"
-                            "${period.isHistory ? "" : " (projected)"}"),
-                        subtitle: Text("In ${_money(period.income)} · Out ${_money(period.expenses)}"),
-                        trailing: Text(_money(period.net),
-                            style: TextStyle(color: period.net >= 0 ? Colors.green : Colors.red)),
+                        title: Text.rich(TextSpan(children: [
+                            TextSpan(text: "${shortDate(period.start)} – ${shortDate(addDays(period.end, -1))}",
+                                style: RowStyles.title),
+                            if (!period.isHistory)
+                                TextSpan(text: "  projected", style: RowStyles.details(context)),
+                        ])),
+                        subtitle: Text("In ${_money(period.income)} · Out ${_money(period.expenses)}",
+                            style: RowStyles.details(context)),
+                        trailing: Text(_money(period.net), style: RowStyles.amount(context,
+                            color: colors.forAmount(period.net))),
                     ),
             ],
         );
@@ -109,32 +126,57 @@ class _VisualsActivityState extends State<VisualsActivity> {
     // GROSS: income up (green) and expenses down (red) per period. NET: one bar,
     // green when income covered expenses, red when it didn't.
     Widget _cashFlowChart(List<CashFlowPeriod> periods) {
+        final BujitColors colors = BujitColors.of(context);
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        const BorderRadius rounded = BorderRadius.all(Radius.circular(2));
         final List<BarChartGroupData> groups = [
             for (int i = 0; i < periods.length; i++)
                 BarChartGroupData(
                     x: i,
                     barRods: _gross
                         ? [
-                            BarChartRodData(toY: periods[i].income, color: Colors.green, width: 4),
-                            BarChartRodData(toY: -periods[i].expenses, color: Colors.red, width: 4),
+                            BarChartRodData(toY: periods[i].income, color: colors.positive, width: 5,
+                                borderRadius: rounded),
+                            BarChartRodData(toY: -periods[i].expenses, color: colors.negative, width: 5,
+                                borderRadius: rounded),
                         ]
                         : [
                             BarChartRodData(
                                 toY: periods[i].net,
-                                color: periods[i].net >= 0 ? Colors.green : Colors.red,
-                                width: 6,
+                                color: colors.forAmount(periods[i].net),
+                                width: 8,
+                                borderRadius: rounded,
                             ),
                         ],
                 ),
         ];
+        final TextStyle axis = TextStyle(fontSize: 10, color: scheme.onSurfaceVariant);
         return BarChart(
             BarChartData(
                 barGroups: groups,
                 alignment: BarChartAlignment.spaceAround,
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                        color: value == 0 ? scheme.outline : scheme.outlineVariant.withValues(alpha: 0.6),
+                        strokeWidth: value == 0 ? 1 : 0.5,
+                    ),
+                ),
                 titlesData: FlTitlesData(
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 48)),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 44,
+                        getTitlesWidget: (value, meta) {
+                            // The chart's own top and bottom (e.g. 2.4K) crowd the
+                            // round gridline labels next to them, so only those show.
+                            final bool edge = value == meta.max || value == meta.min;
+                            if (edge && value % meta.appliedInterval != 0) return const SizedBox.shrink();
+                            return SideTitleWidget(meta: meta, child: Text(meta.formattedValue, style: axis));
+                        },
+                    )),
                     bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                             showTitles: true,
@@ -146,7 +188,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
                                 if (index < 0 || index >= periods.length || index % step != 0) {
                                     return const SizedBox.shrink();
                                 }
-                                return Text(_shortDate(periods[index].start), style: const TextStyle(fontSize: 10));
+                                return Text(_shortDate(periods[index].start), style: axis);
                             },
                         ),
                     ),
@@ -159,15 +201,17 @@ class _VisualsActivityState extends State<VisualsActivity> {
 
     Widget _categoriesTab() {
         return ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
-                Text("Spending per check (${_data.payPeriodDays.toStringAsFixed(0)}-day pay period)"),
-                const SizedBox(height: 8),
-                const Text("All expenses"),
-                _pie(_data.categoryAmounts(), _hiddenAll),
-                const Divider(),
-                const Text("Excluding credit cards"),
-                _pie(_data.categoryAmounts(excludeCredit: true), _hiddenNoCards),
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Text("Spending per check (${_data.payPeriodDays.toStringAsFixed(0)}-day pay period)",
+                        style: RowStyles.details(context)),
+                ),
+                const SectionLabel("All expenses"),
+                Card(child: _pie(_data.categoryAmounts(), _hiddenAll)),
+                const SectionLabel("Excluding credit cards"),
+                Card(child: _pie(_data.categoryAmounts(excludeCredit: true), _hiddenNoCards)),
             ],
         );
     }
@@ -185,29 +229,41 @@ class _VisualsActivityState extends State<VisualsActivity> {
             .fold(0.0, (sum, e) => sum + e.value);
         return Column(
             children: [
+                const SizedBox(height: 16),
                 SizedBox(
-                    height: 200,
-                    child: PieChart(PieChartData(
-                        sections: [
-                            for (final MapEntry<String, double> entry in amounts.entries)
-                                if (!hidden.contains(entry.key))
-                                    PieChartSectionData(
-                                        value: entry.value,
-                                        color: colorOf(entry.key),
-                                        title: total > 0 ? "${(entry.value / total * 100).toStringAsFixed(0)}%" : "",
-                                        radius: 70,
-                                    ),
+                    height: 220,
+                    child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                            PieChart(PieChartData(
+                                sections: [
+                                    for (final MapEntry<String, double> entry in amounts.entries)
+                                        if (!hidden.contains(entry.key))
+                                            PieChartSectionData(
+                                                value: entry.value,
+                                                color: colorOf(entry.key),
+                                                title: total > 0 && entry.value / total >= 0.05
+                                                    ? "${(entry.value / total * 100).toStringAsFixed(0)}%" : "",
+                                                titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                                                    color: Colors.white),
+                                                radius: 48,
+                                            ),
+                                ],
+                                centerSpaceRadius: 58,
+                                sectionsSpace: 2,
+                            )),
+                            // The donut's middle: the total of the categories shown.
+                            Figure(label: "PER CHECK", value: _money(total)),
                         ],
-                        centerSpaceRadius: 0,
-                    )),
+                    ),
                 ),
+                const SizedBox(height: 8),
                 for (final MapEntry<String, double> entry in amounts.entries)
                     CheckboxListTile(
-                        dense: true,
                         value: !hidden.contains(entry.key),
                         secondary: Icon(Icons.circle, color: colorOf(entry.key), size: 14),
-                        title: Text(entry.key),
-                        subtitle: Text("${_money(entry.value)} per check"),
+                        title: Text(entry.key, style: RowStyles.title),
+                        subtitle: Text("${_money(entry.value)} per check", style: RowStyles.details(context)),
                         onChanged: (shown) => setState(() {
                             if (shown == true) {
                                 hidden.remove(entry.key);

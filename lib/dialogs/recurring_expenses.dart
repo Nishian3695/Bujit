@@ -9,6 +9,7 @@ import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 import 'connected_account_field.dart';
 import 'paid_from_field.dart';
+import '../utils/date_utils.dart';
 
 // Returns the created/edited ExpenseModel, or null if the dialog was cancelled
 // or the expense was deleted. [categories] are the user's categories ("Other"
@@ -101,7 +102,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     }
 
     // Formats a date for the button label as YYYY-MM-DD.
-    static String _formatDate(DateTime date) => date.toLocal().toString().split(' ')[0];
+    static String _formatDate(DateTime date) => shortDate(date);
 
     @override
     void dispose() {

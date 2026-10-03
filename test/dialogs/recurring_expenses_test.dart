@@ -6,6 +6,7 @@ import 'package:bujit/dialogs/recurring_expenses.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
 import 'package:bujit/utils/frequency_unit.dart';
 import 'package:flutter/material.dart';
+import 'package:bujit/utils/date_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Field order inside the Form's Column, used to target TextFormFields by
@@ -46,7 +47,7 @@ void main() {
         expect(find.text("Daily"), findsOneWidget);
         // Start date defaults to today, like the Java app.
         final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day).toString().split(' ')[0];
+        final today = shortDate(DateTime(now.year, now.month, now.day));
         expect(find.text("Starting Date: $today"), findsOneWidget);
     });
 

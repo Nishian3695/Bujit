@@ -10,6 +10,7 @@ import '../../utils/frequency_unit.dart';
 import '../../utils/legal.dart';
 import '../../utils/money.dart';
 import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../dialogs/projection_settings_dialog.dart';
@@ -424,26 +425,10 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         );
     }
 
-    // A label over a large amount; the amount shrinks to fit rather than overflowing.
-    Widget _balanceFigure(String label, double amount, Color color) {
-        final ColorScheme scheme = Theme.of(context).colorScheme;
-        return Padding(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                    Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.7,
-                        color: scheme.onSurface.withValues(alpha: 0.6))),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(_money(amount),
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500, color: color)),
-                    ),
-                ],
-            ),
-        );
-    }
+    Widget _balanceFigure(String label, double amount, Color color) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
+        child: Figure(label: label, value: _money(amount), color: color),
+    );
 
     // The app bar while selecting: how many, Select All and Delete (the Java app's action mode).
     AppBar get _selectionAppBar => AppBar(

@@ -2,7 +2,10 @@
 // every credit card's balance, limit and utilization, with add/edit/delete.
 // Cards live in BalanceModel.expenses alongside regular expenses.
 import 'package:flutter/material.dart';
+import '../../utils/date_utils.dart';
 import '../../utils/money.dart';
+import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../../app_state.dart';
 import '../../dialogs/credit_card_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
@@ -70,40 +73,35 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
         if (mounted) setState(() {});
     }
 
-    // Green under 30%, amber under 70%, red from 70%, as in the Java app.
-    static Color _utilizationColor(double utilization) {
-        if (utilization < 0.30) return Colors.green;
-        if (utilization < 0.70) return Colors.amber;
-        return Colors.red;
-    }
-
     // The Java app's totals row: everything owed against every limit (current
     // balances), the overall percentage colored like the cards', and a sync hint
-    // when any card is linked to a bank.
+    // when any card is linked to a bank. Laid out like the home screen's balance card.
     Widget _totals(List<CreditModel> cards) {
         final double owed = cards.fold(0.00, (sum, c) => sum + c.amount);
         final double limit = cards.fold(0.00, (sum, c) => sum + c.creditLimit);
         final double utilization = limit > 0 ? owed / limit : 0.0;
-        final Color color = _utilizationColor(utilization);
+        final Color color = BujitColors.of(context).forUtilization(utilization);
         final bool anyLinked = cards.any((c) => _balance.linkedAccount(c.linkedAccountId) != null);
         return Card(
+            margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                         Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                                Text("TOTAL ${Money.format(owed)} of ${Money.format(limit)}"),
-                                Text("${(utilization * 100).clamp(0, 100).round()}%", style: TextStyle(color: color)),
+                                Expanded(child: Figure(label: "OWED", value: Money.format(owed))),
+                                Expanded(child: Figure(label: "TOTAL LIMIT", value: Money.format(limit))),
+                                Expanded(child: Figure(label: "UTILIZATION",
+                                    value: "${(utilization * 100).clamp(0, 100).round()}%", color: color)),
                             ],
                         ),
-                        LinearProgressIndicator(value: utilization.clamp(0.0, 1.0), color: color),
+                        const SizedBox(height: 12),
+                        UtilizationBar(value: utilization, color: color),
                         if (anyLinked)
-                            const Padding(
-                                padding: EdgeInsets.only(top: 4),
-                                child: Text("Pull down to sync balances", style: TextStyle(fontSize: 12)),
+                            Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text("Pull down to sync balances", style: RowStyles.details(context)),
                             ),
                     ],
                 ),
@@ -121,8 +119,9 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
             appBar: AppBar(title: const Text("Credit Utilization")),
             body: Column(children: [
                 if (cards.isNotEmpty) _totals(cards),
+                if (cards.isNotEmpty) const SectionLabel("Cards"),
                 Expanded(child: TutorialTarget(id: "credit_list", child: cards.isEmpty
-                ? const Center(child: Text("No credit cards yet. Tap + to add one."))
+                ? const EmptyState(icon: Icons.credit_card, message: "No credit cards yet. Tap + to add one.")
                 // Pull to refresh syncs linked cards' balances and limits, as in the Java app.
                 : RefreshIndicator(
                     onRefresh: () async {
@@ -134,21 +133,22 @@ class _CreditUtilActivityState extends State<CreditUtilActivity> {
                     itemBuilder: (context, index) {
                         final CreditModel card = cards[index];
                         final double utilization = card.creditUtilization;
+                        final Color color = BujitColors.of(context).forUtilization(utilization);
                         return ListTile(
-                            title: Text(card.name),
+                            title: Text(card.name, style: RowStyles.title),
                             subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                    const SizedBox(height: 2),
                                     Text("${Money.format(card.displayBalance)} of "
-                                        "${Money.format(card.creditLimit)} · "
-                                        "${(utilization * 100).toStringAsFixed(0)}% · "
-                                        "due ${card.currentDueDate.toString().split(' ')[0]}"),
-                                    LinearProgressIndicator(
-                                        value: utilization.clamp(0.0, 1.0),
-                                        color: _utilizationColor(utilization),
-                                    ),
+                                        "${Money.format(card.creditLimit)} · due ${shortDate(card.currentDueDate)}",
+                                        style: RowStyles.details(context)),
+                                    const SizedBox(height: 6),
+                                    UtilizationBar(value: utilization, color: color),
                                 ],
                             ),
+                            trailing: Text("${(utilization * 100).toStringAsFixed(0)}%",
+                                style: RowStyles.amount(context, color: color)),
                             onTap: () => _edit(card),
                         );
                     },

@@ -8,6 +8,8 @@ import '../../dialogs/income_stream_dialog.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
 import '../../utils/date_utils.dart';
+import '../../utils/theme_helper.dart';
+import '../../utils/ui.dart';
 import '../expense_activity/balance_model.dart';
 import 'income_stream_model.dart';
 
@@ -63,6 +65,19 @@ class _IncomeStreamsActivityState extends State<IncomeStreamsActivity> {
         await _save();
     }
 
+    Widget _streamRow(List<IncomeStreamModel> streams, int index) {
+        final IncomeStreamModel stream = streams[index];
+        final DateTime next = stream.paydayAfter(addDays(todayDate(), -1));
+        return ListTile(
+            leading: Radio<IncomeStreamModel>(value: stream),
+            title: Text(stream.name, style: RowStyles.title),
+            subtitle: Text("${stream.displayString()} · next ${shortDate(next)}", style: RowStyles.details(context)),
+            trailing: Text(Money.format(stream.amount),
+                style: RowStyles.amount(context, color: BujitColors.of(context).positive)),
+            onTap: () => _edit(index),
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         final List<IncomeStreamModel> streams = _balance.incomeStreams;
@@ -72,23 +87,16 @@ class _IncomeStreamsActivityState extends State<IncomeStreamsActivity> {
             child: Scaffold(
             appBar: AppBar(title: const Text("Income Streams")),
             body: TutorialTarget(id: "income_list", child: streams.isEmpty
-                ? const Center(child: Text("No income streams yet. Tap + to add one."))
+                ? const EmptyState(icon: Icons.payments, message: "No income streams yet. Tap + to add one.")
                 : RadioGroup<IncomeStreamModel>(
                     groupValue: _balance.activeIncome,
                     onChanged: (stream) { if (stream != null) _makeActive(stream); },
-                    child: ListView.builder(
-                        itemCount: streams.length,
-                        itemBuilder: (context, index) {
-                            final IncomeStreamModel stream = streams[index];
-                            final DateTime next = stream.paydayAfter(addDays(todayDate(), -1));
-                            return ListTile(
-                                leading: Radio<IncomeStreamModel>(value: stream),
-                                title: Text(stream.name),
-                                subtitle: Text("${Money.format(stream.amount)} · ${stream.displayString()}"
-                                    " · next ${next.toString().split(' ')[0]}"),
-                                onTap: () => _edit(index),
-                            );
-                        },
+                    child: ListView(
+                        children: [
+                            // The radio picks the paycheck the home screen's checks follow.
+                            const SectionLabel("Paycheck the budget follows"),
+                            for (int index = 0; index < streams.length; index++) _streamRow(streams, index),
+                        ],
                     ),
                 )),
             floatingActionButton: TutorialTarget(

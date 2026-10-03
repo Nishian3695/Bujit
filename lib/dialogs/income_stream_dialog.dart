@@ -125,7 +125,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                     );
                                     if (picked != null) setState(() => _startDate = dateOnly(picked));
                                 },
-                                child: Text("Starting Date: ${_startDate.toString().split(' ')[0]}"),
+                                child: Text("Starting Date: ${shortDate(_startDate)}"),
                             ),
                         ],
                     ),

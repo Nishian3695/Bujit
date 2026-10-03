@@ -208,7 +208,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                                 },
                                 child: Text(_dueDate == null
                                     ? "Next Due Date: pick a date"
-                                    : "Next Due Date: ${_dueDate.toString().split(' ')[0]}"),
+                                    : "Next Due Date: ${shortDate(_dueDate!)}"),
                             ),
                             if (_dueDateError != null)
                                 Text(_dueDateError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
