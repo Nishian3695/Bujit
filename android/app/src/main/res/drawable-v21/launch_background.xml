@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The launch screen before Android 12 (12 and later use values-v31/styles.xml):
-     the launcher icon's pig on its blue, as on iOS. -->
+     the logo (160dp) on its pink, as on iOS. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ic_launcher_background" />
     <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/ic_launcher_foreground" />
+            android:src="@drawable/launch_logo" />
     </item>
 </layer-list>
