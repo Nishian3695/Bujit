@@ -5,6 +5,7 @@
 // displays the result. Data changes go through AppState, which saves them.
 // The layout is a placeholder until the UI pass.
 import 'package:flutter/material.dart';
+import '../../utils/date_utils.dart';
 import '../../utils/frequency_unit.dart';
 import '../../utils/legal.dart';
 import '../../utils/money.dart';
@@ -307,7 +308,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     }
 
     static String _money(double value) => Money.format(value);
-    static String _date(DateTime date) => date.toString().split(' ')[0];
+    static String _date(DateTime date) => shortDate(date);
 
     // "Synced today at 3:04 PM" / "Synced Oct 2 at 3:04 PM" under the balance, while
     // linked accounts make it up (the Java app's sync label).
@@ -317,9 +318,8 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         final DateTime now = DateTime.now();
         final int hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
         final String clock = "$hour:${time.minute.toString().padLeft(2, "0")} ${time.hour < 12 ? "AM" : "PM"}";
-        const List<String> months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         final bool today = time.year == now.year && time.month == now.month && time.day == now.day;
-        return today ? "Synced today at $clock" : "Synced ${months[time.month - 1]} ${time.day} at $clock";
+        return today ? "Synced today at $clock" : "Synced ${shortDate(time, today: now)} at $clock";
     }
 
     // The Java app's check bar: a card in the accent color with ◀ the check ▶, and
@@ -528,6 +528,8 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         final DateTime? end = expense.endDate;
         final bool ended = end != null && expense.shownDate.isAfter(end);
         final Set<ExpenseItem>? selected = _selected;
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        final double amount = expense.periodAmount;
         return ListTile(
             key: ObjectKey(expense),
             leading: selected == null
@@ -535,30 +537,42 @@ class ExpenseActivityState extends State<ExpenseActivity> {
                 : Checkbox(value: selected.contains(expense), onChanged: (_) => _toggleSelected(expense)),
             title: Row(
                 children: [
-                    Flexible(child: Text(expense.name)),
+                    Flexible(child: Text(expense.name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500))),
                     if (_balance.linkedAccount(expense.linkedAccountId) != null)
-                        const Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.link, size: 16, semanticLabel: "Synced from a bank"),
+                        Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(Icons.link, size: 16, color: scheme.primary, semanticLabel: "Synced from a bank"),
                         ),
                 ],
             ),
             subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    Text([
-                        ended ? "Ended ${_date(end)}" : "Due ${_date(expense.shownDate)}",
-                        _rate(expense) + (end != null && !ended ? " · until ${_date(end)}" : ""),
-                        if (paidFrom != "Current Balance") "from $paidFrom",
-                    ].join(" · ")),
+                    const SizedBox(height: 2),
+                    Text(
+                        [
+                            ended ? "Ended ${_date(end)}" : "Due ${_date(expense.shownDate)}",
+                            _rate(expense) + (end != null && !ended ? " · until ${_date(end)}" : ""),
+                            if (paidFrom != "Current Balance") "from $paidFrom",
+                        ].join(" · "),
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                    ),
                     if (expense is CreditModel)
-                        LinearProgressIndicator(
-                            value: expense.creditUtilization.clamp(0.0, 1.0),
-                            color: BujitColors.of(context).forUtilization(expense.creditUtilization),
+                        Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: LinearProgressIndicator(
+                                value: expense.creditUtilization.clamp(0.0, 1.0),
+                                color: BujitColors.of(context).forUtilization(expense.creditUtilization),
+                                minHeight: 4,
+                                borderRadius: BorderRadius.circular(2),
+                            ),
                         ),
                 ],
             ),
-            trailing: Text(_money(expense.periodAmount)),
+            // Nothing due this check reads quieter than an amount that is.
+            trailing: Text(_money(amount), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500,
+                color: amount == 0 ? scheme.onSurfaceVariant.withValues(alpha: 0.6) : scheme.onSurface)),
             onTap: selected != null
                 ? () => _toggleSelected(expense)
                 : _onHomeScreen ? () => _editItem(expense) : null,

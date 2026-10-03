@@ -134,7 +134,7 @@ void main() {
             expect(find.textContaining("\$850.00/mo"), findsOneWidget);
             expect(find.byType(LinearProgressIndicator), findsNWidgets(3)); // one per card
             await tester.scrollUntilVisible(find.text("Gym"), 100); // the last row
-            expect(find.textContaining("\$40.00/2wk · until 2099-01-01"), findsOneWidget);
+            expect(find.textContaining("\$40.00/2wk · until Jan 1, 2099"), findsOneWidget);
             await tester.scrollUntilVisible(find.text("Everyday Card"), -100);
             expect(find.textContaining("\$450.00 owed"), findsOneWidget); // a card shows what it owes, not a rate
             expect(find.textContaining("\$450.00/mo"), findsNothing);
@@ -152,7 +152,7 @@ void main() {
             await tester.pump();
             await tester.scrollUntilVisible(find.text("Trial"), 100);
 
-            expect(find.textContaining("Ended ${end.toString().split(" ")[0]}"), findsOneWidget);
+            expect(find.textContaining("Ended ${shortDate(end)}"), findsOneWidget);
         });
     });
 

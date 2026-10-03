@@ -22,3 +22,12 @@ int daysBetween(DateTime from, DateTime to) =>
 // The later / earlier of two dates.
 DateTime maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
 DateTime minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
+
+const List<String> _months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// A short readable date: "Oct 4", or "Oct 4, 2027" outside [today]'s year
+// (default: this year).
+String shortDate(DateTime date, {DateTime? today}) {
+    final String day = "${_months[date.month - 1]} ${date.day}";
+    return date.year == (today ?? DateTime.now()).year ? day : "$day, ${date.year}";
+}

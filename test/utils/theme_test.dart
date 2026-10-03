@@ -1,11 +1,12 @@
-// Settings > Appearance: theme mode, accent presets, the custom color dialog, and
-// importing the Java app's theme settings.
+// Settings > Appearance (theme mode, accent presets, the custom color dialog,
+// importing the Java app's theme settings) and the readable dates.
 import 'package:bujit/app_state.dart';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/settings/settings_activity.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/java_migration.dart';
 import 'package:bujit/utils/custom_views/color_wheel_view.dart';
+import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/theme_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,13 @@ void main() {
         expect(parseHexColor("#GGGGGG"), isNull);
         expect(parseHexColor(null), isNull);
         expect(hexOf(0xFF00695C), "#00695C");
+    });
+
+    test("short dates leave out this year", () {
+        final DateTime today = DateTime(2026, 10, 2);
+        expect(shortDate(DateTime(2026, 10, 4), today: today), "Oct 4");
+        expect(shortDate(DateTime(2026, 1, 31), today: today), "Jan 31");
+        expect(shortDate(DateTime(2027, 3, 1), today: today), "Mar 1, 2027");
     });
 
     test("defaults: the system's mode and the blue accent", () {
