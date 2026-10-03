@@ -13,6 +13,7 @@ import 'prefs/app_lock_prefs.dart';
 import 'storage_management/app_data_store.dart';
 import 'storage_management/java_migration.dart';
 import 'tutorial/tutorial_manager.dart';
+import 'utils/date_utils.dart';
 import 'utils/money.dart';
 import 'utils/sample_data.dart';
 import 'utils/theme_helper.dart';
@@ -76,7 +77,8 @@ class AppState extends ChangeNotifier {
         }
         final AppState state = AppState(data, store)
             ..tasks = tasks
-            ..banking = banking;
+            ..banking = banking
+            .._caughtUpTo = dateOnly(today ?? DateTime.now());
         if (fromJava) {
             // Only once it's safely saved here is the Java data set aside.
             try {
@@ -93,6 +95,25 @@ class AppState extends ChangeNotifier {
         // Linked balances, unless synced in the last 15 minutes (right away after an import).
         state.refreshBanks(force: fromJava);
         return state;
+    }
+
+    // The day everything was last brought up to (by open or catchUp).
+    DateTime _caughtUpTo = todayDate();
+
+    // Brings everything up to [today] (default: now) when the app comes back to the
+    // foreground on a later day than it last did, as opening it does: paying what
+    // came due, crediting paychecks and clearing expired single events. Android can
+    // keep the app in the background for days, so without this the balance would
+    // stay where it was until the app restarted. Also syncs linked banks (at most
+    // every 15 minutes).
+    Future<void> catchUp({DateTime? today}) async {
+        final DateTime day = dateOnly(today ?? DateTime.now());
+        refreshBanks();
+        if (!day.isAfter(_caughtUpTo)) return;
+        _caughtUpTo = day;
+        data.balance.makeRecent(today: day);
+        data.singleEventsLedger.clearExpired(data.singleEventExpiryDays, today: day);
+        await changed();
     }
 
     // Saves everything. Failures are logged rather than thrown, so a storage

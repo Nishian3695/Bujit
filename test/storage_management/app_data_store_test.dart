@@ -178,6 +178,26 @@ void main() {
             expect(saved.balance.lastUpdated, day(14));
         });
 
+        test("returning to the app on a later day catches up and saves, as a launch does", () async {
+            final store = _memoryStore();
+            final AppState state = await AppState.open(store, today: today);
+            int notified = 0;
+            state.addListener(() => notified++);
+
+            await state.catchUp(today: today); // same day: nothing to do
+            expect(state.balance.currentBalance, 3500.0);
+            expect(notified, 0);
+
+            await state.catchUp(today: day(14));
+            const double paid = 850.0 + 15.99 + 110.0 + 450.0 + 1200.0 + 6000.0;
+            expect(state.balance.currentBalance, closeTo(3500.0 + 2400.0 - paid, 1e-6));
+            expect(notified, greaterThan(0)); // the home screen recomputes
+            expect((await store.load())!.balance.lastUpdated, day(14));
+
+            await state.catchUp(today: day(14)); // again the same day: no double payment
+            expect(state.balance.currentBalance, closeTo(3500.0 + 2400.0 - paid, 1e-6));
+        });
+
         test("changed() saves", () async {
             final store = _memoryStore();
             final AppState state = await AppState.open(store, today: today);

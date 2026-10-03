@@ -72,13 +72,22 @@ class BujitApp extends StatefulWidget {
 
 class _BujitAppState extends State<BujitApp> {
   AppState? _state;
+  // Coming back to the app on a later day catches up, as opening it does.
+  late final AppLifecycleListener _lifecycle = AppLifecycleListener(onResume: () => _state?.catchUp());
 
   @override
   void initState() {
     super.initState();
+    _lifecycle; // starts listening
     openAppState().then((state) {
       if (mounted) setState(() => _state = state);
     });
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override

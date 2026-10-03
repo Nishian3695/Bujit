@@ -8,9 +8,8 @@ import '../../../utils/frequency_unit.dart';
 //
 // frequencyUnits is stored by name (textEnum), same as ExpenseItemRows: an
 // intEnum stores the enum's index, so reordering or inserting a FrequencyUnit
-// value later would silently reinterpret every saved row.
-//
-// TODO(you): build an IncomeStreamsDao + mapper following the expenses pattern.
+// value later would silently reinterpret every saved row. The rows map to
+// IncomeStreamModel in mappers/income_stream_mapper.dart.
 @DataClassName('IncomeStreamModelRow')
 class IncomeStreamModelRows extends Table {
   IntColumn get id => integer().autoIncrement()();

@@ -25,6 +25,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
     late final VisualsData _data = VisualsData(widget.state.balance, widget.state.data.categories);
     int _year = todayDate().year;
     bool _gross = true;
+    int? _tapped; // The cash flow bar whose amounts are showing (tap a bar; tap again to hide)
     final Set<String> _hiddenAll = {};
     final Set<String> _hiddenNoCards = {};
 
@@ -76,14 +77,14 @@ class _VisualsActivityState extends State<VisualsActivity> {
                                 Row(
                                     children: [
                                         IconButton(
-                                            onPressed: () => setState(() => _year--),
+                                            onPressed: () => setState(() { _year--; _tapped = null; }),
                                             icon: const Icon(Icons.chevron_left),
                                             tooltip: "Previous year",
                                         ),
                                         Expanded(child: Text("$_year", textAlign: TextAlign.center,
                                             style: Theme.of(context).textTheme.titleLarge)),
                                         IconButton(
-                                            onPressed: () => setState(() => _year++),
+                                            onPressed: () => setState(() { _year++; _tapped = null; }),
                                             icon: const Icon(Icons.chevron_right),
                                             tooltip: "Next year",
                                         ),
@@ -123,31 +124,44 @@ class _VisualsActivityState extends State<VisualsActivity> {
         );
     }
 
-    // GROSS: income up (green) and expenses down (red) per period. NET: one bar,
-    // green when income covered expenses, red when it didn't.
-    Widget _cashFlowChart(List<CashFlowPeriod> periods) {
+    // As in the Java app, one bar per period filling most of its slot (70% wide in
+    // GROSS, 60% in NET). GROSS: income up (green) and expenses down (red) from
+    // the same bar. NET: green when income covered expenses, red when it didn't.
+    // Projected periods are lighter (the Java app hatched them). Tapping a bar
+    // shows its amounts.
+    Widget _cashFlowChart(List<CashFlowPeriod> periods) => LayoutBuilder(builder: (context, constraints) {
         final BujitColors colors = BujitColors.of(context);
         final ColorScheme scheme = Theme.of(context).colorScheme;
-        const BorderRadius rounded = BorderRadius.all(Radius.circular(2));
+        const double axisWidth = 44;
+        final double slot = (constraints.maxWidth - axisWidth) / periods.length.clamp(1, 1000);
+        final double width = slot * (_gross ? 0.7 : 0.6);
+        final BorderRadius rounded = BorderRadius.circular((width / 6).clamp(0.0, 4.0));
+        Color shade(Color color, CashFlowPeriod period) => period.isHistory ? color : color.withValues(alpha: 0.55);
         final List<BarChartGroupData> groups = [
             for (int i = 0; i < periods.length; i++)
                 BarChartGroupData(
                     x: i,
-                    barRods: _gross
-                        ? [
-                            BarChartRodData(toY: periods[i].income, color: colors.positive, width: 5,
-                                borderRadius: rounded),
-                            BarChartRodData(toY: -periods[i].expenses, color: colors.negative, width: 5,
-                                borderRadius: rounded),
-                        ]
-                        : [
-                            BarChartRodData(
-                                toY: periods[i].net,
-                                color: colors.forAmount(periods[i].net),
-                                width: 8,
+                    showingTooltipIndicators: i == _tapped ? [0] : const [],
+                    barRods: [
+                        _gross
+                            ? BarChartRodData(
+                                fromY: -periods[i].expenses,
+                                toY: periods[i].income,
+                                width: width,
                                 borderRadius: rounded,
+                                color: Colors.transparent,
+                                rodStackItems: [
+                                    BarChartRodStackItem(-periods[i].expenses, 0, shade(colors.negative, periods[i])),
+                                    BarChartRodStackItem(0, periods[i].income, shade(colors.positive, periods[i])),
+                                ],
+                            )
+                            : BarChartRodData(
+                                toY: periods[i].net,
+                                width: width,
+                                borderRadius: rounded,
+                                color: shade(colors.forAmount(periods[i].net), periods[i]),
                             ),
-                        ],
+                    ],
                 ),
         ];
         final TextStyle axis = TextStyle(fontSize: 10, color: scheme.onSurfaceVariant);
@@ -156,6 +170,29 @@ class _VisualsActivityState extends State<VisualsActivity> {
                 barGroups: groups,
                 alignment: BarChartAlignment.spaceAround,
                 borderData: FlBorderData(show: false),
+                barTouchData: BarTouchData(
+                    handleBuiltInTouches: false,
+                    touchCallback: (event, response) {
+                        if (event is! FlTapUpEvent) return;
+                        final int? index = response?.spot?.touchedBarGroupIndex;
+                        setState(() => _tapped = index == _tapped ? null : index);
+                    },
+                    touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (_) => scheme.inverseSurface,
+                        fitInsideHorizontally: true,
+                        fitInsideVertically: true,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final CashFlowPeriod period = periods[group.x];
+                            final String dates = "${shortDate(period.start)} – ${shortDate(addDays(period.end, -1))}";
+                            return BarTooltipItem(
+                                _gross
+                                    ? "$dates\nIn ${_money(period.income)}\nOut ${_money(period.expenses)}"
+                                    : "$dates\nNet ${_money(period.net)}",
+                                TextStyle(color: scheme.onInverseSurface, fontSize: 12),
+                            );
+                        },
+                    ),
+                ),
                 gridData: FlGridData(
                     drawVerticalLine: false,
                     getDrawingHorizontalLine: (value) => FlLine(
@@ -168,7 +205,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     leftTitles: AxisTitles(sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 44,
+                        reservedSize: axisWidth,
                         getTitlesWidget: (value, meta) {
                             // The chart's own top and bottom (e.g. 2.4K) crowd the
                             // round gridline labels next to them, so only those show.
@@ -195,7 +232,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
                 ),
             ),
         );
-    }
+    });
 
     // ── Categories ──────────────────────────────────────────────────────────
 

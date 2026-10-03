@@ -1,11 +1,8 @@
 // Data class for a single recurring expense entry
-// import 'package:json_annotation/json_annotation.dart';
 import 'expense_item.dart';
 import 'package:bujit/utils/category_manager.dart';
 
 class ExpenseModel extends ExpenseItem {
-    // TODO: Linked Accounts and Google Sync
-
     ExpenseModel({
         super.id,
         required super.name,
