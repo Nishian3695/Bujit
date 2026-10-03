@@ -47,3 +47,5 @@ app.*.map.json
 # Firebase CLI (backend/)
 backend/.firebase/
 firebase-debug*.log
+
+*.p8
