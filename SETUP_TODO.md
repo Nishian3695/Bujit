@@ -39,18 +39,15 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
   with a release build over the Java app's 0.4.5): data, settings, counted
   accounts and bank logins. Google Tasks needs signing in again.
 - **Play listing links:** privacy policy and data deletion pages are live (below).
+- **Logo:** the app icon, launch screen (from 0.5.6) and Play listing icon and
+  feature graphic ([play/listing/feature-graphic.png](play/listing/feature-graphic.png))
+  use the pink snout logo.
 
 **For you:**
 - [ ] **Google sign-in in Play builds.** Add the app signing key's **SHA-1** above
       to the Android OAuth client in Google Cloud Console (Credentials), and its
       **SHA-1 and SHA-256** (Play Console → Test and release → App integrity) to the
       Android app in Firebase → Project settings.
-- [ ] **New logo on the Play listing.** Play Console → Grow users → Store presence →
-      Main store listing. App icon: upload
-      [site-assets/bujit-logo-512.png](site-assets/bujit-logo-512.png) (512×512).
-      Feature graphic: upload [play/listing/feature-graphic.png](play/listing/feature-graphic.png)
-      (1024×500).
-      The app's own icon and launch screen already use it from the next release.
 - [ ] **Check the update path on your phone** with your real data: data, settings,
       banks (pull down to sync), Google Tasks after signing in again, and a tip.
 - [ ] **When testing is done:** delete the App Check debug tokens in Firebase →
