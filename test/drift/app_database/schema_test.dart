@@ -2,6 +2,7 @@
 // creates must match the snapshot of its schemaVersion: changing a table without
 // bumping schemaVersion, snapshotting it and writing a migration step fails here.
 // See the steps in lib/storage_management/database/app_database.dart.
+import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/database/app_database.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -27,7 +28,7 @@ void main() {
     });
 
     // Each upgrade (from every older snapshot to the current version) migrates to
-    // exactly the current schema. Nothing to upgrade from until version 2.
+    // exactly the current schema.
     for (final int from in GeneratedHelper.versions.where((v) => v < GeneratedHelper.versions.last)) {
         test("upgrading from version $from", () async {
             final AppDatabase db = AppDatabase((await verifier.startAt(from)).executor);
@@ -35,4 +36,20 @@ void main() {
             await db.close();
         });
     }
+
+    // Version 2 added the appearance settings: an update keeps everything else and
+    // starts them at their defaults.
+    test("upgrading from version 1 keeps the data and adds the appearance defaults", () async {
+        final schema = await verifier.schemaAt(1);
+        schema.rawDatabase.execute("INSERT INTO app_meta_rows (id, current_balance, last_updated, "
+            "use_comma_separators) VALUES (0, 1234.5, 1767225600, 1)");
+        final AppDatabase db = AppDatabase(schema.newConnection());
+        final AppData data = (await AppDataStore(db).load())!;
+        expect(data.balance.currentBalance, 1234.5);
+        expect(data.useCommaSeparators, isTrue);
+        expect(data.themeMode, "system");
+        expect(data.accentColor, "blue");
+        expect(data.customAccent, 0xFF2979FF);
+        await db.close();
+    });
 }

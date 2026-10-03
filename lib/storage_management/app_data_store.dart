@@ -33,6 +33,9 @@ class AppData {
     bool tasksSyncEnabled; // Settings: sync expenses and paychecks to Google Tasks
     String? tasksListId; // The "Bujit" list in Google Tasks
     String? tasksAccount; // Email of the Google account synced to (for display)
+    String themeMode; // Settings: "system", "light" or "dark"
+    String accentColor; // Settings: an AccentColor's name
+    int customAccent; // Settings: the custom accent color (ARGB)
     // Google Task id -> the JSON last sent for it, for every task the app created
     // (see GoogleTasksSync).
     final Map<String, String> syncedTasks;
@@ -56,6 +59,9 @@ class AppData {
         this.tasksSyncEnabled = false,
         this.tasksListId,
         this.tasksAccount,
+        this.themeMode = "system",
+        this.accentColor = "blue",
+        this.customAccent = 0xFF2979FF,
         Map<String, String>? syncedTasks,
         List<LinkedItem>? linkedItems,
         this.lastBankSync,
@@ -218,6 +224,9 @@ class AppDataStore {
             tasksSyncEnabled: meta.tasksSyncEnabled,
             tasksListId: meta.tasksListId,
             tasksAccount: meta.tasksAccount,
+            themeMode: meta.themeMode,
+            accentColor: meta.accentColor,
+            customAccent: meta.customAccent,
             syncedTasks: {for (final row in syncedRows) row.taskId: row.body},
             linkedItems: [
                 for (final row in itemRows)
@@ -323,6 +332,9 @@ class AppDataStore {
                 tasksSyncEnabled: Value(data.tasksSyncEnabled),
                 tasksListId: Value(data.tasksListId),
                 tasksAccount: Value(data.tasksAccount),
+                themeMode: Value(data.themeMode),
+                accentColor: Value(data.accentColor),
+                customAccent: Value(data.customAccent),
             ));
         });
     }

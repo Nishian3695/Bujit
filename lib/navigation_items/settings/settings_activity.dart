@@ -1,9 +1,9 @@
 // Mirrors NavigationItems/Settings/SettingsActivity.java in the original Java app,
-// in its sections: display options, Google Tasks, categories, the app lock,
-// single-event expiry, support (help, tutorial, rating), the tip jar, data (CSV
-// import and template, resetting or clearing), encrypted backups, and the
-// website and legal links. (Theme colors come with the UI pass; Java's "Transfer
-// to New Device" was only a "coming soon" row.)
+// in its sections: appearance (theme, accent color) and display options, Google
+// Tasks, categories, the app lock, single-event expiry, support (help, tutorial,
+// rating), the tip jar, data (CSV import and template, resetting or clearing),
+// encrypted backups, and the website and legal links. (Java's "Transfer to New
+// Device" was only a "coming soon" row.)
 import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
@@ -15,7 +15,9 @@ import '../../dialogs/text_prompt_dialog.dart';
 import '../../prefs/app_lock_prefs.dart';
 import '../../tutorial/tutorial_manager.dart';
 import '../../tutorial/tutorial_overlay_layout.dart';
+import '../../utils/custom_views/color_wheel_view.dart';
 import '../../utils/legal.dart';
+import '../../utils/theme_helper.dart';
 import '../../storage_management/app_data_store.dart';
 import 'backup_flow.dart';
 import 'category_manager_activity.dart';
@@ -302,6 +304,92 @@ class _SettingsActivityState extends State<SettingsActivity> {
 
     static Widget _header(String title) => ListTile(dense: true, title: Text(title));
 
+    // App theme (System/Light/Dark) and the accent color: Java's presets as
+    // swatches, then one for a custom color picked on the color wheel.
+    Widget _appearanceSection() {
+        final AppData data = widget.state.data;
+        final AccentColor accent = widget.state.accent;
+        Future<void> setAccent(AccentColor value, [int? custom]) async {
+            setState(() {
+                data.accentColor = value.name;
+                if (custom != null) data.customAccent = custom;
+            });
+            await widget.state.changed();
+        }
+
+        Widget swatch(AccentColor value, Color color, {required VoidCallback onTap, IconData? icon}) {
+            final bool selected = value == accent;
+            final Color onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+                ? Colors.white : Colors.black;
+            return Tooltip(
+                message: value.label,
+                child: InkResponse(
+                    onTap: onTap,
+                    radius: 24,
+                    child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: selected
+                                ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 3)
+                                : null,
+                        ),
+                        child: selected
+                            ? Icon(Icons.check, color: onColor)
+                            : icon == null ? null : Icon(icon, color: onColor, size: 20),
+                    ),
+                ),
+            );
+        }
+
+        return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<ThemeMode>(
+                            segments: const [
+                                ButtonSegment(value: ThemeMode.system, label: Text("System"), icon: Icon(Icons.brightness_auto)),
+                                ButtonSegment(value: ThemeMode.light, label: Text("Light"), icon: Icon(Icons.light_mode)),
+                                ButtonSegment(value: ThemeMode.dark, label: Text("Dark"), icon: Icon(Icons.dark_mode)),
+                            ],
+                            selected: {widget.state.themeMode},
+                            showSelectedIcon: false,
+                            onSelectionChanged: (modes) {
+                                setState(() => data.themeMode = modes.first.name);
+                                widget.state.changed();
+                            },
+                        ),
+                    ),
+                ),
+                const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text("Accent color"),
+                ),
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Wrap(
+                        spacing: 8,
+                        runSpacing: 12,
+                        children: [
+                            for (final AccentColor value in AccentColor.values)
+                                if (value != AccentColor.custom)
+                                    swatch(value, value.color, onTap: () => setAccent(value)),
+                            swatch(AccentColor.custom, Color(data.customAccent), icon: Icons.colorize, onTap: () async {
+                                final int? picked = await showCustomColorDialog(context, data.customAccent);
+                                if (picked != null) await setAccent(AccentColor.custom, picked);
+                            }),
+                        ],
+                    ),
+                ),
+            ],
+        );
+    }
+
     ListTile _link(String title, String subtitle, String url) => ListTile(
         title: Text(title),
         subtitle: subtitle.isEmpty ? null : Text(subtitle),
@@ -340,6 +428,7 @@ class _SettingsActivityState extends State<SettingsActivity> {
                 body: ListView(
                     children: [
                         _header("APPEARANCE"),
+                        _appearanceSection(),
                         SwitchListTile(
                             title: const Text("Comma separators"),
                             subtitle: const Text("Show amounts like \$3,000.00 instead of \$3000.00"),

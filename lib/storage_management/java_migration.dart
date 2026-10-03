@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/banking/manual_account_model.dart';
+import '../utils/theme_helper.dart';
 import 'app_data_store.dart';
 import 'backup/backup_json.dart';
 
@@ -56,6 +57,12 @@ class JavaMigration {
             ..tutorialSeen = flag("tutorialSeen");
         final Object? expiry = prefs["singleEventExpiryDays"];
         if (expiry is int && expiry > 0) data.singleEventExpiryDays = expiry;
+        // Appearance (the Java app's ThemeHelper).
+        final Object? mode = prefs["nightMode"];
+        if (mode is String) data.themeMode = themeModeFromName(mode).name;
+        data.accentColor = AccentColor.byName(prefs["accentColor"] as String?).name;
+        final int? custom = parseHexColor(prefs["customHex"] as String?);
+        if (custom != null) data.customAccent = custom;
 
         // Manual accounts the Java app counted toward the balance.
         final Set<String> manualIds = _strings(raw["manualLinkedIds"]).toSet();

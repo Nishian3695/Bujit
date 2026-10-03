@@ -40,6 +40,10 @@ object JavaMigration {
             "disclaimerAccepted" to prefs("bujit_legal_prefs").getBoolean("disclaimer_accepted", false),
             "tutorialSeen" to prefs("bujit_tutorial_prefs").getBoolean("tutorial_seen", false),
             "singleEventExpiryDays" to prefs("bujit_prefs").getInt("single_event_expiry_days", 30),
+            // ThemeHelper's settings: "system"/"light"/"dark", the accent's key, "#RRGGBB".
+            "nightMode" to prefs("bujit_settings").getString("night_mode", "system"),
+            "accentColor" to prefs("bujit_settings").getString("accent_color", "blue"),
+            "customHex" to prefs("bujit_settings").getString("custom_hex", "#2979FF"),
         )
 
         // Bank links: best effort -- without them the user just links the bank again.

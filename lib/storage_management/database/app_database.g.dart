@@ -1869,6 +1869,42 @@ class $AppMetaRowsTable extends AppMetaRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _themeModeMeta = const VerificationMeta(
+    'themeMode',
+  );
+  @override
+  late final GeneratedColumn<String> themeMode = GeneratedColumn<String>(
+    'theme_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant("system"),
+  );
+  static const VerificationMeta _accentColorMeta = const VerificationMeta(
+    'accentColor',
+  );
+  @override
+  late final GeneratedColumn<String> accentColor = GeneratedColumn<String>(
+    'accent_color',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant("blue"),
+  );
+  static const VerificationMeta _customAccentMeta = const VerificationMeta(
+    'customAccent',
+  );
+  @override
+  late final GeneratedColumn<int> customAccent = GeneratedColumn<int>(
+    'custom_accent',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0xFF2979FF),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1887,6 +1923,9 @@ class $AppMetaRowsTable extends AppMetaRows
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
+    themeMode,
+    accentColor,
+    customAccent,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2040,6 +2079,30 @@ class $AppMetaRowsTable extends AppMetaRows
         ),
       );
     }
+    if (data.containsKey('theme_mode')) {
+      context.handle(
+        _themeModeMeta,
+        themeMode.isAcceptableOrUnknown(data['theme_mode']!, _themeModeMeta),
+      );
+    }
+    if (data.containsKey('accent_color')) {
+      context.handle(
+        _accentColorMeta,
+        accentColor.isAcceptableOrUnknown(
+          data['accent_color']!,
+          _accentColorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_accent')) {
+      context.handle(
+        _customAccentMeta,
+        customAccent.isAcceptableOrUnknown(
+          data['custom_accent']!,
+          _customAccentMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2113,6 +2176,18 @@ class $AppMetaRowsTable extends AppMetaRows
         DriftSqlType.string,
         data['${effectivePrefix}tasks_account'],
       ),
+      themeMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}theme_mode'],
+      )!,
+      accentColor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}accent_color'],
+      )!,
+      customAccent: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}custom_accent'],
+      )!,
     );
   }
 
@@ -2139,6 +2214,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
   final bool tasksSyncEnabled;
   final String? tasksListId;
   final String? tasksAccount;
+  final String themeMode;
+  final String accentColor;
+  final int customAccent;
   const AppMetaRow({
     required this.id,
     required this.currentBalance,
@@ -2156,6 +2234,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     required this.tasksSyncEnabled,
     this.tasksListId,
     this.tasksAccount,
+    required this.themeMode,
+    required this.accentColor,
+    required this.customAccent,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2184,6 +2265,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     if (!nullToAbsent || tasksAccount != null) {
       map['tasks_account'] = Variable<String>(tasksAccount);
     }
+    map['theme_mode'] = Variable<String>(themeMode);
+    map['accent_color'] = Variable<String>(accentColor);
+    map['custom_accent'] = Variable<int>(customAccent);
     return map;
   }
 
@@ -2211,6 +2295,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tasksAccount: tasksAccount == null && nullToAbsent
           ? const Value.absent()
           : Value(tasksAccount),
+      themeMode: Value(themeMode),
+      accentColor: Value(accentColor),
+      customAccent: Value(customAccent),
     );
   }
 
@@ -2240,6 +2327,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tasksSyncEnabled: serializer.fromJson<bool>(json['tasksSyncEnabled']),
       tasksListId: serializer.fromJson<String?>(json['tasksListId']),
       tasksAccount: serializer.fromJson<String?>(json['tasksAccount']),
+      themeMode: serializer.fromJson<String>(json['themeMode']),
+      accentColor: serializer.fromJson<String>(json['accentColor']),
+      customAccent: serializer.fromJson<int>(json['customAccent']),
     );
   }
   @override
@@ -2264,6 +2354,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       'tasksSyncEnabled': serializer.toJson<bool>(tasksSyncEnabled),
       'tasksListId': serializer.toJson<String?>(tasksListId),
       'tasksAccount': serializer.toJson<String?>(tasksAccount),
+      'themeMode': serializer.toJson<String>(themeMode),
+      'accentColor': serializer.toJson<String>(accentColor),
+      'customAccent': serializer.toJson<int>(customAccent),
     };
   }
 
@@ -2284,6 +2377,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     bool? tasksSyncEnabled,
     Value<String?> tasksListId = const Value.absent(),
     Value<String?> tasksAccount = const Value.absent(),
+    String? themeMode,
+    String? accentColor,
+    int? customAccent,
   }) => AppMetaRow(
     id: id ?? this.id,
     currentBalance: currentBalance ?? this.currentBalance,
@@ -2302,6 +2398,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
     tasksListId: tasksListId.present ? tasksListId.value : this.tasksListId,
     tasksAccount: tasksAccount.present ? tasksAccount.value : this.tasksAccount,
+    themeMode: themeMode ?? this.themeMode,
+    accentColor: accentColor ?? this.accentColor,
+    customAccent: customAccent ?? this.customAccent,
   );
   AppMetaRow copyWithCompanion(AppMetaRowsCompanion data) {
     return AppMetaRow(
@@ -2351,6 +2450,13 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
       tasksAccount: data.tasksAccount.present
           ? data.tasksAccount.value
           : this.tasksAccount,
+      themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
+      accentColor: data.accentColor.present
+          ? data.accentColor.value
+          : this.accentColor,
+      customAccent: data.customAccent.present
+          ? data.customAccent.value
+          : this.customAccent,
     );
   }
 
@@ -2372,7 +2478,10 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           ..write('pendingLinkedBalanceIds: $pendingLinkedBalanceIds, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
-          ..write('tasksAccount: $tasksAccount')
+          ..write('tasksAccount: $tasksAccount, ')
+          ..write('themeMode: $themeMode, ')
+          ..write('accentColor: $accentColor, ')
+          ..write('customAccent: $customAccent')
           ..write(')'))
         .toString();
   }
@@ -2395,6 +2504,9 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
     tasksSyncEnabled,
     tasksListId,
     tasksAccount,
+    themeMode,
+    accentColor,
+    customAccent,
   );
   @override
   bool operator ==(Object other) =>
@@ -2415,7 +2527,10 @@ class AppMetaRow extends DataClass implements Insertable<AppMetaRow> {
           other.pendingLinkedBalanceIds == this.pendingLinkedBalanceIds &&
           other.tasksSyncEnabled == this.tasksSyncEnabled &&
           other.tasksListId == this.tasksListId &&
-          other.tasksAccount == this.tasksAccount);
+          other.tasksAccount == this.tasksAccount &&
+          other.themeMode == this.themeMode &&
+          other.accentColor == this.accentColor &&
+          other.customAccent == this.customAccent);
 }
 
 class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
@@ -2435,6 +2550,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
   final Value<bool> tasksSyncEnabled;
   final Value<String?> tasksListId;
   final Value<String?> tasksAccount;
+  final Value<String> themeMode;
+  final Value<String> accentColor;
+  final Value<int> customAccent;
   const AppMetaRowsCompanion({
     this.id = const Value.absent(),
     this.currentBalance = const Value.absent(),
@@ -2452,6 +2570,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
+    this.themeMode = const Value.absent(),
+    this.accentColor = const Value.absent(),
+    this.customAccent = const Value.absent(),
   });
   AppMetaRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2470,6 +2591,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     this.tasksSyncEnabled = const Value.absent(),
     this.tasksListId = const Value.absent(),
     this.tasksAccount = const Value.absent(),
+    this.themeMode = const Value.absent(),
+    this.accentColor = const Value.absent(),
+    this.customAccent = const Value.absent(),
   }) : lastUpdated = Value(lastUpdated);
   static Insertable<AppMetaRow> custom({
     Expression<int>? id,
@@ -2488,6 +2612,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Expression<bool>? tasksSyncEnabled,
     Expression<String>? tasksListId,
     Expression<String>? tasksAccount,
+    Expression<String>? themeMode,
+    Expression<String>? accentColor,
+    Expression<int>? customAccent,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2509,6 +2636,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       if (tasksSyncEnabled != null) 'tasks_sync_enabled': tasksSyncEnabled,
       if (tasksListId != null) 'tasks_list_id': tasksListId,
       if (tasksAccount != null) 'tasks_account': tasksAccount,
+      if (themeMode != null) 'theme_mode': themeMode,
+      if (accentColor != null) 'accent_color': accentColor,
+      if (customAccent != null) 'custom_accent': customAccent,
     });
   }
 
@@ -2529,6 +2659,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     Value<bool>? tasksSyncEnabled,
     Value<String?>? tasksListId,
     Value<String?>? tasksAccount,
+    Value<String>? themeMode,
+    Value<String>? accentColor,
+    Value<int>? customAccent,
   }) {
     return AppMetaRowsCompanion(
       id: id ?? this.id,
@@ -2549,6 +2682,9 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
       tasksSyncEnabled: tasksSyncEnabled ?? this.tasksSyncEnabled,
       tasksListId: tasksListId ?? this.tasksListId,
       tasksAccount: tasksAccount ?? this.tasksAccount,
+      themeMode: themeMode ?? this.themeMode,
+      accentColor: accentColor ?? this.accentColor,
+      customAccent: customAccent ?? this.customAccent,
     );
   }
 
@@ -2607,6 +2743,15 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
     if (tasksAccount.present) {
       map['tasks_account'] = Variable<String>(tasksAccount.value);
     }
+    if (themeMode.present) {
+      map['theme_mode'] = Variable<String>(themeMode.value);
+    }
+    if (accentColor.present) {
+      map['accent_color'] = Variable<String>(accentColor.value);
+    }
+    if (customAccent.present) {
+      map['custom_accent'] = Variable<int>(customAccent.value);
+    }
     return map;
   }
 
@@ -2628,7 +2773,10 @@ class AppMetaRowsCompanion extends UpdateCompanion<AppMetaRow> {
           ..write('pendingLinkedBalanceIds: $pendingLinkedBalanceIds, ')
           ..write('tasksSyncEnabled: $tasksSyncEnabled, ')
           ..write('tasksListId: $tasksListId, ')
-          ..write('tasksAccount: $tasksAccount')
+          ..write('tasksAccount: $tasksAccount, ')
+          ..write('themeMode: $themeMode, ')
+          ..write('accentColor: $accentColor, ')
+          ..write('customAccent: $customAccent')
           ..write(')'))
         .toString();
   }
@@ -6141,6 +6289,9 @@ typedef $$AppMetaRowsTableCreateCompanionBuilder =
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
+      Value<String> themeMode,
+      Value<String> accentColor,
+      Value<int> customAccent,
     });
 typedef $$AppMetaRowsTableUpdateCompanionBuilder =
     AppMetaRowsCompanion Function({
@@ -6160,6 +6311,9 @@ typedef $$AppMetaRowsTableUpdateCompanionBuilder =
       Value<bool> tasksSyncEnabled,
       Value<String?> tasksListId,
       Value<String?> tasksAccount,
+      Value<String> themeMode,
+      Value<String> accentColor,
+      Value<int> customAccent,
     });
 
 class $$AppMetaRowsTableFilterComposer
@@ -6248,6 +6402,21 @@ class $$AppMetaRowsTableFilterComposer
 
   ColumnFilters<String> get tasksAccount => $composableBuilder(
     column: $table.tasksAccount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get themeMode => $composableBuilder(
+    column: $table.themeMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accentColor => $composableBuilder(
+    column: $table.accentColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get customAccent => $composableBuilder(
+    column: $table.customAccent,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6340,6 +6509,21 @@ class $$AppMetaRowsTableOrderingComposer
     column: $table.tasksAccount,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get themeMode => $composableBuilder(
+    column: $table.themeMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accentColor => $composableBuilder(
+    column: $table.accentColor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get customAccent => $composableBuilder(
+    column: $table.customAccent,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppMetaRowsTableAnnotationComposer
@@ -6428,6 +6612,19 @@ class $$AppMetaRowsTableAnnotationComposer
     column: $table.tasksAccount,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get themeMode =>
+      $composableBuilder(column: $table.themeMode, builder: (column) => column);
+
+  GeneratedColumn<String> get accentColor => $composableBuilder(
+    column: $table.accentColor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get customAccent => $composableBuilder(
+    column: $table.customAccent,
+    builder: (column) => column,
+  );
 }
 
 class $$AppMetaRowsTableTableManager
@@ -6477,6 +6674,9 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
+                Value<String> themeMode = const Value.absent(),
+                Value<String> accentColor = const Value.absent(),
+                Value<int> customAccent = const Value.absent(),
               }) => AppMetaRowsCompanion(
                 id: id,
                 currentBalance: currentBalance,
@@ -6494,6 +6694,9 @@ class $$AppMetaRowsTableTableManager
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
+                themeMode: themeMode,
+                accentColor: accentColor,
+                customAccent: customAccent,
               ),
           createCompanionCallback:
               ({
@@ -6513,6 +6716,9 @@ class $$AppMetaRowsTableTableManager
                 Value<bool> tasksSyncEnabled = const Value.absent(),
                 Value<String?> tasksListId = const Value.absent(),
                 Value<String?> tasksAccount = const Value.absent(),
+                Value<String> themeMode = const Value.absent(),
+                Value<String> accentColor = const Value.absent(),
+                Value<int> customAccent = const Value.absent(),
               }) => AppMetaRowsCompanion.insert(
                 id: id,
                 currentBalance: currentBalance,
@@ -6530,6 +6736,9 @@ class $$AppMetaRowsTableTableManager
                 tasksSyncEnabled: tasksSyncEnabled,
                 tasksListId: tasksListId,
                 tasksAccount: tasksAccount,
+                themeMode: themeMode,
+                accentColor: accentColor,
+                customAccent: customAccent,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

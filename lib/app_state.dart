@@ -1,6 +1,6 @@
 // The app's live data, shared by every screen. Screens change data through it
 // and call changed(), which rebuilds listeners (e.g. the home screen) and saves.
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ChangeNotifier, Color, ThemeMode;
 import 'package:logging/logging.dart';
 import 'navigation_items/banking/bank_account_model.dart';
 import 'navigation_items/banking/banking_prefs.dart';
@@ -15,6 +15,7 @@ import 'storage_management/java_migration.dart';
 import 'tutorial/tutorial_manager.dart';
 import 'utils/money.dart';
 import 'utils/sample_data.dart';
+import 'utils/theme_helper.dart';
 
 class AppState extends ChangeNotifier {
     static final Logger _logger = Logger("BujitAppState");
@@ -36,6 +37,11 @@ class AppState extends ChangeNotifier {
     }
 
     BalanceModel get balance => data.balance;
+
+    // Settings > Appearance: light/dark (or the system's) and the accent the theme is built from.
+    ThemeMode get themeMode => themeModeFromName(data.themeMode);
+    AccentColor get accent => AccentColor.byName(data.accentColor);
+    Color get accentSeed => AppTheme.seedFor(accent, data.customAccent);
 
     // False when changes can't be saved (storage failed to open).
     bool get isSaving => _store != null;

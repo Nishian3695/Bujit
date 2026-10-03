@@ -17,6 +17,7 @@ import 'storage_management/app_data_store.dart';
 import 'storage_management/java_migration.dart';
 import 'storage_management/storage_manager.dart';
 import 'utils/sample_data.dart';
+import 'utils/theme_helper.dart';
 
 final Logger _logger = Logger("BujitMain");
 
@@ -83,8 +84,26 @@ class _BujitAppState extends State<BujitApp> {
   @override
   Widget build(BuildContext context) {
     final AppState? state = _state;
+    if (state == null) return _app(AppTheme.seedFor(AccentColor.blue, 0), ThemeMode.system, null);
+    // Rebuilds the theme when Settings > Appearance changes.
+    return ListenableBuilder(
+      listenable: state,
+      builder: (context, _) => _app(state.accentSeed, state.themeMode, state),
+    );
+  }
+
+  // Themes are kept per accent and brightness: AppState notifies often (syncs,
+  // edits), and generating a scheme each time would be wasted work.
+  final Map<(Color, Brightness), ThemeData> _themes = {};
+  ThemeData _theme(Color seed, Brightness brightness) =>
+      _themes.putIfAbsent((seed, brightness), () => AppTheme.build(seed, brightness));
+
+  Widget _app(Color seed, ThemeMode mode, AppState? state) {
     return MaterialApp(
       title: 'Bujit',
+      theme: _theme(seed, Brightness.light),
+      darkTheme: _theme(seed, Brightness.dark),
+      themeMode: mode,
       home: state == null
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : ExpenseActivity(state: state),

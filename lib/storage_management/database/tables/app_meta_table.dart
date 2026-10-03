@@ -48,6 +48,11 @@ class AppMetaRows extends Table {
   BoolColumn get tasksSyncEnabled => boolean().withDefault(const Constant(false))();
   TextColumn get tasksListId => text().nullable()();
   TextColumn get tasksAccount => text().nullable()();
+  // Settings > Appearance (added in schema v2): "system", "light" or "dark"; the
+  // accent preset (an AccentColor's name); and the custom accent color (ARGB).
+  TextColumn get themeMode => text().withDefault(const Constant("system"))();
+  TextColumn get accentColor => text().withDefault(const Constant("blue"))();
+  IntColumn get customAccent => integer().withDefault(const Constant(0xFF2979FF))();
 
   @override
   Set<Column> get primaryKey => {id};
