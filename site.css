@@ -1,28 +1,32 @@
 /* Bujit's website (GitHub Pages, served from this repo's root): shared look for every
-   page. Colors follow the app: its blue accent and the launcher icon's deep blue,
-   with light and dark versions. */
+   page. Colors come from the logo (site-assets/bujit-logo.svg): its pink background
+   (the header, so the logo sits in it seamlessly), the snout's hot-pink rim for
+   buttons and links, with light and dark versions. */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --brand:       #0039CD;   /* the launcher icon's blue */
-  --accent:      #1F5FD6;
-  --accent-soft: #E6EEFC;
-  --bg:          #F5F7FB;
+  --logo-bg:     #F495B7;   /* the logo's background */
+  --brand:       #DB1867;   /* the snout's rim: buttons (white text, 4.8:1) */
+  --header-bg:   var(--logo-bg);
+  --header-ink:  #4A0B26;
+  --accent:      #C2185B;
+  --accent-soft: #FCE4EE;
+  --bg:          #FFF7FA;
   --surface:     #FFFFFF;
-  --surface-2:   #EEF2FA;
-  --ink:         #111827;
-  --ink-2:       #4B5563;
-  --border:      #DCE3EF;
-  --code-bg:     #EDF1F8;
+  --surface-2:   #FDEEF4;
+  --ink:         #24121B;
+  --ink-2:       #6B4A58;
+  --border:      #F3D3E0;
+  --code-bg:     #FBEAF1;
   --opt-fg:      #8A5A12;
   --opt-bg:      #FBF3E4;
-  --term-bg:     #0E1530;
-  --term-text:   #C9D6F5;
-  --term-tag:    #7FA8FF;
+  --term-bg:     #2A0F1C;
+  --term-text:   #F6D9E5;
+  --term-tag:    #F495B7;
   --term-opt:    #E3B95A;
-  --term-comment:#5E6E99;
-  --term-comma:  #4A5A85;
+  --term-comment:#9A6A80;
+  --term-comma:  #7A4A60;
   --radius:      12px;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
   color-scheme: light;
@@ -30,18 +34,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --accent:      #8AB0FF;
-    --accent-soft: #1B2A4A;
-    --bg:          #0F131A;
-    --surface:     #171C25;
-    --surface-2:   #1D2430;
-    --ink:         #E6EAF2;
-    --ink-2:       #A3ADBF;
-    --border:      #2A3342;
-    --code-bg:     #222A37;
+    --header-bg:   #3A1426;
+    --header-ink:  #FCE4EE;
+    --accent:      #F495B7;
+    --accent-soft: #3A1C29;
+    --bg:          #1A1015;
+    --surface:     #24161D;
+    --surface-2:   #2E1C25;
+    --ink:         #F6E9EF;
+    --ink-2:       #C4A6B3;
+    --border:      #3F2833;
+    --code-bg:     #33202A;
     --opt-fg:      #E3B95A;
     --opt-bg:      #3A2E14;
-    --term-bg:     #0A0F1D;
+    --term-bg:     #12080D;
     color-scheme: dark;
   }
 }
@@ -72,40 +78,38 @@ code {
 
 /* ── Site header (every page) ─────────────────────────────── */
 .site-header {
-  background: var(--brand);
-  color: #fff;
+  background: var(--header-bg);
+  color: var(--header-ink);
 }
 .site-header .bar {
   max-width: 880px;
   margin: 0 auto;
-  padding: 0.75rem 16px;
+  padding: 0.5rem 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.5rem 1.25rem;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: #fff;
-  text-decoration: none;
-  font-weight: 800;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-}
-.brand img { width: 34px; height: 34px; border-radius: 8px; image-rendering: pixelated; }
+.brand { display: flex; align-items: center; }
+.brand img { height: 60px; width: auto; display: block;
+             /* the logo's thin rim fades at this size: a soft outline keeps it crisp */
+             filter: drop-shadow(0 0 1px rgba(219, 24, 103, 0.7)) drop-shadow(0 2px 4px rgba(120, 10, 55, 0.18)); }
 .site-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .site-nav a {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--header-ink);
+  opacity: 0.85;
   text-decoration: none;
   font-size: 0.875rem;
   padding: 0.35rem 0.65rem;
   border-radius: 999px;
 }
-.site-nav a:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
-.site-nav a[aria-current="page"] { background: rgba(255, 255, 255, 0.22); color: #fff; font-weight: 600; }
+.site-nav a:hover { background: rgba(255, 255, 255, 0.25); opacity: 1; }
+.site-nav a[aria-current="page"] { background: rgba(255, 255, 255, 0.4); opacity: 1; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .site-nav a:hover { background: rgba(244, 149, 183, 0.16); }
+  .site-nav a[aria-current="page"] { background: rgba(244, 149, 183, 0.26); }
+}
 
 /* ── Page body ────────────────────────────────────────────── */
 main {
@@ -169,15 +173,15 @@ main.narrow { max-width: 760px; }
 
 /* ── Home page ────────────────────────────────────────────── */
 .hero { text-align: center; padding: 1rem 0 0.5rem; }
-.hero img { width: 112px; height: 112px; border-radius: 26px; image-rendering: pixelated;
-            box-shadow: 0 8px 24px rgba(0, 57, 205, 0.25); }
-.hero h1 { font-size: 2.6rem; letter-spacing: -0.04em; margin-top: 1rem; }
+.hero img { width: 220px; height: 220px; border-radius: 48px; display: block; margin: 0 auto;
+            box-shadow: 0 12px 32px rgba(219, 24, 103, 0.28); }
+.hero h1 { font-size: 2.4rem; letter-spacing: -0.03em; margin-top: 1.4rem; line-height: 1.15; }
 .hero .tagline { font-size: 1.15rem; color: var(--ink-2); max-width: 30rem; margin: 0.4rem auto 0; }
 .hero .button-row { justify-content: center; }
 
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.9rem;
   margin-top: 2.5rem;
 }
@@ -240,5 +244,8 @@ main.narrow { max-width: 760px; }
 
 @media (max-width: 600px) {
   .page-title { font-size: 1.6rem; }
-  .hero h1 { font-size: 2.1rem; }
+  .hero h1 { font-size: 1.9rem; }
+  .hero img { width: 180px; height: 180px; border-radius: 40px; }
+  .brand img { height: 50px; }
+  .features { grid-template-columns: 1fr; }
 }
