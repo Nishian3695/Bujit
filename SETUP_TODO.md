@@ -20,9 +20,9 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 ## Android and Google Play
 
 **Done:**
-- **Repositories.** Code goes to `Nishian3695/BujitDEV` and the release repo
-  `Nishian3695/Bujit`. The release repo's `main` is the Flutter app; the Java app's
-  last `main` is kept on the `java-main` branch.
+- **Repository.** Code goes only to `Nishian3695/Bujit` (BujitDEV is on hold).
+  Its `main` is the Flutter app; the Java app's last `main` is kept on the
+  `java-main` branch.
 - **Releases.** Pushing a tag to the release repo builds, signs and uploads to Play
   ([release.yml](.github/workflows/release.yml)). The suffix picks the tracks:
   none = internal, `-closed` = internal + both closed tracks, `-open` = open
