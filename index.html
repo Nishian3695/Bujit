@@ -3,156 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bujit — Personal Budget Tracker</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --green:    #2A7A45;
-      --green-bg: #E8F3EC;
-      --ink:      #111;
-      --ink-2:    #555;
-      --border:   #DDE5DF;
-      --surface:  #FFFFFF;
-      --bg:       #F4F7F5;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ── Header ─────────────────────────────── */
-    header {
-      background: var(--green);
-      color: #fff;
-      padding: 3rem 1.5rem 2.5rem;
-      text-align: center;
-    }
-
-    .logo {
-      font-size: 2.4rem;
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      margin-bottom: 0.5rem;
-    }
-
-    .tagline {
-      font-size: 1rem;
-      opacity: 0.85;
-      font-weight: 300;
-      max-width: 420px;
-      margin: 0 auto;
-    }
-
-    /* ── Main content ────────────────────────── */
-    main {
-      flex: 1;
-      max-width: 680px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 2.5rem 1.25rem 4rem;
-    }
-
-    .section-label {
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--ink-2);
-      margin-bottom: 0.875rem;
-    }
-
-    /* ── Link cards ─────────────────────────── */
-    .card-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      background: var(--surface);
-      margin-bottom: 2rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    }
-
-    .card-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1.1rem 1.25rem;
-      text-decoration: none;
-      color: inherit;
-      border-bottom: 1px solid var(--border);
-      transition: background 0.12s;
-    }
-    .card-row:last-child { border-bottom: none; }
-    .card-row:hover { background: var(--green-bg); }
-    .card-row:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
-
-    .card-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: var(--green-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      flex-shrink: 0;
-    }
-
-    .card-text { flex: 1; }
-
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--ink);
-    }
-
-    .card-desc {
-      font-size: 0.8rem;
-      color: var(--ink-2);
-      margin-top: 2px;
-      font-weight: 300;
-    }
-
-    .card-chevron {
-      font-size: 1.1rem;
-      color: var(--border);
-      flex-shrink: 0;
-    }
-
-    /* ── Footer ─────────────────────────────── */
-    footer {
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--ink-2);
-      padding: 1.5rem 1.25rem 2rem;
-      border-top: 1px solid var(--border);
-    }
-
-    footer a { color: var(--green); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-  </style>
+  <title>Bujit: Budget by Paycheck</title>
+  <meta name="description" content="Bujit shows what's left after each paycheck: expenses, credit cards and income, kept on your device.">
+  <link rel="icon" type="image/png" sizes="32x32" href="site-assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="site-assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="site.css">
 </head>
 <body>
 
-<header>
-  <div class="logo">Bujit</div>
-  <p class="tagline">A personal budget tracker for Android. Track expenses, income, and bank balances all on your device.</p>
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="./"><img src="site-assets/icon-192.png" alt="">Bujit</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="./" aria-current="page">Home</a>
+      <a href="csv-import-reference.html">CSV import</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="data-deletion.html">Delete data</a>
+    </nav>
+  </div>
 </header>
 
 <main>
 
-  <p class="section-label">Resources</p>
+  <section class="hero">
+    <img src="site-assets/icon-192.png" alt="Bujit's piggy bank icon">
+    <h1>Bujit</h1>
+    <p class="tagline">Budget by paycheck. See what's left after each check, before you spend it.</p>
+    <div class="button-row">
+      <a class="button" href="https://play.google.com/store/apps/details?id=io.github.nishian3695.bujit" target="_blank" rel="noopener">Get it on Google Play</a>
+      <a class="button secondary" href="csv-import-reference.html">Import your budget</a>
+    </div>
+  </section>
 
+  <div class="features">
+    <div class="feature">
+      <h3>Paycheck by paycheck</h3>
+      <p>Expenses and card payments land on the check that pays them, and you can step ahead to project future checks.</p>
+    </div>
+    <div class="feature">
+      <h3>On your device</h3>
+      <p>Your budget is kept in an encrypted database on your phone, never on a Bujit server.</p>
+    </div>
+    <div class="feature">
+      <h3>Optional bank sync</h3>
+      <p>Link banks and cards through Plaid to keep balances current, or track everything by hand.</p>
+    </div>
+    <div class="feature">
+      <h3>Google Tasks reminders</h3>
+      <p>Sync due dates to a "Bujit" list in Google Tasks so reminders reach you wherever you are.</p>
+    </div>
+  </div>
+
+  <p class="section-label">Resources</p>
   <div class="card-group">
+    <a class="card-row" href="csv-import-reference.html">
+      <div class="card-icon">📋</div>
+      <div class="card-text">
+        <div class="card-title">CSV Import Reference</div>
+        <div class="card-desc">Row types, fields and examples for bulk-importing your budget</div>
+      </div>
+      <span class="card-chevron">›</span>
+    </a>
+    <a class="card-row" href="bujit_import_template.csv" download>
+      <div class="card-icon">⬇️</div>
+      <div class="card-text">
+        <div class="card-title">CSV Template</div>
+        <div class="card-desc">A ready-to-edit file to fill in and import from Settings</div>
+      </div>
+      <span class="card-chevron">›</span>
+    </a>
     <a class="card-row" href="privacy-policy.html">
       <div class="card-icon">🔒</div>
       <div class="card-text">
@@ -161,7 +80,6 @@
       </div>
       <span class="card-chevron">›</span>
     </a>
-
     <a class="card-row" href="data-deletion.html">
       <div class="card-icon">🗑️</div>
       <div class="card-text">
@@ -170,19 +88,9 @@
       </div>
       <span class="card-chevron">›</span>
     </a>
-
-    <a class="card-row" href="csv-import-reference.html">
-      <div class="card-icon">📋</div>
-      <div class="card-text">
-        <div class="card-title">CSV Import Reference</div>
-        <div class="card-desc">Row types, field glossary, and examples for bulk-importing your budget data</div>
-      </div>
-      <span class="card-chevron">›</span>
-    </a>
   </div>
 
   <p class="section-label">Support</p>
-
   <div class="card-group">
     <a class="card-row" href="https://github.com/Nishian3695/Bujit/issues/new" target="_blank" rel="noopener">
       <div class="card-icon">🐛</div>
@@ -196,9 +104,19 @@
 
 </main>
 
-<footer>
-  Bujit is a personal budgeting tool for informational purposes only — not financial advice.<br>
-  &copy; 2026 <a href="https://github.com/Nishian3695" target="_blank" rel="noopener">Nishian3695</a>
+<footer class="site-footer">
+  <div class="bar">
+    <div class="links">
+      <a href="./">Home</a>
+      <a href="csv-import-reference.html">CSV import reference</a>
+      <a href="bujit_import_template.csv" download>CSV template</a>
+      <a href="privacy-policy.html">Privacy policy</a>
+      <a href="data-deletion.html">Delete your data</a>
+      <a href="https://github.com/Nishian3695/Bujit/issues/new" target="_blank" rel="noopener">Report an issue</a>
+    </div>
+    <div>Bujit is a personal budgeting tool for informational purposes only. It does not constitute financial advice. Balance projections are estimates and should not be relied upon for financial decisions.</div>
+    <div>&copy; 2026 <a href="https://github.com/Nishian3695" target="_blank" rel="noopener">Nishian3695</a></div>
+  </div>
 </footer>
 
 </body>

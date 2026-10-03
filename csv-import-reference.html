@@ -4,321 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bujit: CSV Import Reference</title>
+  <meta name="description" content="How to bulk-import accounts, expenses, credit cards and income into Bujit from a CSV file.">
+  <link rel="icon" type="image/png" sizes="32x32" href="site-assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="site-assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="site.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:          #F0F2EF;
-      --surface:     #FFFFFF;
-      --surface-2:   #E6F0E9;
-      --ink:         #0C1C10;
-      --ink-2:       #4E6254;
-      --border:      #C8D6CB;
-      --accent:      #2A7A45;
-      --accent-dim:  #E0EEE5;
-      --opt-fg:      #7A5A2A;
-      --opt-bg:      #FBF4E8;
-      --code-bg:     #E9EFE9;
-      --term-bg:     #0A160B;
-      --term-tag:    #4DBD6A;
-      --term-green:  #7EC890;
-      --term-opt:    #C9A84C;
-      --term-comment:#3A5C3F;
-      --rule:        4px solid var(--accent);
-    }
-
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-    body {
-      background: var(--bg);
-      color: var(--ink);
-      font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
-      font-size: 0.925rem;
-      line-height: 1.65;
-      padding: 2.5rem 1.25rem 5rem;
-    }
-
-    .wrap { max-width: 820px; margin: 0 auto; }
-
-    /* ── Site nav ──────────────────────────────── */
-    .site-nav {
-      margin-bottom: 2rem;
-      font-size: 0.8rem;
-    }
-    .site-nav a {
-      color: var(--ink-2);
-      text-decoration: none;
-    }
-    .site-nav a:hover { color: var(--accent); }
-
-    /* ── Header ──────────────────────────────── */
-    header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      border-bottom: 2px solid var(--accent);
-      padding-bottom: 1rem;
-      margin-bottom: 2.75rem;
-    }
-
-    .wordmark {
-      font-size: 1.35rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: var(--accent);
-    }
-    .wordmark em {
-      color: var(--ink);
-      font-style: normal;
-      font-weight: 300;
-      letter-spacing: 0;
-    }
-
-    .doc-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-2);
-      font-weight: 600;
-      align-self: center;
-    }
-
-    /* ── Section labels ─────────────────────── */
-    .section-label {
-      font-size: 0.66rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-2);
-      font-weight: 700;
-      margin-bottom: 1rem;
-      margin-top: 2.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* ── Tag entries (ledger rows) ──────────── */
+    /* This page's components; colors come from site.css. */
     .tag-entry {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-left: var(--rule);
-      border-radius: 0 4px 4px 0;
-      margin-bottom: 0.875rem;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 0.9rem;
+      overflow: hidden;
     }
-
     .tag-entry-head {
       padding: 0.85rem 1.1rem 0.75rem;
       border-bottom: 1px solid var(--border);
       background: var(--surface-2);
-      display: flex;
-      align-items: baseline;
-      gap: 1rem;
-      flex-wrap: wrap;
+      display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
     }
-
-    .tag-token {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .tag-function {
-      font-size: 0.8rem;
-      color: var(--ink-2);
-      font-weight: 300;
-    }
-
-    .tag-entry-body { padding: 0.85rem 1.1rem 0.9rem; }
-
+    .tag-token { font-family: var(--mono); font-size: 0.92rem; font-weight: 700; color: var(--accent); }
+    .tag-function { font-size: 0.88rem; color: var(--ink-2); }
+    .tag-entry-body { padding: 0.85rem 1.1rem 0.95rem; }
     .syntax {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.8rem;
-      background: var(--code-bg);
-      border-radius: 3px;
-      padding: 0.55rem 0.8rem;
-      margin-bottom: 1rem;
-      overflow-x: auto;
-      white-space: nowrap;
+      font-family: var(--mono); font-size: 0.82rem;
+      background: var(--code-bg); border-radius: 6px;
+      padding: 0.55rem 0.8rem; margin-bottom: 1rem;
+      overflow-x: auto; white-space: nowrap;
     }
     .s-tag   { color: var(--accent); font-weight: 700; }
     .s-opt   { color: var(--opt-fg); font-style: italic; }
     .s-comma { color: var(--ink-2); }
-
-    .field-rows { display: flex; flex-direction: column; gap: 0.35rem; }
-
+    .field-rows { display: flex; flex-direction: column; gap: 0.4rem; }
     .field-row {
-      display: grid;
-      grid-template-columns: 9rem 3.5rem 1fr;
-      gap: 0.5rem 0.75rem;
-      align-items: baseline;
-      font-size: 0.82rem;
+      display: grid; grid-template-columns: 9rem 4.25rem 1fr;
+      gap: 0.5rem 0.75rem; align-items: baseline; font-size: 0.88rem;
     }
-
-    .field-name {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.78rem;
-      color: var(--accent);
-      white-space: nowrap;
-    }
-
+    .field-name { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); white-space: nowrap; }
     .badge {
-      display: inline-block;
-      font-size: 0.58rem;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      font-weight: 700;
-      padding: 0.15em 0.45em;
-      border-radius: 2px;
-      white-space: nowrap;
+      display: inline-block; font-size: 0.62rem; letter-spacing: 0.07em;
+      text-transform: uppercase; font-weight: 700;
+      padding: 0.15em 0.5em; border-radius: 4px; white-space: nowrap;
     }
-    .badge-req { background: var(--accent-dim); color: var(--accent); }
-    .badge-opt { background: var(--opt-bg);     color: var(--opt-fg); }
+    .badge-req { background: var(--accent-soft); color: var(--accent); }
+    .badge-opt { background: var(--opt-bg); color: var(--opt-fg); }
+    .field-desc { color: var(--ink-2); }
 
-    .field-desc { color: var(--ink-2); font-weight: 300; }
-    .field-desc code {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.85em;
-      background: var(--code-bg);
-      padding: 0.1em 0.3em;
-      border-radius: 2px;
-    }
-
-    /* ── Example ────────────────────────────── */
-    .example-wrap {
-      background: var(--term-bg);
-      border-radius: 5px;
-      padding: 1.25rem 1.5rem;
-      overflow-x: auto;
-      margin-top: 0.75rem;
-    }
-
-    .example-wrap pre {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.82rem;
-      line-height: 1.9;
-      color: var(--term-green);
-    }
-
+    .example-wrap { background: var(--term-bg); border-radius: 10px; padding: 1.2rem 1.4rem; overflow-x: auto; }
+    .example-wrap pre { font-family: var(--mono); font-size: 0.84rem; line-height: 1.9; color: var(--term-text); }
     .e-comment { color: var(--term-comment); }
     .e-tag     { color: var(--term-tag); font-weight: 700; }
     .e-opt     { color: var(--term-opt); }
-    .e-comma   { color: #2E5C35; }
+    .e-comma   { color: var(--term-comma); }
 
-    /* ── Field glossary ─────────────────────── */
-    .ref-table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      margin-top: 0.75rem;
-    }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; background: var(--surface); }
-
+    .ref-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--surface); }
     thead th {
-      text-align: left;
-      font-size: 0.64rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--ink-2);
-      padding: 0.6rem 1rem;
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
+      text-align: left; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+      font-weight: 700; color: var(--ink-2); padding: 0.65rem 1rem;
+      background: var(--surface-2); border-bottom: 1px solid var(--border);
     }
-
-    tbody td {
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid var(--bg);
-      vertical-align: top;
-    }
+    tbody td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
     tbody tr:last-child td { border-bottom: none; }
-    tbody tr:nth-child(even) { background: #FAFBFA; }
-
-    td.field-mono {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.78rem;
-      color: var(--accent);
-      white-space: nowrap;
-    }
-    td.field-desc { color: var(--ink-2); font-weight: 300; }
-    td.field-desc code {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.85em;
-      background: var(--code-bg);
-      padding: 0.1em 0.3em;
-      border-radius: 2px;
-    }
-
-    .chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+    td.field-mono { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); white-space: nowrap; }
+    td.field-desc { color: var(--ink-2); }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
     .chip {
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-      font-size: 0.7rem;
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 0.1em 0.4em;
-      color: var(--ink);
+      font-family: var(--mono); font-size: 0.74rem;
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.1em 0.45em; color: var(--ink);
     }
-
-    /* ── Note & footer ──────────────────────── */
-    .note {
-      margin-top: 2.5rem;
-      padding: 0.8rem 1rem;
-      border-left: 3px solid var(--accent);
-      background: var(--accent-dim);
-      border-radius: 0 3px 3px 0;
-      font-size: 0.8rem;
-      color: var(--ink-2);
-      font-weight: 300;
-    }
-    .note strong { font-weight: 700; color: var(--ink); }
-
-    .page-footer {
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.8rem;
-      color: var(--ink-2);
-    }
-    .page-footer a { color: var(--accent); text-decoration: none; }
-    .page-footer a:hover { text-decoration: underline; }
 
     @media (max-width: 600px) {
-      .field-row {
-        grid-template-columns: 1fr;
-        gap: 0.2rem;
-        padding-bottom: 0.6rem;
-        border-bottom: 1px solid var(--bg);
-      }
+      .field-row { grid-template-columns: 1fr; gap: 0.2rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
       .field-row:last-child { border-bottom: none; }
     }
   </style>
 </head>
 <body>
-<div class="wrap">
 
-  <nav class="site-nav">
-    <a href="index.html">← Home</a>
-    &nbsp;&nbsp;
-    <a href="privacy-policy.html">Privacy Policy</a>
-  </nav>
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="./"><img src="site-assets/icon-192.png" alt="">Bujit</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="./">Home</a>
+      <a href="csv-import-reference.html" aria-current="page">CSV import</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="data-deletion.html">Delete data</a>
+    </nav>
+  </div>
+</header>
 
-  <header>
-    <div class="wordmark">Bujit <em>for</em></div>
-    <span class="doc-label">CSV Import Reference</span>
-  </header>
+<main>
 
-  <!-- ── ROW TYPES ──────────────────────────────────────── -->
-  <div class="section-label">Row Types</div>
+<h1 class="page-title">CSV Import Reference</h1>
+<p class="lead">Add a whole budget at once: list your accounts, expenses, credit cards and paychecks in
+a CSV file, then import it in Bujit from <strong>Settings → Import from CSV</strong>. Each row
+starts with a tag saying what it adds.</p>
+<div class="button-row">
+  <a class="button" href="bujit_import_template.csv" download>Download the template</a>
+  <a class="button secondary" href="#example">See an example</a>
+</div>
+
+  <p class="section-label">Row Types</p>
 
   <!-- manual_account -->
   <div class="tag-entry">
@@ -476,23 +265,24 @@
   </div>
 
   <!-- ── EXAMPLE ─────────────────────────────────────────── -->
-  <div class="section-label">Example</div>
+  <p class="section-label" id="example">Example</p>
 
   <div class="example-wrap">
     <pre><span class="e-comment"># Bujit CSV Import Template</span>
-<span class="e-comment"># Lines starting with # are ignored during import.</span>
-<span class="e-comment"># Each row is a tag followed by its fields.</span>
+<span class="e-comment"># Lines starting with # are comments and are ignored during import.</span>
+<span class="e-comment"># Each row is a tag followed by its fields. See the in-app reference for details.</span>
 
+<span class="e-comment"># Example</span>
 <span class="e-tag">manual_account</span><span class="e-comma">,</span>My Savings<span class="e-comma">,</span>Savings<span class="e-comma">,</span>0
-<span class="e-tag">expense</span><span class="e-comma">,</span>Rent<span class="e-comma">,</span>2200<span class="e-comma">,</span>2024-01-01<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span><span class="e-opt">Housing</span>
+<span class="e-tag">expense</span><span class="e-comma">,</span>Rent<span class="e-comma">,</span>2200<span class="e-comma">,</span>2024-01-01<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span>Housing
 <span class="e-comment"># Optional last field: an end date, after which the expense stops (inclusive)</span>
-<span class="e-tag">expense</span><span class="e-comma">,</span>Car Payment<span class="e-comma">,</span>350<span class="e-comma">,</span>2024-01-10<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span><span class="e-opt">Transportation</span><span class="e-comma">,</span><span class="e-opt">2028-12-10</span>
+<span class="e-tag">expense</span><span class="e-comma">,</span>Car Payment<span class="e-comma">,</span>350<span class="e-comma">,</span>2024-01-10<span class="e-comma">,</span>1<span class="e-comma">,</span>month<span class="e-comma">,</span>Transportation<span class="e-comma">,</span><span class="e-opt">2028-12-10</span>
 <span class="e-tag">credit</span><span class="e-comma">,</span>Card Name<span class="e-comma">,</span>156<span class="e-comma">,</span>1000<span class="e-comma">,</span>2024-01-15
 <span class="e-tag">income_stream</span><span class="e-comma">,</span>Hardware Store<span class="e-comma">,</span>2500.56<span class="e-comma">,</span>2022-03-15<span class="e-comma">,</span>2<span class="e-comma">,</span>week</pre>
   </div>
 
   <!-- ── FIELD GLOSSARY ──────────────────────────────────── -->
-  <div class="section-label">Field Glossary</div>
+  <p class="section-label">Field Glossary</p>
 
   <div class="ref-table-wrap">
     <table>
@@ -565,10 +355,22 @@
     Use Clear All Data in Settings first if you want a clean slate before importing.
   </div>
 
-  <div class="page-footer">
-    <a href="privacy-policy.html">Privacy Policy</a>
-  </div>
+</main>
 
-</div>
+<footer class="site-footer">
+  <div class="bar">
+    <div class="links">
+      <a href="./">Home</a>
+      <a href="csv-import-reference.html">CSV import reference</a>
+      <a href="bujit_import_template.csv" download>CSV template</a>
+      <a href="privacy-policy.html">Privacy policy</a>
+      <a href="data-deletion.html">Delete your data</a>
+      <a href="https://github.com/Nishian3695/Bujit/issues/new" target="_blank" rel="noopener">Report an issue</a>
+    </div>
+    <div>Bujit is a personal budgeting tool for informational purposes only. It does not constitute financial advice. Balance projections are estimates and should not be relied upon for financial decisions.</div>
+    <div>&copy; 2026 <a href="https://github.com/Nishian3695" target="_blank" rel="noopener">Nishian3695</a></div>
+  </div>
+</footer>
+
 </body>
 </html>

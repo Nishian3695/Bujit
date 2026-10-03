@@ -1,4 +1,5 @@
 // Ported from the Java app's CsvImportHelperTest.
+import 'dart:io';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
@@ -218,5 +219,12 @@ void main() {
         expect(result.streamsAdded, 1);
         expect(result.skipped, 0);
         expect(data.balance.makeRecent(today: today), 0.0); // past dates charge nothing
+    });
+
+    // The website offers the same template as a download (bujit_import_template.csv
+    // at the repo root, served by GitHub Pages); the two must never disagree.
+    test("the website's template matches the app's", () {
+        expect(File("bujit_import_template.csv").readAsStringSync().replaceAll("\r\n", "\n"),
+            CsvImportHelper.template);
     });
 }

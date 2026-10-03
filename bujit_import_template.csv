@@ -1,0 +1,11 @@
+# Bujit CSV Import Template
+# Lines starting with # are comments and are ignored during import.
+# Each row is a tag followed by its fields. See the in-app reference for details.
+
+# Example
+manual_account,My Savings,Savings,0
+expense,Rent,2200,2024-01-01,1,month,Housing
+# Optional last field: an end date, after which the expense stops (inclusive)
+expense,Car Payment,350,2024-01-10,1,month,Transportation,2028-12-10
+credit,Card Name,156,1000,2024-01-15
+income_stream,Hardware Store,2500.56,2022-03-15,2,week
