@@ -1,9 +1,13 @@
 // Widget tests for the home screen's navigation: paging between checks, the
-// add/home button, the drawer, and adding an income stream from it.
+// add/home button, the drawer, adding an income stream from it, and the list's
+// room for the add button.
 import 'package:bujit/app_state.dart';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_activity.dart';
+import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
+import 'package:bujit/utils/date_utils.dart';
+import 'package:bujit/utils/frequency_unit.dart';
 import 'package:bujit/utils/sample_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,5 +84,21 @@ void main() {
         expect(state.balance.incomeStreams.map((s) => s.name), contains("Side Job"));
         // The first stream stays active.
         expect(state.balance.activeIncome!.name, "Main Job");
+    });
+
+    testWidgets("scrolled to the end, the add button doesn't cover the last amount", (tester) async {
+        final AppState state = _sampleState();
+        for (int i = 0; i < 12; i++) {
+            state.balance.expenses.add(ExpenseModel(name: "Extra $i", amount: 100.0 + i,
+                startDate: addDays(todayDate(), 3), frequency: 1, frequencyUnits: FrequencyUnit.monthly));
+        }
+        await tester.pumpWidget(MaterialApp(home: ExpenseActivity(state: state)));
+        await tester.scrollUntilVisible(find.text("Extra 11"), 200);
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -2000)); // to the very end
+        await tester.pumpAndSettle();
+
+        final Rect amount = tester.getRect(find.text("\$111.00"));
+        final Rect button = tester.getRect(find.byType(FloatingActionButton));
+        expect(amount.bottom, lessThanOrEqualTo(button.top));
     });
 }

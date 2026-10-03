@@ -572,15 +572,22 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         onRefresh: _syncBanks,
         child: _onHomeScreen && !_selecting
             ? ReorderableListView.builder(
+                padding: _clearOfAddButton,
                 itemCount: _balance.expenses.length,
                 onReorderItem: _reorder,
                 itemBuilder: (context, index) => _expenseRow(_balance.expenses[index]),
             )
             : ListView.builder(
+                padding: _clearOfAddButton,
                 itemCount: _balance.expenses.length,
                 itemBuilder: (context, index) => _expenseRow(_balance.expenses[index]),
             ),
     );
+
+    // Room below the last row so the floating button never covers its amount when
+    // scrolled to the end (the button is 56 high, 16 above the bottom; the Java app
+    // used the same 88).
+    static const EdgeInsets _clearOfAddButton = EdgeInsets.only(bottom: 88);
 
     // Main activity
     Widget get mainActivity => Column(
