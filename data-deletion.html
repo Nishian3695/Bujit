@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bujit – Delete Your Data</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 720px;
+            margin: 40px auto;
+            padding: 0 20px 60px;
+            color: #222;
+            line-height: 1.7;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 4px; }
+        h2 { font-size: 1.1rem; margin-top: 32px; margin-bottom: 6px; color: #444; }
+        .updated { color: #777; font-size: 0.9rem; margin-bottom: 32px; }
+        a { color: #1a73e8; }
+        hr { border: none; border-top: 1px solid #e0e0e0; margin: 40px 0; }
+        li { margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+
+<h1>Delete Your Data</h1>
+<p class="updated">Bujit (io.github.nishian3695.bujit) · Last updated: October 2, 2026</p>
+
+<p>Bujit keeps your budget on your device. It has no user accounts, and the Bujit server stores
+none of your data, so there is nothing to request from us: you can delete everything yourself,
+right away, as described below.</p>
+
+<h2>1. Delete everything in the app</h2>
+<ol>
+    <li>Open Bujit and go to <strong>Settings</strong> (from the ☰ menu).</li>
+    <li>Under <strong>Data</strong>, tap <strong>Clear all data</strong>, then <strong>Clear Everything</strong>.</li>
+</ol>
+<p>This permanently deletes your expenses, credit cards, income streams, balance, accounts and
+single events. It also disconnects any linked banks, revoking their access with Plaid, and turns
+off Google Tasks sync.</p>
+
+<h2>2. Or uninstall the app</h2>
+<p>Uninstalling Bujit, or clearing its storage in your phone's settings (Android:
+<strong>Settings → Apps → Bujit → Storage → Clear data</strong>), deletes everything the app
+stored on your device. To also revoke bank access with Plaid, disconnect your banks in the app
+first (below), or remove Bujit's access from your
+<a href="https://my.plaid.com/" target="_blank" rel="noopener">Plaid Portal</a>.</p>
+
+<h2>3. Linked banks (Plaid)</h2>
+<p>In Bujit, open <strong>Linked Accounts</strong> and tap the disconnect button to choose banks
+to disconnect. Bujit revokes each one's access token with Plaid and forgets it on your device.
+Data Plaid itself holds is covered by
+<a href="https://plaid.com/legal/#privacy-statement" target="_blank" rel="noopener">Plaid's privacy policy</a>,
+and can be managed from the <a href="https://my.plaid.com/" target="_blank" rel="noopener">Plaid Portal</a>.</p>
+
+<h2>4. Google Tasks</h2>
+<p>In Bujit, open <strong>Settings</strong> and turn off <strong>Sync to Google Tasks</strong>,
+then choose <strong>Remove tasks</strong> to delete the tasks Bujit added. You can also delete the
+"Bujit" list in Google Tasks yourself, and remove Bujit's access to your Google account at
+<a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.</p>
+
+<h2>5. Backups you exported</h2>
+<p>Backups are passphrase-encrypted files saved wherever you chose (for example your device's
+storage or a cloud drive). Delete them there like any other file.</p>
+
+<h2>What isn't kept</h2>
+<p>The Bujit server only passes balance requests through to Plaid; it does not log or retain
+account data. The app signs in to Firebase anonymously to make those requests; that anonymous
+sign-in carries no personal information (no name, email or phone number). If you would like it
+removed as well, or have any other question, open an issue at
+<a href="https://github.com/Nishian3695/Bujit/issues" target="_blank" rel="noopener">github.com/Nishian3695/Bujit/issues</a>.</p>
+
+<hr>
+<p style="font-size:0.85rem; color:#777;"><a href="privacy-policy.html">Privacy Policy</a> &nbsp;|&nbsp; <a href="index.html">← Home</a></p>
+
+</body>
+</html>
