@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/expense_activity/funding_source.dart';
 import '../navigation_items/single_events/single_event_model.dart';
+import 'date_field.dart';
 
 // Returns the draft, or null if cancelled or removed. When editing, Remove asks
 // for confirmation (warning the effect will be undone) and then calls [onRemove].
@@ -108,6 +109,7 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         children: [
                             TextFormField(
                                 controller: _name,
@@ -125,14 +127,16 @@ class _SingleEventDialogState extends State<_SingleEventDialog> {
                                     return (amount == null || amount <= 0) ? "Enter a valid amount" : null;
                                 },
                             ),
-                            const SizedBox(height: 12),
-                            SegmentedButton<bool>(
-                                segments: const [
-                                    ButtonSegment(value: true, label: Text("Debit")),
-                                    ButtonSegment(value: false, label: Text("Credit")),
-                                ],
-                                selected: {_isDebit},
-                                onSelectionChanged: (selection) => setState(() => _isDebit = selection.first),
+                            SizedBox(
+                                width: double.infinity,
+                                child: SegmentedButton<bool>(
+                                    segments: const [
+                                        ButtonSegment(value: true, label: Text("Debit")),
+                                        ButtonSegment(value: false, label: Text("Credit")),
+                                    ],
+                                    selected: {_isDebit},
+                                    onSelectionChanged: (selection) => setState(() => _isDebit = selection.first),
+                                ),
                             ),
                             DropdownButtonFormField<String>(
                                 initialValue: _target.key,

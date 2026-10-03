@@ -12,6 +12,7 @@ import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/banking/manual_account_model.dart';
 import '../navigation_items/expense_activity/balance_model.dart';
 import '../utils/money.dart';
+import 'date_field.dart';
 
 // Updates [balance] and returns true if saved.
 Future<bool> showUpdateBalanceDialog(BuildContext context, BalanceModel balance) async {
@@ -134,6 +135,7 @@ class _UpdateBalanceDialogState extends State<_UpdateBalanceDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                             TextFormField(

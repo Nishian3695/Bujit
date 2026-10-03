@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../navigation_items/banking/manual_account_model.dart';
+import 'date_field.dart';
 
 typedef ManualAccountDraft = ({String name, String accountType, double balance});
 
@@ -81,6 +82,7 @@ class _ManualAccountDialogState extends State<_ManualAccountDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         children: [
                             TextFormField(
                                 controller: _name,

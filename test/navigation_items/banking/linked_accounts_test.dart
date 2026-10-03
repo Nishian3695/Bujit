@@ -153,6 +153,8 @@ void main() {
 
         await tester.tap(find.text("Netflix"));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text("Current Balance")); // the dialog scrolls on a small screen
+        await tester.pumpAndSettle();
         await tester.tap(find.text("Current Balance"));
         await tester.pumpAndSettle();
         await tester.tap(find.text("Everyday Card (card)").last);

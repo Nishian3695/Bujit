@@ -5,6 +5,7 @@ import '../navigation_items/income_streams/income_stream_model.dart';
 import '../utils/date_utils.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
+import 'date_field.dart';
 
 // Returns the created/edited stream, or null if cancelled or deleted. When
 // editing, Delete asks for confirmation and then calls [onDelete].
@@ -72,6 +73,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         children: [
                             TextFormField(
                                 controller: _name,
@@ -92,6 +94,8 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                 },
                             ),
                             Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                spacing: 12,
                                 children: [
                                     Expanded(
                                         child: TextFormField(
@@ -106,26 +110,22 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                             },
                                         ),
                                     ),
-                                    DropdownButton<FrequencyUnit>(
-                                        value: _unit,
-                                        items: FrequencyUnit.values
-                                            .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
-                                            .toList(),
-                                        onChanged: (unit) => setState(() => _unit = unit!),
+                                    Expanded(
+                                        child: DropdownButtonFormField<FrequencyUnit>(
+                                            initialValue: _unit,
+                                            decoration: const InputDecoration(labelText: "Unit"),
+                                            items: FrequencyUnit.values
+                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
+                                                .toList(),
+                                            onChanged: (unit) => setState(() => _unit = unit!),
+                                        ),
                                     ),
                                 ],
                             ),
-                            TextButton(
-                                onPressed: () async {
-                                    final DateTime? picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: _startDate,
-                                        firstDate: DateTime(1900),
-                                        lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) setState(() => _startDate = dateOnly(picked));
-                                },
-                                child: Text("Starting Date: ${shortDate(_startDate)}"),
+                            DateField(
+                                label: "Starting date",
+                                value: _startDate,
+                                onPicked: (date) => setState(() => _startDate = date),
                             ),
                         ],
                     ),

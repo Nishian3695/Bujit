@@ -20,6 +20,11 @@ class ConnectedAccountField extends StatelessWidget {
         required this.onUnlink,
     });
 
+    // Whether the field has anything to show (a link, or accounts to link), so a
+    // form can leave it out rather than space around nothing.
+    static bool shows(List<BankAccountModel> accounts, BankAccountModel? linked) =>
+        linked != null || accounts.isNotEmpty;
+
     static String label(BankAccountModel a) => [
         a.institution,
         "– ${a.displayType}",

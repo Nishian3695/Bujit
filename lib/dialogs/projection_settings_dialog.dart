@@ -6,6 +6,7 @@ import '../navigation_items/expense_activity/projection_settings.dart';
 import '../navigation_items/income_streams/income_stream_model.dart';
 import '../utils/frequency_unit.dart';
 import '../utils/money.dart';
+import 'date_field.dart';
 
 // null = cancelled; a null [settings] = Reset (back to the real paydays).
 typedef ProjectionChoice = ({ProjectionSettings? settings});
@@ -89,6 +90,7 @@ class _ProjectionSettingsDialogState extends State<_ProjectionSettingsDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                             DropdownButtonFormField<int>(
@@ -101,20 +103,30 @@ class _ProjectionSettingsDialogState extends State<_ProjectionSettingsDialog> {
                                 ],
                                 onChanged: (i) => setState(() => _stream = i ?? 0),
                             ),
-                            const SizedBox(height: 12),
-                            const Text("Pay period"),
-                            RadioGroup<bool>(
-                                groupValue: _custom,
-                                onChanged: (custom) => setState(() => _custom = custom ?? false),
-                                child: const Column(
-                                    children: [
-                                        RadioListTile<bool>(value: false, title: Text("The stream's pay period")),
-                                        RadioListTile<bool>(value: true, title: Text("Custom")),
-                                    ],
-                                ),
+                            // The label and its choices, kept together and lined up with the fields.
+                            Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                    Text("Pay period", style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                    RadioGroup<bool>(
+                                        groupValue: _custom,
+                                        onChanged: (custom) => setState(() => _custom = custom ?? false),
+                                        child: const Column(
+                                            children: [
+                                                RadioListTile<bool>(value: false, contentPadding: EdgeInsets.zero,
+                                                    title: Text("The stream's pay period")),
+                                                RadioListTile<bool>(value: true, contentPadding: EdgeInsets.zero,
+                                                    title: Text("Custom")),
+                                            ],
+                                        ),
+                                    ),
+                                ],
                             ),
                             if (_custom)
                                 Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    spacing: 12,
                                     children: [
                                         Expanded(
                                             child: TextFormField(
@@ -127,14 +139,16 @@ class _ProjectionSettingsDialogState extends State<_ProjectionSettingsDialog> {
                                                     : null,
                                             ),
                                         ),
-                                        const SizedBox(width: 12),
-                                        DropdownButton<FrequencyUnit>(
-                                            value: _unit,
-                                            items: [
-                                                for (final MapEntry<FrequencyUnit, String> unit in _units.entries)
-                                                    DropdownMenuItem(value: unit.key, child: Text(unit.value)),
-                                            ],
-                                            onChanged: (unit) => setState(() => _unit = unit ?? _unit),
+                                        Expanded(
+                                            child: DropdownButtonFormField<FrequencyUnit>(
+                                                initialValue: _unit,
+                                                decoration: const InputDecoration(labelText: "Unit"),
+                                                items: [
+                                                    for (final MapEntry<FrequencyUnit, String> unit in _units.entries)
+                                                        DropdownMenuItem(value: unit.key, child: Text(unit.value)),
+                                                ],
+                                                onChanged: (unit) => setState(() => _unit = unit ?? _unit),
+                                            ),
                                         ),
                                     ],
                                 ),

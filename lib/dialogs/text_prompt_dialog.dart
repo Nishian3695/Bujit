@@ -4,6 +4,7 @@
 // animation, which still uses them.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'date_field.dart';
 
 class PromptField {
     final String label;
@@ -82,6 +83,7 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
             content: SingleChildScrollView(
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    spacing: formSpacing,
                     children: [
                         if (widget.message != null) Text(widget.message!),
                         for (int i = 0; i < widget.fields.length; i++)

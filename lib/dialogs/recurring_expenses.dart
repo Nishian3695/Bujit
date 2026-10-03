@@ -8,6 +8,7 @@ import '../utils/category_manager.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 import 'connected_account_field.dart';
+import 'date_field.dart';
 import 'paid_from_field.dart';
 import '../utils/date_utils.dart';
 
@@ -78,7 +79,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     late FrequencyUnit _frequencyUnit = widget.existing?.frequencyUnits ?? FrequencyUnit.values.first;
     late String _category = widget.existing?.category ?? otherCategory;
     // Like the Java app, editing shows the next due date and adding defaults to today.
-    late DateTime _startDate = widget.existing?.currentDueDate ?? _today;
+    late DateTime _startDate = widget.existing?.currentDueDate ?? todayDate();
     // Optional last date (inclusive); null = never ends.
     late DateTime? _endDate = widget.existing?.endDate;
     late bool _remindInTasks = widget.existing?.remindInTasks ?? true;
@@ -94,15 +95,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     }
     // Categories added from this dialog ("New Category"), shown in the dropdown.
     final List<String> _addedCategories = [];
+    int _categoryRevision = 0;
     String? _endDateError;
-
-    static DateTime get _today {
-        final now = DateTime.now();
-        return DateTime(now.year, now.month, now.day);
-    }
-
-    // Formats a date for the button label as YYYY-MM-DD.
-    static String _formatDate(DateTime date) => shortDate(date);
 
     @override
     void dispose() {
@@ -118,16 +112,6 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
         final List<String> items = getCategories([...widget.categories, ..._addedCategories]);
         if (!items.contains(_category)) items.insert(0, _category);
         return items;
-    }
-
-    // Show a date picker and return the selected date, or null if cancelled
-    Future<DateTime?> _selectDate(BuildContext context, DateTime initial) async {
-        return showDatePicker(
-            context: context,
-            initialDate: initial,
-            firstDate: DateTime(1900),
-            lastDate: DateTime(2100),
-        );
     }
 
     // An end date before the start is invalid -- unless neither date was touched
@@ -229,6 +213,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         children: [
                             // Expense name
                             TextFormField(
@@ -268,7 +253,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     return null;
                                 },
                             ),
-                            ConnectedAccountField(
+                            if (ConnectedAccountField.shows(widget.connectable, _linked)) ConnectedAccountField(
                                 accounts: widget.connectable,
                                 linked: _linked,
                                 onPick: (account) => setState(() {
@@ -281,6 +266,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                             ),
                             // Row of (frequency, frequency unit) fields
                             Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                spacing: 12,
                                 children: [
                                     // Frequency count field
                                     Expanded(
@@ -303,50 +290,40 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                         ),
                                     ),
                                     // Frequency unit dropdown
-                                    DropdownButton<FrequencyUnit>(
-                                        value: _frequencyUnit,
-                                        items: FrequencyUnit.values
-                                            .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
-                                            .toList(),
-                                        onChanged: (unit) => setState(() => _frequencyUnit = unit!),
-                                    ),
-                                ],
-                            ),
-                            // Start date picker
-                            TextButton(
-                                onPressed: () async {
-                                    final picked = await _selectDate(context, _startDate);
-                                    if (picked != null) {
-                                        setState(() => _startDate = picked);
-                                    }
-                                },
-                                child: Text("Starting Date: ${_formatDate(_startDate)}"),
-                            ),
-                            // End date picker ("Never" until one is picked; Clear resets it)
-                            Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                    TextButton(
-                                        onPressed: () async {
-                                            final picked = await _selectDate(context, _endDate ?? _startDate);
-                                            if (picked != null) {
-                                                setState(() { _endDate = picked; _endDateError = null; });
-                                            }
-                                        },
-                                        child: Text("Ending Date: ${_endDate == null ? "Never" : _formatDate(_endDate!)}"),
-                                    ),
-                                    if (_endDate != null)
-                                        TextButton(
-                                            onPressed: () => setState(() { _endDate = null; _endDateError = null; }),
-                                            child: const Text("Clear"),
+                                    Expanded(
+                                        child: DropdownButtonFormField<FrequencyUnit>(
+                                            initialValue: _frequencyUnit,
+                                            decoration: const InputDecoration(labelText: "Unit"),
+                                            items: FrequencyUnit.values
+                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
+                                                .toList(),
+                                            onChanged: (unit) => setState(() => _frequencyUnit = unit!),
                                         ),
+                                    ),
                                 ],
                             ),
-                            if (_endDateError != null)
-                                Text(_endDateError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                            // Category dropdown
-                            DropdownButton<String>(
-                                value: _category,
+                            DateField(
+                                label: "Starting date",
+                                value: _startDate,
+                                onPicked: (date) => setState(() => _startDate = date),
+                            ),
+                            // "Never" until one is picked; its clear button resets it.
+                            DateField(
+                                label: "Ending date",
+                                value: _endDate,
+                                placeholder: "Never",
+                                initialPickerDate: _startDate,
+                                errorText: _endDateError,
+                                onPicked: (date) => setState(() { _endDate = date; _endDateError = null; }),
+                                onClear: () => setState(() { _endDate = null; _endDateError = null; }),
+                            ),
+                            // Category dropdown. Keyed by a counter so it shows the
+                            // current category again after "New Category" is picked
+                            // (and then added or cancelled).
+                            DropdownButtonFormField<String>(
+                                key: ValueKey(_categoryRevision),
+                                initialValue: _category,
+                                decoration: const InputDecoration(labelText: "Category"),
                                 items: _currentItems
                                     .map((category) => DropdownMenuItem(value: category, child: Text(category)))
                                     .toList(),
@@ -357,12 +334,13 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                         return;
                                     }
                                     final String? added = await askNewCategory(context);
-                                    if (added != null) {
-                                        setState(() {
+                                    setState(() {
+                                        if (added != null) {
                                             if (!_currentItems.contains(added)) _addedCategories.add(added);
                                             _category = added;
-                                        });
-                                    }
+                                        }
+                                        _categoryRevision++;
+                                    });
                                 },
                             ),
                             PaidFromField(

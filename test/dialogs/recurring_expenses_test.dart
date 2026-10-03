@@ -48,7 +48,8 @@ void main() {
         // Start date defaults to today, like the Java app.
         final now = DateTime.now();
         final today = shortDate(DateTime(now.year, now.month, now.day));
-        expect(find.text("Starting Date: $today"), findsOneWidget);
+        expect(find.text("Starting date"), findsOneWidget);
+        expect(find.text(today), findsOneWidget);
     });
 
     testWidgets("shows Edit title and prefills fields from the existing expense",
@@ -152,9 +153,9 @@ void main() {
     testWidgets("picking a frequency unit updates the dropdown", (tester) async {
         await _openDialog(tester);
 
-        // The frequency-unit dropdown is typed by FrequencyUnit (category's is a
-        // DropdownButton<String>), so it can be found by type directly.
-        await tester.tap(find.byType(DropdownButton<FrequencyUnit>));
+        // The frequency-unit dropdown is typed by FrequencyUnit (the category one
+        // is a DropdownButtonFormField<String>), so it can be found by type directly.
+        await tester.tap(find.byType(DropdownButtonFormField<FrequencyUnit>));
         await tester.pumpAndSettle();
         await tester.tap(find.text("Weekly").last);
         await tester.pumpAndSettle();

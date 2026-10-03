@@ -10,8 +10,8 @@ import '../navigation_items/banking/bank_account_model.dart';
 import '../navigation_items/expense_activity/credit_model.dart';
 import '../navigation_items/expense_activity/funding_source.dart';
 import 'connected_account_field.dart';
+import 'date_field.dart';
 import 'paid_from_field.dart';
-import '../utils/date_utils.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 
@@ -168,6 +168,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                 child: SingleChildScrollView(
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        spacing: formSpacing,
                         children: [
                             TextFormField(
                                 controller: _name,
@@ -179,7 +180,7 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                                     return null;
                                 },
                             ),
-                            ConnectedAccountField(
+                            if (ConnectedAccountField.shows(widget.connectable, _linked)) ConnectedAccountField(
                                 accounts: widget.connectable,
                                 linked: _linked,
                                 onPick: (account) => setState(() {
@@ -191,27 +192,16 @@ class _CreditCardDialogState extends State<_CreditCardDialog> {
                             _moneyField(_balance, "Balance Owed", positive: false),
                             _moneyField(_limit, "Credit Limit", positive: true,
                                 helper: _limitUnknown ? "Your bank didn't report a limit; enter it" : null),
-                            TextButton(
-                                onPressed: () async {
-                                    final DateTime? picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: _dueDate ?? todayDate(),
-                                        firstDate: DateTime(1900),
-                                        lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) {
-                                        setState(() {
-                                            _dueDate = dateOnly(picked);
-                                            _dueDateError = null;
-                                        });
-                                    }
-                                },
-                                child: Text(_dueDate == null
-                                    ? "Next Due Date: pick a date"
-                                    : "Next Due Date: ${shortDate(_dueDate!)}"),
+                            // Blank for a new card, so today isn't saved by accident.
+                            DateField(
+                                label: "Next due date",
+                                value: _dueDate,
+                                errorText: _dueDateError,
+                                onPicked: (date) => setState(() {
+                                    _dueDate = date;
+                                    _dueDateError = null;
+                                }),
                             ),
-                            if (_dueDateError != null)
-                                Text(_dueDateError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                             PaidFromField(
                                 options: widget.sources,
                                 value: _source,

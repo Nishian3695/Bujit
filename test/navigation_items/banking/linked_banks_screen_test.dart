@@ -117,12 +117,12 @@ void main() {
         expect(find.text("Amount syncs from Chase Sapphire …3333"), findsOneWidget);
         expect(find.text("640.25"), findsOneWidget);
         expect(find.text("2000.00"), findsOneWidget);
-        expect(find.text("Next Due Date: pick a date"), findsOneWidget);
+        expect(find.text("Pick a date"), findsOneWidget);
         await tester.tap(find.text("Save"));
         await tester.pumpAndSettle();
         expect(find.text("Pick the next due date"), findsOneWidget);
 
-        await tester.tap(find.text("Next Due Date: pick a date"));
+        await tester.tap(find.text("Pick a date"));
         await tester.pumpAndSettle();
         await tester.tap(find.text("15"));
         await tester.tap(find.text("OK"));
@@ -149,7 +149,7 @@ void main() {
         await tester.tap(find.text("Sapphire …3333"));
         await tester.pumpAndSettle();
         expect(find.text("Amount syncs from Chase Sapphire …3333"), findsOneWidget);
-        await tester.tap(find.text("Next Due Date: pick a date"));
+        await tester.tap(find.text("Pick a date"));
         await tester.pumpAndSettle();
         await tester.tap(find.text("15"));
         await tester.tap(find.text("OK"));
