@@ -13,7 +13,7 @@ name: iOS Release (TestFlight)
 #                            Integrations > App Store Connect API; Admin role)
 #   APPSTORE_API_ISSUER_ID   the Issuer ID shown on that page
 #   APPSTORE_API_KEY_P8      the contents of the downloaded AuthKey_XXXX.p8
-#   APPLE_TEAM_ID            your 10-character Team ID (Membership details)
+#   APPLE_TEAM_ID            optional; defaults to Bujit's Team ID, QY53K7TM87
 #
 # Version: as on Android, the tag without "ios-v" is the version name and
 # major*10000 + minor*1000 + patch the build number (ios-v1.0.3 -> 1.0.3 (10003)).
@@ -81,7 +81,7 @@ jobs:
         env:
           KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'QY53K7TM87' }}
         run: |
           xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
@@ -95,7 +95,7 @@ jobs:
         env:
           KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'QY53K7TM87' }}
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>

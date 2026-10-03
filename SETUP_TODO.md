@@ -133,8 +133,9 @@ release builds pass App Check with Play Integrity.
 ### iPhone bank logins
 For banks that log in on their own site (Chase, Capital One, …), Plaid returns to
 `https://bujit-89ac6.web.app/plaid-oauth`, which opens Bujit. The code is ready:
-1. [ ] **Apple Team ID** (Apple developer account → Membership): send it to me, and
-       I'll put it in [apple-app-site-association](backend/hosting/.well-known/apple-app-site-association).
+1. [x] **Apple Team ID** `QY53K7TM87` is in
+       [apple-app-site-association](backend/hosting/.well-known/apple-app-site-association)
+       and the Xcode project.
 2. [ ] Then deploy hosting: in `backend/`, `firebase deploy --only hosting`.
 3. [ ] **Plaid dashboard → Developers → API → Allowed redirect URIs:** add
        `https://bujit-89ac6.web.app/plaid-oauth`.
@@ -181,16 +182,17 @@ uploaded to Appetize; the run's summary links to it.
       run's summary) so every build replaces the same Appetize app and link.
 
 ### Publishing (needs the Apple developer account, $99/year)
-1. [ ] Enroll in the **Apple Developer Program**.
-2. [ ] Do the [iPhone bank logins](#iphone-bank-logins) steps (Team ID, capabilities,
-       App Check).
+1. [x] Enroll in the **Apple Developer Program** (Team ID `QY53K7TM87`).
+2. [ ] Do the rest of the [iPhone bank logins](#iphone-bank-logins) steps
+       (hosting deploy, capabilities, App Check).
 3. [ ] **App Store Connect → Apps → +:** new iOS app with bundle ID
        `io.github.nishian3695.bujit` (register it under Identifiers first if it
        isn't listed). App names must be unique on the App Store.
 4. [ ] **App Store Connect API key** for releases: Users and Access → Integrations
        → App Store Connect API → **Generate**, role **Admin**. Add repository
        secrets `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`,
-       `APPSTORE_API_KEY_P8` (the .p8 file's contents) and `APPLE_TEAM_ID`.
+       `APPSTORE_API_KEY_P8` (the .p8 file's contents). (`APPLE_TEAM_ID` isn't
+       needed; the workflow already has the Team ID.)
 5. [ ] Push a tag like `ios-v0.5.4` to the release repo:
        [ios-release.yml](.github/workflows/ios-release.yml) builds, signs (Xcode's
        cloud signing) and uploads to **TestFlight**. Its first run may need fixes.
