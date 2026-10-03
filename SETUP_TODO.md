@@ -13,7 +13,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 | Apple Reminders sync | n/a | **Ready**; try it in Appetize |
 | Bank linking (Plaid) | **Works** in release builds | Needs the [Apple setup](#iphone-bank-logins) |
 | Tips | **Works** (Play products exist) | Needs App Store products |
-| Rating | "Rate Bujit" in Settings opens the store page | "Rate Bujit" is greyed out until there's an App Store ID |
+| Rating | "Rate Bujit" in Settings opens the store page | Same, opening the App Store page (Apple ID 6818891149) |
 
 ---
 
@@ -160,12 +160,14 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
   The app never pops up a rating prompt on its own.
 
 **For you (App Store):**
-- [ ] App Store Connect → **Business:** accept the **Paid Apps agreement**, and add
-      tax and bank details.
-- [ ] Create three **Consumable** in-app purchases: `tip_small`, `tip_medium`,
-      `tip_large`. In review notes, say they're tips that unlock nothing.
-- [ ] Once the app record exists, send me its **Apple ID** (App Information) for
-      `appStoreId` in [legal.dart](lib/utils/legal.dart), so "Rate Bujit" works on iPhone.
+- [ ] **Paid Apps agreement**, tax and bank details: on the App Store Connect home
+      page (not inside the app), **Business**
+      (https://appstoreconnect.apple.com/business).
+- [ ] In the app: **Monetization → In-App Purchases → +**, three **Consumable**
+      purchases with product IDs `tip_small` ($0.99), `tip_medium` ($2.99) and
+      `tip_large` ($4.99). In review notes, say they're tips that unlock nothing.
+- [x] The app's **Apple ID** (6818891149) is in [legal.dart](lib/utils/legal.dart),
+      so "Rate Bujit" opens the App Store page.
 
 ---
 
@@ -185,11 +187,13 @@ uploaded to Appetize; the run's summary links to it.
 1. [x] Enroll in the **Apple Developer Program** (Team ID `QY53K7TM87`).
 2. [ ] Do the rest of the [iPhone bank logins](#iphone-bank-logins) steps
        (Plaid redirect URI, capabilities, App Check).
-3. [ ] **App Store Connect → Apps → +:** new iOS app with bundle ID
-       `io.github.nishian3695.bujit` (register it under Identifiers first if it
-       isn't listed). App names must be unique on the App Store.
-4. [ ] **App Store Connect API key** for releases: Users and Access → Integrations
-       → App Store Connect API → **Generate**, role **Admin**. Add repository
+3. [x] **App Store Connect app** created: listed as "Bujit: Budget by Paycheck"
+       ("Bujit" alone was taken; the home screen still says Bujit), bundle ID
+       `io.github.nishian3695.bujit`, Apple ID 6818891149.
+4. [ ] **App Store Connect API key** for releases: Users and Access (on the home
+       page) → **Integrations** tab → App Store Connect API → Team Keys → **+**
+       (https://appstoreconnect.apple.com/access/integrations/api; the first time,
+       **Request Access**), role **Admin**. Add repository
        secrets `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`,
        `APPSTORE_API_KEY_P8` (the .p8 file's contents). (`APPLE_TEAM_ID` isn't
        needed; the workflow already has the Team ID.)

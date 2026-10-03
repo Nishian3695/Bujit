@@ -515,14 +515,11 @@ class _SettingsActivityState extends State<SettingsActivity> {
                                 },
                             ),
                         ),
-                        if (Links.showsRate)
+                        if (Links.canRate)
                             ListTile(
                                 title: const Text("Rate Bujit"),
-                                subtitle: Text(defaultTargetPlatform != TargetPlatform.iOS
-                                    ? "Leave a rating on the Play Store"
-                                    : Links.canRate ? "Leave a rating on the App Store"
-                                    : "Available once Bujit is on the App Store"),
-                                enabled: Links.canRate,
+                                subtitle: Text(defaultTargetPlatform == TargetPlatform.iOS
+                                    ? "Leave a rating on the App Store" : "Leave a rating on the Play Store"),
                                 onTap: () => Links.rate(context),
                             ),
                         const Divider(),

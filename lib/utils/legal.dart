@@ -25,17 +25,12 @@ class Links {
     static const String privacyPolicy = "https://nishian3695.github.io/Bujit/privacy-policy.html";
     static const String plaidPrivacy = "https://plaid.com/legal/#privacy-statement";
     static const String packageName = "io.github.nishian3695.bujit";
-    // The App Store's numeric ID for Bujit, once it has a listing (App Store
-    // Connect > App Information > Apple ID). Until then Rate Bujit is shown on
-    // iPhone but disabled, since there's no page to open.
-    static const String appStoreId = "";
-
-    static bool get showsRate =>
-        defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
+    // The App Store's numeric ID for Bujit (App Store Connect > App Information >
+    // Apple ID), for Rate Bujit on iPhone.
+    static const String appStoreId = "6818891149";
 
     static bool get canRate =>
-        defaultTargetPlatform == TargetPlatform.android ||
-        (defaultTargetPlatform == TargetPlatform.iOS && appStoreId.isNotEmpty);
+        defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
 
     // Rate Bujit (Settings): the store's page for writing a review (Play Store,
     // or the App Store's "Write a Review"), falling back to Play's web page.
