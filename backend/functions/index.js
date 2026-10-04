@@ -193,29 +193,9 @@ async function handlePlaidRequest(req, res, decodedToken) {
       return;
     }
 
-    // GET /plaid/accounts/{id}/balance
-    const balanceMatch = req.path.match(/^\/plaid\/accounts\/([^/]+)\/balance$/);
-    if (req.method === "GET" && balanceMatch) {
-      const accountId = balanceMatch[1];
-      const response = await axios.post(`${baseUrl}/accounts/balance/get`, {
-        client_id: clientId,
-        secret: secret,
-        access_token: accessToken,
-        options: {account_ids: [accountId]},
-      });
-      const accts = response.data.accounts;
-      if (!accts || accts.length === 0) {
-        res.status(404).json({error: "Account not found"});
-        return;
-      }
-      const balances = accts[0].balances;
-      res.json({
-        ledger: balances.current != null ? balances.current.toString() : "—",
-        available: balances.available != null ? balances.available.toString() : "—",
-        limit: balances.limit != null ? balances.limit.toString() : null,
-      });
-      return;
-    }
+    // No route calls Plaid's /accounts/balance/get, which is billed per call: balances
+    // come only from /accounts/get above. (An unused GET /plaid/accounts/{id}/balance
+    // that called it was removed, so no request can run up Plaid charges.)
 
     // TODO: On-the-fly refresh, Layer 2. User-triggered real-time balance refresh with server-side rate limiting.
     //
