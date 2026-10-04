@@ -190,16 +190,18 @@ uploaded to Appetize; the run's summary links to it.
 3. [x] **App Store Connect app** created: listed as "Bujit: Budget by Paycheck"
        ("Bujit" alone was taken; the home screen still says Bujit), bundle ID
        `io.github.nishian3695.bujit`, Apple ID 6818891149.
-4. [ ] **App Store Connect API key** for releases: Users and Access (on the home
+4. [x] **App Store Connect API key** for releases: Users and Access (on the home
        page) → **Integrations** tab → App Store Connect API → Team Keys → **+**
        (https://appstoreconnect.apple.com/access/integrations/api; the first time,
        **Request Access**), role **Admin**. Add repository
        secrets `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID`,
        `APPSTORE_API_KEY_P8` (the .p8 file's contents). (`APPLE_TEAM_ID` isn't
        needed; the workflow already has the Team ID.)
-5. [ ] Push a tag like `ios-v0.5.4` to the release repo:
-       [ios-release.yml](.github/workflows/ios-release.yml) builds, signs (Xcode's
-       cloud signing) and uploads to **TestFlight**. Its first run may need fixes.
+5. [x] **iOS releases:** push a tag like `ios-v0.5.6`:
+       [ios-release.yml](.github/workflows/ios-release.yml) builds, signs for the
+       App Store (no registered iPhone needed), checks the entitlements and uploads
+       to **TestFlight**. First upload: `ios-v0.5.6` (5006). The build number can't
+       be reused, so each upload needs a new version.
 6. [ ] **TestFlight** on a real iPhone: bank linking, Face ID app lock, Apple
        Reminders, a sandbox tip purchase.
 7. [ ] App Store listing:
