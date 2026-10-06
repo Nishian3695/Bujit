@@ -23,6 +23,7 @@ import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/navigation_items/banking/bank_account_model.dart';
 import 'package:bujit/navigation_items/banking/manual_account_model.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
+import 'package:bujit/storage_management/balance_history.dart';
 import 'package:bujit/storage_management/period_snapshot.dart';
 import 'check_window.dart';
 import 'credit_model.dart';
@@ -52,6 +53,9 @@ class CheckSummary {
     double get endBalanceWithNextCheck => endBalance + nextCheckIncome;
 }
 
+// One of the accounts the net balance adds up (see BalanceModel.netAccounts).
+typedef NetAccount = ({String key, String name, double amount});
+
 class BalanceModel {
     // How long a check is when there's no active income stream (the Java app's default).
     static const int fallbackCheckDays = 7;
@@ -65,6 +69,8 @@ class BalanceModel {
     IncomeStreamModel? activeIncome; // The income stream whose paydays define the checks
     // Totals of pay periods that have ended, recorded by makeRecent, for Visuals.
     final List<PeriodSnapshot> snapshots = [];
+    // Each account's balance on each day the app saved, for Visuals' Net Balance.
+    final List<BalanceHistoryEntry> history = [];
     final List<ManualAccountModel> manualAccounts = [];
     final List<BankAccountModel> linkedAccounts = []; // Accounts at linked banks (Plaid)
     // "Additional funds" in Update Balance: money tracked outside any account
@@ -162,9 +168,16 @@ class BalanceModel {
     // After a card is deleted: what was charged to it is paid from the balance.
     void cardRemoved(String name) => _redirectSources(FundingSource.creditCard, name);
 
-    // After a card is renamed: keeps what's charged to it pointing at it.
+    // After a card is renamed: keeps what's charged to it pointing at it, and its history with it.
     void renameCard(String oldName, String newName) {
         if (oldName == newName) return;
+        for (int i = 0; i < history.length; i++) {
+            final BalanceHistoryEntry entry = history[i];
+            if (entry.key == cardKey(oldName)) {
+                history[i] = BalanceHistoryEntry(
+                    date: entry.date, key: cardKey(newName), name: newName, amount: entry.amount);
+            }
+        }
         for (final ExpenseItem expense in expenses) {
             if (expense.source == FundingSource.creditCard && expense.sourceId == oldName) {
                 expense.sourceId = newName;
@@ -272,6 +285,69 @@ class BalanceModel {
         }
         return total;
     };
+
+    // ── Net balance ─────────────────────────────────────────────────────────
+
+    static const String balanceKey = "balance";
+    static String manualKey(String id) => "manual:$id";
+    static String linkedKey(String id) => "linked:$id";
+    static String cardKey(String name) => "card:$name";
+
+    // What the net balance adds up, each counted once: the current balance (which
+    // already includes the accounts that count toward it), the accounts that
+    // don't, and what's owed on cards and linked credit and loan accounts
+    // (negative). A linked credit account that sets a card's amount is that card.
+    List<NetAccount> netAccounts() => [
+        (key: balanceKey, name: "Current Balance", amount: currentBalance),
+        for (final ManualAccountModel account in manualAccounts)
+            if (!account.countsTowardBalance)
+                (key: manualKey(account.id), name: account.name, amount: account.balance),
+        for (final BankAccountModel account in linkedAccounts)
+            if (account.isCash && !account.countsTowardBalance)
+                (key: linkedKey(account.id), name: account.displayName, amount: account.ledger ?? 0.00)
+            else if (!account.isCash && !creditCards.any((c) => c.linkedAccountId == account.id))
+                (key: linkedKey(account.id), name: account.displayName, amount: -(account.ledger ?? 0.00)),
+        for (final CreditModel card in creditCards)
+            (key: cardKey(card.name), name: card.name, amount: -card.amount),
+    ];
+
+    // Records today's (lastUpdated's) balances, replacing any recorded earlier today.
+    void recordHistory() {
+        final DateTime day = lastUpdated;
+        history.removeWhere((entry) => entry.date == day);
+        for (final NetAccount account in netAccounts()) {
+            history.add(BalanceHistoryEntry(date: day, key: account.key, name: account.name, amount: account.amount));
+        }
+    }
+
+    // A what-if copy (Visuals' Net Balance): the same balance, accounts and
+    // paydays, without the expenses and income streams in [excluded]. The items
+    // themselves are shared, so only read from it.
+    BalanceModel excluding(Set<Object> excluded) {
+        final BalanceModel copy = BalanceModel(
+            currentBalance: currentBalance, lastUpdated: lastUpdated, balanceExtra: balanceExtra)
+            ..activeIncome = activeIncome // Still sets the checks, even if its income is left out
+            ..projection = _projection;
+        copy.expenses.addAll(expenses.where((e) => !excluded.contains(e)));
+        copy.incomeStreams.addAll(incomeStreams.where((s) => !excluded.contains(s)));
+        copy.manualAccounts.addAll(manualAccounts);
+        copy.linkedAccounts.addAll(linkedAccounts);
+        return copy;
+    }
+
+    // What leaves the account [source]/[id] in [check]: expenses and card payments
+    // paid from it. Only meaningful for an account that doesn't count toward the
+    // balance (one that does is part of expensesForCheck).
+    double paidFromInCheck(FundingSource source, String id, CheckWindow check) {
+        double total = 0.00;
+        for (final ExpenseItem expense in expenses) {
+            if (expense.source != source || expense.sourceId != id) continue;
+            total += expense is CreditModel
+                ? expense.owedBetween(check.expensesFrom, check.expensesTo, chargesTo(expense))
+                : expense.amountDueInCheck(check);
+        }
+        return total;
+    }
 
     // Methods
 

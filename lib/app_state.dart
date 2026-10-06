@@ -127,6 +127,7 @@ class AppState extends ChangeNotifier {
         final AppDataStore? store = _store;
         if (store == null) return;
         try {
+            data.balance.recordHistory();
             await store.save(data);
         } catch (e, stack) {
             _logger.severe("Saving failed", e, stack);

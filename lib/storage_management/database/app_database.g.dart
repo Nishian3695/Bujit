@@ -5459,6 +5459,353 @@ class LinkedAccountRowsCompanion extends UpdateCompanion<LinkedAccountRow> {
   }
 }
 
+class $BalanceHistoryRowsTable extends BalanceHistoryRows
+    with TableInfo<$BalanceHistoryRowsTable, BalanceHistoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BalanceHistoryRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountKeyMeta = const VerificationMeta(
+    'accountKey',
+  );
+  @override
+  late final GeneratedColumn<String> accountKey = GeneratedColumn<String>(
+    'account_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, date, accountKey, name, amount];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'balance_history_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BalanceHistoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('account_key')) {
+      context.handle(
+        _accountKeyMeta,
+        accountKey.isAcceptableOrUnknown(data['account_key']!, _accountKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountKeyMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {date, accountKey},
+  ];
+  @override
+  BalanceHistoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BalanceHistoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      accountKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_key'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+    );
+  }
+
+  @override
+  $BalanceHistoryRowsTable createAlias(String alias) {
+    return $BalanceHistoryRowsTable(attachedDatabase, alias);
+  }
+}
+
+class BalanceHistoryRow extends DataClass
+    implements Insertable<BalanceHistoryRow> {
+  final int id;
+  final DateTime date;
+  final String accountKey;
+  final String name;
+  final double amount;
+  const BalanceHistoryRow({
+    required this.id,
+    required this.date,
+    required this.accountKey,
+    required this.name,
+    required this.amount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['date'] = Variable<DateTime>(date);
+    map['account_key'] = Variable<String>(accountKey);
+    map['name'] = Variable<String>(name);
+    map['amount'] = Variable<double>(amount);
+    return map;
+  }
+
+  BalanceHistoryRowsCompanion toCompanion(bool nullToAbsent) {
+    return BalanceHistoryRowsCompanion(
+      id: Value(id),
+      date: Value(date),
+      accountKey: Value(accountKey),
+      name: Value(name),
+      amount: Value(amount),
+    );
+  }
+
+  factory BalanceHistoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BalanceHistoryRow(
+      id: serializer.fromJson<int>(json['id']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      accountKey: serializer.fromJson<String>(json['accountKey']),
+      name: serializer.fromJson<String>(json['name']),
+      amount: serializer.fromJson<double>(json['amount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'date': serializer.toJson<DateTime>(date),
+      'accountKey': serializer.toJson<String>(accountKey),
+      'name': serializer.toJson<String>(name),
+      'amount': serializer.toJson<double>(amount),
+    };
+  }
+
+  BalanceHistoryRow copyWith({
+    int? id,
+    DateTime? date,
+    String? accountKey,
+    String? name,
+    double? amount,
+  }) => BalanceHistoryRow(
+    id: id ?? this.id,
+    date: date ?? this.date,
+    accountKey: accountKey ?? this.accountKey,
+    name: name ?? this.name,
+    amount: amount ?? this.amount,
+  );
+  BalanceHistoryRow copyWithCompanion(BalanceHistoryRowsCompanion data) {
+    return BalanceHistoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      date: data.date.present ? data.date.value : this.date,
+      accountKey: data.accountKey.present
+          ? data.accountKey.value
+          : this.accountKey,
+      name: data.name.present ? data.name.value : this.name,
+      amount: data.amount.present ? data.amount.value : this.amount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BalanceHistoryRow(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('accountKey: $accountKey, ')
+          ..write('name: $name, ')
+          ..write('amount: $amount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, date, accountKey, name, amount);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BalanceHistoryRow &&
+          other.id == this.id &&
+          other.date == this.date &&
+          other.accountKey == this.accountKey &&
+          other.name == this.name &&
+          other.amount == this.amount);
+}
+
+class BalanceHistoryRowsCompanion extends UpdateCompanion<BalanceHistoryRow> {
+  final Value<int> id;
+  final Value<DateTime> date;
+  final Value<String> accountKey;
+  final Value<String> name;
+  final Value<double> amount;
+  const BalanceHistoryRowsCompanion({
+    this.id = const Value.absent(),
+    this.date = const Value.absent(),
+    this.accountKey = const Value.absent(),
+    this.name = const Value.absent(),
+    this.amount = const Value.absent(),
+  });
+  BalanceHistoryRowsCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime date,
+    required String accountKey,
+    required String name,
+    required double amount,
+  }) : date = Value(date),
+       accountKey = Value(accountKey),
+       name = Value(name),
+       amount = Value(amount);
+  static Insertable<BalanceHistoryRow> custom({
+    Expression<int>? id,
+    Expression<DateTime>? date,
+    Expression<String>? accountKey,
+    Expression<String>? name,
+    Expression<double>? amount,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (date != null) 'date': date,
+      if (accountKey != null) 'account_key': accountKey,
+      if (name != null) 'name': name,
+      if (amount != null) 'amount': amount,
+    });
+  }
+
+  BalanceHistoryRowsCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? date,
+    Value<String>? accountKey,
+    Value<String>? name,
+    Value<double>? amount,
+  }) {
+    return BalanceHistoryRowsCompanion(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      accountKey: accountKey ?? this.accountKey,
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (accountKey.present) {
+      map['account_key'] = Variable<String>(accountKey.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BalanceHistoryRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('accountKey: $accountKey, ')
+          ..write('name: $name, ')
+          ..write('amount: $amount')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5480,6 +5827,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LinkedItemRowsTable linkedItemRows = $LinkedItemRowsTable(this);
   late final $LinkedAccountRowsTable linkedAccountRows =
       $LinkedAccountRowsTable(this);
+  late final $BalanceHistoryRowsTable balanceHistoryRows =
+      $BalanceHistoryRowsTable(this);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -5496,6 +5845,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     manualAccountRows,
     linkedItemRows,
     linkedAccountRows,
+    balanceHistoryRows,
   ];
 }
 
@@ -8255,6 +8605,215 @@ typedef $$LinkedAccountRowsTableProcessedTableManager =
       LinkedAccountRow,
       PrefetchHooks Function()
     >;
+typedef $$BalanceHistoryRowsTableCreateCompanionBuilder =
+    BalanceHistoryRowsCompanion Function({
+      Value<int> id,
+      required DateTime date,
+      required String accountKey,
+      required String name,
+      required double amount,
+    });
+typedef $$BalanceHistoryRowsTableUpdateCompanionBuilder =
+    BalanceHistoryRowsCompanion Function({
+      Value<int> id,
+      Value<DateTime> date,
+      Value<String> accountKey,
+      Value<String> name,
+      Value<double> amount,
+    });
+
+class $$BalanceHistoryRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $BalanceHistoryRowsTable> {
+  $$BalanceHistoryRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BalanceHistoryRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BalanceHistoryRowsTable> {
+  $$BalanceHistoryRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BalanceHistoryRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BalanceHistoryRowsTable> {
+  $$BalanceHistoryRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get accountKey => $composableBuilder(
+    column: $table.accountKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+}
+
+class $$BalanceHistoryRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BalanceHistoryRowsTable,
+          BalanceHistoryRow,
+          $$BalanceHistoryRowsTableFilterComposer,
+          $$BalanceHistoryRowsTableOrderingComposer,
+          $$BalanceHistoryRowsTableAnnotationComposer,
+          $$BalanceHistoryRowsTableCreateCompanionBuilder,
+          $$BalanceHistoryRowsTableUpdateCompanionBuilder,
+          (
+            BalanceHistoryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $BalanceHistoryRowsTable,
+              BalanceHistoryRow
+            >,
+          ),
+          BalanceHistoryRow,
+          PrefetchHooks Function()
+        > {
+  $$BalanceHistoryRowsTableTableManager(
+    _$AppDatabase db,
+    $BalanceHistoryRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BalanceHistoryRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BalanceHistoryRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BalanceHistoryRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<String> accountKey = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+              }) => BalanceHistoryRowsCompanion(
+                id: id,
+                date: date,
+                accountKey: accountKey,
+                name: name,
+                amount: amount,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime date,
+                required String accountKey,
+                required String name,
+                required double amount,
+              }) => BalanceHistoryRowsCompanion.insert(
+                id: id,
+                date: date,
+                accountKey: accountKey,
+                name: name,
+                amount: amount,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BalanceHistoryRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BalanceHistoryRowsTable,
+      BalanceHistoryRow,
+      $$BalanceHistoryRowsTableFilterComposer,
+      $$BalanceHistoryRowsTableOrderingComposer,
+      $$BalanceHistoryRowsTableAnnotationComposer,
+      $$BalanceHistoryRowsTableCreateCompanionBuilder,
+      $$BalanceHistoryRowsTableUpdateCompanionBuilder,
+      (
+        BalanceHistoryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $BalanceHistoryRowsTable,
+          BalanceHistoryRow
+        >,
+      ),
+      BalanceHistoryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8279,4 +8838,6 @@ class $AppDatabaseManager {
       $$LinkedItemRowsTableTableManager(_db, _db.linkedItemRows);
   $$LinkedAccountRowsTableTableManager get linkedAccountRows =>
       $$LinkedAccountRowsTableTableManager(_db, _db.linkedAccountRows);
+  $$BalanceHistoryRowsTableTableManager get balanceHistoryRows =>
+      $$BalanceHistoryRowsTableTableManager(_db, _db.balanceHistoryRows);
 }

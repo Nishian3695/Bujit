@@ -9,13 +9,23 @@
 // Categories: spending per check by category -- each expense's cost scaled to
 // one pay period (cost x pay-period days / days between occurrences), skipping
 // ended expenses, with credit cards grouped under "Credit Cards".
+//
+// Net Balance: the accounts BalanceModel.netAccounts lists, added up. History
+// is what was recorded each day (BalanceModel.recordHistory); the projection
+// follows the home screen's checks, with a point on each payday just before
+// and just after its paychecks, so the dip before payday shows.
+import '../../storage_management/balance_history.dart';
 import '../../storage_management/period_snapshot.dart';
 import '../../utils/category_manager.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/frequency_unit.dart';
+import '../banking/bank_account_model.dart';
+import '../banking/manual_account_model.dart';
 import '../expense_activity/balance_model.dart';
+import '../expense_activity/check_window.dart';
 import '../expense_activity/credit_model.dart';
 import '../expense_activity/expense_item.dart';
+import '../expense_activity/funding_source.dart';
 import '../income_streams/income_stream_model.dart';
 
 // One pay period's bar pair.
@@ -35,6 +45,28 @@ class CashFlowPeriod {
     });
 
     double get net => income - expenses;
+}
+
+// Every account's balance at one moment of the net balance chart.
+class NetPoint {
+    final DateTime date;
+    final Map<String, double> amounts; // By account key; a missing account is 0
+
+    const NetPoint(this.date, this.amounts);
+
+    // The net balance of the accounts not in [hidden].
+    double total(Set<String> hidden) => amounts.entries
+        .where((e) => !hidden.contains(e.key))
+        .fold(0.00, (sum, e) => sum + e.value);
+}
+
+// An account in the net balance chart's legend.
+class NetLegendItem {
+    final String key;
+    final String name;
+    final double? amount; // Its balance now, or null if it's gone (history only)
+
+    const NetLegendItem(this.key, this.name, this.amount);
 }
 
 class VisualsData {
@@ -159,5 +191,73 @@ class VisualsData {
                 return byAmount != 0 ? byAmount : order.indexOf(a.key).compareTo(order.indexOf(b.key));
             });
         return Map.fromEntries(sorted);
+    }
+
+    // ── Net Balance ─────────────────────────────────────────────────────────
+
+    // Recorded balances from [from] on, one point per day recorded, oldest first.
+    List<NetPoint> netHistory(DateTime from) {
+        final DateTime start = dateOnly(from);
+        final Map<DateTime, Map<String, double>> byDate = {};
+        for (final BalanceHistoryEntry entry in balance.history) {
+            if (entry.date.isBefore(start)) continue;
+            byDate.putIfAbsent(entry.date, () => {})[entry.key] = entry.amount;
+        }
+        final List<DateTime> dates = byDate.keys.toList()..sort();
+        return [for (final DateTime date in dates) NetPoint(date, byDate[date]!)];
+    }
+
+    // Projected balances from [today] (default: now) through the first payday on
+    // or after [until]: today's balances, then on each payday the balances after
+    // the check's expenses and, if paychecks arrive, again after them. The
+    // expenses and income streams in [excluded] are left out.
+    List<NetPoint> netProjection(DateTime until, {DateTime? today, Set<Object> excluded = const {}}) {
+        final DateTime day = dateOnly(today ?? todayDate());
+        final BalanceModel balance = excluded.isEmpty ? this.balance : this.balance.excluding(excluded);
+        final Map<String, double> amounts = {for (final NetAccount a in balance.netAccounts()) a.key: a.amount};
+        final List<NetPoint> points = [NetPoint(day, Map.of(amounts))];
+        // The accounts that pay for things outside the balance (only ones that
+        // don't count toward it are listed, so the others are skipped below).
+        final List<(String, FundingSource, String)> payers = [
+            for (final ManualAccountModel a in balance.manualAccounts)
+                (BalanceModel.manualKey(a.id), FundingSource.manualAccount, a.id),
+            for (final BankAccountModel a in balance.linkedAccounts)
+                (BalanceModel.linkedKey(a.id), FundingSource.linkedAccount, a.id),
+        ];
+        for (int k = 0; k < 1000; k++) {
+            final CheckWindow check = balance.window(k, today: day);
+            amounts[BalanceModel.balanceKey] = amounts[BalanceModel.balanceKey]! - balance.expensesForCheck(check);
+            for (final (String key, FundingSource source, String id) in payers) {
+                final double? amount = amounts[key];
+                if (amount != null) amounts[key] = amount - balance.paidFromInCheck(source, id, check);
+            }
+            for (final CreditModel card in balance.creditCards) {
+                amounts[BalanceModel.cardKey(card.name)] = -card.balanceOn(check.end, balance.chargesTo(card));
+            }
+            points.add(NetPoint(check.end, Map.of(amounts)));
+            final double income = balance.incomeForCheck(balance.window(k + 1, today: day));
+            if (income != 0) {
+                amounts[BalanceModel.balanceKey] = amounts[BalanceModel.balanceKey]! + income;
+                points.add(NetPoint(check.end, Map.of(amounts)));
+            }
+            if (!check.end.isBefore(until)) break;
+        }
+        return points;
+    }
+
+    // The accounts to list: today's, then any only [history] has (gone since),
+    // under the last name recorded for them.
+    List<NetLegendItem> netLegend(List<NetPoint> history) {
+        final List<NetLegendItem> items = [
+            for (final NetAccount a in balance.netAccounts()) NetLegendItem(a.key, a.name, a.amount),
+        ];
+        final Set<String> listed = {for (final NetLegendItem item in items) item.key};
+        final Set<String> inHistory = {for (final NetPoint p in history) ...p.amounts.keys};
+        for (final BalanceHistoryEntry entry in balance.history.reversed) {
+            if (inHistory.contains(entry.key) && listed.add(entry.key)) {
+                items.add(NetLegendItem(entry.key, entry.name, null));
+            }
+        }
+        return items;
     }
 }

@@ -31,6 +31,7 @@ import '../../utils/date_utils.dart';
 import '../../utils/frequency_unit.dart';
 import '../../utils/projector.dart';
 import '../app_data_store.dart';
+import '../balance_history.dart';
 import '../period_snapshot.dart';
 
 class BackupJson {
@@ -73,6 +74,10 @@ class BackupJson {
                 "includeNextCheck": data.includeNextCheck,
                 "singleEventExpiryDays": data.singleEventExpiryDays,
                 "useCommaSeparators": data.useCommaSeparators,
+                "balanceHistory": [
+                    for (final BalanceHistoryEntry h in balance.history)
+                        {"date": _iso(h.date), "key": h.key, "name": h.name, "amount": h.amount},
+                ],
             },
         });
     }
@@ -209,6 +214,15 @@ class BackupJson {
             if (start == null || balance.snapshots.any((s) => s.start == start)) continue;
             balance.snapshots.add(PeriodSnapshot(
                 start: start, totalIncome: _double(o["incomeTotal"]), totalExpenses: _double(o["expenseTotal"])));
+        }
+        final Set<String> recorded = {};
+        for (final Map<String, dynamic> o in _objects(flutter["balanceHistory"])) {
+            final DateTime? date = _date(o["date"]);
+            final String? key = _string(o["key"]);
+            if (date == null || key == null || key.isEmpty) continue;
+            if (!recorded.add("${_iso(date)} $key")) continue;
+            balance.history.add(BalanceHistoryEntry(
+                date: date, key: key, name: _string(o["name"]) ?? "", amount: _double(o["amount"])));
         }
 
         final List<String> categories = [

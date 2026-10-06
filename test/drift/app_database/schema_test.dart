@@ -66,4 +66,20 @@ void main() {
         expect(data.tasksProvider, "google");
         await db.close();
     });
+
+    // Version 4 added balance history: an update starts it empty and can save it.
+    test("upgrading from version 3 starts an empty balance history", () async {
+        final schema = await verifier.schemaAt(3);
+        schema.rawDatabase.execute("INSERT INTO app_meta_rows (id, current_balance, last_updated) "
+            "VALUES (0, 75.0, 1767225600)");
+        final AppDatabase db = AppDatabase(schema.newConnection());
+        final AppDataStore store = AppDataStore(db);
+        final AppData data = (await store.load())!;
+        expect(data.balance.currentBalance, 75.0);
+        expect(data.balance.history, isEmpty);
+        data.balance.recordHistory();
+        await store.save(data);
+        expect((await store.load())!.balance.history.single.amount, 75.0);
+        await db.close();
+    });
 }

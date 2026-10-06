@@ -1,7 +1,9 @@
 // History snapshots (recorded as pay periods end) and the Visuals numbers.
+import 'package:bujit/navigation_items/banking/manual_account_model.dart';
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/credit_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
+import 'package:bujit/navigation_items/expense_activity/funding_source.dart';
 import 'package:bujit/navigation_items/income_streams/income_stream_model.dart';
 import 'package:bujit/navigation_items/visuals/visuals_data.dart';
 import 'package:bujit/utils/date_utils.dart';
@@ -120,6 +122,91 @@ void main() {
             balance.expenses.last.skipToNextDueDate(today: today);
 
             expect(VisualsData(balance, []).categoryAmounts().containsKey("Other"), isFalse);
+        });
+    });
+
+    group("net balance", () {
+        test("the projection dips before each payday and rises after it", () {
+            final points = VisualsData(_balance(), []).netProjection(day(20), today: today);
+
+            expect(points.map((p) => p.date), [today, day(14), day(14), day(28), day(28)]);
+            expect(points.map((p) => p.total(const {})), [
+                closeTo(0.0, 1e-9),
+                closeTo(-75.0, 1e-9), // coffee days 0..14
+                closeTo(925.0, 1e-9), // the day-14 paycheck
+                closeTo(855.0, 1e-9), // coffee days 15..28
+                closeTo(1855.0, 1e-9),
+            ]);
+        });
+
+        test("left-out expenses and income streams drop out of the projection only", () {
+            final balance = _balance();
+            final data = VisualsData(balance, []);
+            final Set<Object> noCoffee = {balance.expenses.single};
+            expect(data.netProjection(day(20), today: today, excluded: noCoffee).map((p) => p.total(const {})),
+                [0.0, 0.0, 1000.0, 1000.0, 2000.0]);
+            final Set<Object> noJob = {balance.incomeStreams.single};
+            final points = data.netProjection(day(20), today: today, excluded: noJob);
+            // Same paydays (the job still sets the checks), but no paychecks.
+            expect(points.map((p) => p.date), [today, day(14), day(28)]);
+            expect(points.map((p) => p.total(const {})), [0.0, -75.0, -145.0]);
+            expect(balance.expenses, hasLength(1)); // The real data is untouched
+        });
+
+        test("accounts outside the balance and cards are projected separately", () {
+            final balance = _balance();
+            final savings = ManualAccountModel(name: "Savings", balance: 500.0);
+            final checking = ManualAccountModel(name: "Checking", balance: 200.0, countsTowardBalance: true);
+            balance.manualAccounts.addAll([savings, checking]);
+            balance.expenses.add(ExpenseModel(name: "Gym", amount: 30.0, startDate: day(3),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly,
+                source: FundingSource.manualAccount, sourceId: savings.id));
+            balance.expenses.add(CreditModel(name: "Card", amount: 300.0, startDate: day(5),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0));
+            balance.expenses.add(ExpenseModel(name: "Books", amount: 10.0, startDate: day(7),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly,
+                source: FundingSource.creditCard, sourceId: "Card"));
+            final data = VisualsData(balance, []);
+
+            // Checking counts toward the balance, so it isn't listed on its own.
+            expect(balance.netAccounts().map((a) => a.key),
+                [BalanceModel.balanceKey, BalanceModel.manualKey(savings.id), BalanceModel.cardKey("Card")]);
+            final payday = data.netProjection(day(10), today: today)[1];
+            expect(payday.date, day(14));
+            expect(payday.amounts[BalanceModel.balanceKey], closeTo(-75.0 - 300.0, 1e-9)); // card paid on day 5
+            expect(payday.amounts[BalanceModel.manualKey(savings.id)], closeTo(470.0, 1e-9));
+            expect(payday.amounts[BalanceModel.cardKey("Card")], closeTo(-10.0, 1e-9)); // charged since
+            expect(payday.total({BalanceModel.cardKey("Card")}), closeTo(95.0, 1e-9));
+        });
+
+        test("history keeps one entry per account per day", () {
+            final balance = _balance()..currentBalance = 100.0;
+            final savings = ManualAccountModel(name: "Savings", balance: 50.0);
+            balance.manualAccounts.add(savings);
+            balance.recordHistory();
+            balance.currentBalance = 120.0;
+            balance.recordHistory(); // Later the same day: replaces
+            balance.manualAccounts.clear();
+            balance.lastUpdated = day(1);
+            balance.recordHistory();
+
+            final data = VisualsData(balance, []);
+            final history = data.netHistory(day(-30));
+            expect(history.map((p) => p.date), [today, day(1)]);
+            expect(history.map((p) => p.total(const {})), [170.0, 120.0]);
+            expect(data.netLegend(history).map((i) => (i.name, i.amount)),
+                [("Current Balance", 120.0), ("Savings", null)]); // gone, but in the history
+        });
+
+        test("renaming a card keeps its history", () {
+            final balance = _balance();
+            balance.expenses.add(CreditModel(name: "Card", amount: 40.0, startDate: day(5),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, creditLimit: 1000.0));
+            balance.recordHistory();
+            balance.renameCard("Card", "Visa");
+
+            final entry = balance.history.singleWhere((h) => h.key == BalanceModel.cardKey("Visa"));
+            expect((entry.name, entry.amount), ("Visa", -40.0));
         });
     });
 }

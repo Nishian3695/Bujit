@@ -125,6 +125,14 @@ class CreditModel extends ExpenseItem {
             : charges(reset, check.expensesTo);
     }
 
+    // Balance owed at the end of [date]: due dates through it are paid (as makeRecent
+    // pays them), leaving the charges made since, through [date].
+    double balanceOn(DateTime date, [ChargesBetween charges = _noCharges]) {
+        final DateTime day = dateOnly(date);
+        final List<DateTime> dues = dueDatesThrough(day);
+        return dues.isEmpty ? amount + charges(_beginning, day) : charges(dues.last, day);
+    }
+
     // Sets the displayed amount and balance for a check, charges included.
     void showCheckWith(CheckWindow check, ChargesBetween charges) {
         toCheck(check);

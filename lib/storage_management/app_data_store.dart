@@ -15,6 +15,7 @@ import 'database/mappers/income_stream_mapper.dart';
 import 'database/mappers/single_event_mapper.dart';
 import '../navigation_items/single_events/single_event_model.dart';
 import '../navigation_items/single_events/single_events_ledger.dart';
+import 'balance_history.dart';
 import 'period_snapshot.dart';
 
 // Everything the app persists, in domain form.
@@ -96,6 +97,9 @@ class AppData {
         balance.snapshots
             ..clear()
             ..addAll(b.snapshots);
+        balance.history
+            ..clear()
+            ..addAll(b.history);
         balance.manualAccounts
             ..clear()
             ..addAll(b.manualAccounts);
@@ -187,6 +191,11 @@ class AppDataStore {
             .get();
         balance.snapshots.addAll(snapshotRows.map((row) => PeriodSnapshot(
             start: row.start, totalIncome: row.totalIncome, totalExpenses: row.totalExpenses)));
+        final historyRows = await (db.select(db.balanceHistoryRows)
+              ..orderBy([(t) => OrderingTerm.asc(t.date), (t) => OrderingTerm.asc(t.id)]))
+            .get();
+        balance.history.addAll(historyRows.map((row) => BalanceHistoryEntry(
+            date: row.date, key: row.accountKey, name: row.name, amount: row.amount)));
 
         final categoryRows = await (db.select(db.categoryRows)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
@@ -270,6 +279,12 @@ class AppDataStore {
                     totalExpenses: snapshot.totalExpenses,
                 ), mode: InsertMode.insertOrReplace);
             }
+            await db.delete(db.balanceHistoryRows).go();
+            await db.batch((batch) => batch.insertAll(db.balanceHistoryRows, [
+                for (final BalanceHistoryEntry entry in balance.history)
+                    BalanceHistoryRowsCompanion.insert(
+                        date: entry.date, accountKey: entry.key, name: entry.name, amount: entry.amount),
+            ], mode: InsertMode.insertOrReplace));
             await db.delete(db.singleEventRows).go();
             for (final SingleEventModel event in data.singleEvents) {
                 event.id = await db.into(db.singleEventRows).insert(event.toInsertCompanion());

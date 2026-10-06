@@ -61,6 +61,7 @@ void seedSampleData(BalanceModel balance, {DateTime? today}) {
     balance.currentBalance = 3500.00;
     balance.lastUpdated = day;
     balance.snapshots.clear();
+    balance.history.clear();
     balance.manualAccounts.clear();
     balance.balanceExtra = 0.00;
 }

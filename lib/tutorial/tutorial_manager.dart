@@ -63,8 +63,9 @@ class TutorialManager {
             "30 days (adjustable in Settings). Until then you can edit or remove them.",
             TutorialScreen.visuals),
         TutorialStep(TutorialScreen.visuals, "visuals_tabs", "Visuals",
-            "Two views of the bigger picture. Cash Flow tracks income and expenses by pay period "
-            "across the year. Categories breaks your spending per check down by type."),
+            "Three views of the bigger picture. Cash Flow tracks income and expenses by pay period "
+            "across the year. Categories breaks your spending per check down by type. Net Balance "
+            "charts your accounts' total, as it was and as it's projected to be."),
         TutorialStep(TutorialScreen.visuals, "cash_flow_chart", "Cash Flow chart",
             "Green = income, red = expenses. GROSS shows both; NET collapses them into one +/- bar. "
             "Each period's numbers are listed below, and ‹ › browse other years.",
