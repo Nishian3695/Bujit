@@ -48,6 +48,10 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
       to the Android OAuth client in Google Cloud Console (Credentials), and its
       **SHA-1 and SHA-256** (Play Console → Test and release → App integrity) to the
       Android app in Firebase → Project settings.
+- [ ] **Play Console URLs:** switch the privacy policy (App content → Privacy policy)
+      and data deletion (App content → Data safety) URLs to
+      `https://bujits.com/privacy-policy.html` and `https://bujits.com/data-deletion.html`.
+      The old github.io ones redirect, so there's no rush.
 - [ ] **Check the update path on your phone** with your real data: data, settings,
       banks (pull down to sync), Google Tasks after signing in again, and a tip.
 - [ ] **When testing is done:** delete the App Check debug tokens in Firebase →
@@ -60,14 +64,15 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 
 ## Website
 
-`https://nishian3695.github.io/Bujit/`: GitHub Pages, built from the root of the
-release repo's `main`. It has the home page, privacy policy, data deletion page,
+`https://bujits.com/` (domain at GoDaddy, DNS pointing at GitHub Pages): GitHub Pages,
+built from the root of the release repo's `main`. The old
+`nishian3695.github.io/Bujit/...` links redirect there. It has the home page, privacy policy, data deletion page,
 CSV import reference and the CSV template (a test keeps it identical to the app's).
 
 - Keep these at the repo root: `index.html`, `privacy-policy.html`,
   `data-deletion.html`, `csv-import-reference.html`, `bujit_import_template.csv`,
-  `site.css`, `site-assets/`, `.nojekyll` and `google47d20b5a7bb30863.html` (Google
-  Search Console's ownership check). Removing them took the site down once and got
+  `site.css`, `site-assets/`, `.nojekyll`, `CNAME` (the custom domain) and
+  `google47d20b5a7bb30863.html` (an older Search Console check). Removing them took the site down once and got
   a release rejected.
 - [ ] Read over the privacy policy and data deletion page; they're your text. The
       deletion page sends requests to GitHub issues (public); add an email if you
@@ -79,7 +84,7 @@ CSV import reference and the CSV template (a test keeps it identical to the app'
 
 **Done:** in project `bujit-89ac6` the Tasks API is on, there are Android, Web and
 iOS OAuth clients (IDs in [lib/config/google_config.dart](lib/config/google_config.dart)),
-the website is verified in Search Console, and the privacy policy has Google's
+`bujits.com` is verified in Search Console (Domain property, DNS TXT record), and the privacy policy has Google's
 Limited Use statement.
 
 **While the consent screen isn't verified,** users see "Google hasn't verified this
@@ -87,9 +92,10 @@ app" and continue with **Advanced → Go to Bujit (unsafe)**; only listed test u
 can sign in, and sign-ins expire after 7 days.
 
 **For you (verification):** in Google Cloud Console → Google Auth Platform:
-- [ ] **Branding:** home page `https://nishian3695.github.io/Bujit/`, privacy policy
-      `https://nishian3695.github.io/Bujit/privacy-policy.html`, authorized domain
-      `nishian3695.github.io` (allow ~24 hours after the Search Console check).
+- [ ] **Branding:** home page `https://bujits.com/`, privacy policy
+      `https://bujits.com/privacy-policy.html`, authorized domain `bujits.com`.
+      (`github.io` addresses can't pass Google's ownership check; that's why the
+      domain was bought.)
 - [ ] **Data Access:** only `https://www.googleapis.com/auth/tasks`. Remove the
       read-only Tasks scope if it's listed; Bujit doesn't use it.
 - [ ] **Audience:** publish to **In production**.

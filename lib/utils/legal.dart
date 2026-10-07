@@ -20,9 +20,9 @@ const String disclaimerAcknowledgement =
 
 class Links {
     static const String helpSuggestions = "https://github.com/Nishian3695/Bujit/issues/new";
-    static const String website = "https://nishian3695.github.io/Bujit/";
-    static const String csvReference = "https://nishian3695.github.io/Bujit/csv-import-reference.html";
-    static const String privacyPolicy = "https://nishian3695.github.io/Bujit/privacy-policy.html";
+    static const String website = "https://bujits.com/";
+    static const String csvReference = "https://bujits.com/csv-import-reference.html";
+    static const String privacyPolicy = "https://bujits.com/privacy-policy.html";
     static const String plaidPrivacy = "https://plaid.com/legal/#privacy-statement";
     static const String packageName = "io.github.nishian3695.bujit";
     // The App Store's numeric ID for Bujit (App Store Connect > App Information >
