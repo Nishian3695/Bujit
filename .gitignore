@@ -49,3 +49,5 @@ backend/.firebase/
 firebase-debug*.log
 
 *.p8
+# Personal notes and reminders, not committed
+TODO.local.md
