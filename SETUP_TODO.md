@@ -103,9 +103,31 @@ can sign in, and sign-ins expire after 7 days.
       task list in the user's Google Tasks and keeps one task per expense and
       paycheck, with its due date, so the user gets Google's reminders. It only
       reads list names (to find its own list) and only changes tasks in that list;
-      the user can remove them when turning sync off."* Add an unlisted YouTube
-      video: Settings → Sync to Google Tasks, the consent screen, and the Bujit list
-      in Google Tasks. Review takes days to weeks.
+      the user can remove them when turning sync off."* Add the demo video's
+      unlisted YouTube link (below). Review takes days to weeks.
+- [ ] **Demo video** (2–4 minutes, phone screen recorder, no narration needed):
+  - *Before:* turn off Settings → Sync to Google Tasks, and remove Bujit at
+    myaccount.google.com/connections (Delete all connections) so the consent screen
+    shows again. Have a couple of recurring expenses, and the Google Tasks app.
+  - *Record, in one take:*
+    1. Open Bujit (name and icon visible) → Settings.
+    2. Turn on **Sync to Google Tasks**, pick the account.
+    3. "Google hasn't verified this app": **Advanced → Go to Bujit**.
+    4. **The consent screen**: hold ~3 seconds so "Bujit" and "Create, edit,
+       organize, and delete all your tasks" are readable; then Allow.
+    5. Back in Bujit, sync is on; tap **Sync now**.
+    6. Open a recurring expense: **Remind me on its due date** is on.
+    7. Google Tasks → the **Bujit** list: one task per bill, with due dates
+       (*create*).
+    8. In Bujit, change a bill's due date or name, **Sync now**; the task updates
+       (*edit*).
+    9. Delete a bill in Bujit, **Sync now**; its task is gone (*delete*: why the
+       full Tasks scope, not read-only).
+    10. Optional: turn sync off.
+  - *Optional opener:* a few seconds of Cloud Console → Google Auth Platform →
+    Clients with the Android client ID visible (PC: Win+Alt+R records the screen;
+    join clips in Photos/Clipchamp). Google sometimes asks for it with mobile apps.
+  - *Upload:* YouTube → Create → Upload, visibility **Unlisted**.
 - [ ] **Keep clients in use:** Google deletes OAuth clients unused for ~6 months
       (likely why the Java app's clients vanished).
 
