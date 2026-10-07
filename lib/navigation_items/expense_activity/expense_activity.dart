@@ -311,16 +311,21 @@ class ExpenseActivityState extends State<ExpenseActivity> {
     static String _money(double value) => Money.format(value);
     static String _date(DateTime date) => shortDate(date);
 
-    // "Synced today at 3:04 PM" / "Synced Oct 2 at 3:04 PM" under the balance, while
-    // linked accounts make it up (the Java app's sync label).
-    String? get _syncLabel {
-        final DateTime? time = _state.data.lastBankSync;
-        if (time == null || !_balance.linkedAccounts.any((a) => a.countsTowardBalance)) return null;
-        final DateTime now = DateTime.now();
-        final int hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-        final String clock = "$hour:${time.minute.toString().padLeft(2, "0")} ${time.hour < 12 ? "AM" : "PM"}";
-        final bool today = time.year == now.year && time.month == now.month && time.day == now.day;
-        return today ? "Synced today at $clock" : "Synced ${shortDate(time, today: now)} at $clock";
+    // The check's credits: every income stream's paychecks in it (on this check,
+    // including the one that already arrived) plus one-time credits made in it.
+    double get _credits {
+        final window = _summary.window;
+        if (!window.isCurrent) return _summary.income;
+        return _balance.periodIncome(window.start, window.end) +
+            _state.data.singleEventsLedger.balanceTotalsSince(window.start).credits;
+    }
+
+    // The check's debits: what's due from the balance (the expense list's total,
+    // as After This Check counts it) plus, on this check, one-time debits made in it.
+    double get _debits {
+        final window = _summary.window;
+        if (!window.isCurrent) return _summary.expensesDue;
+        return _summary.expensesDue + _state.data.singleEventsLedger.balanceTotalsSince(window.start).debits;
     }
 
     // The Java app's check bar: a card in the accent color with ◀ the check ▶, and
@@ -385,42 +390,31 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         final bool nextCheck = _state.data.includeNextCheck;
         final double after = nextCheck ? _summary.endBalanceWithNextCheck : _summary.endBalance;
         final ColorScheme scheme = Theme.of(context).colorScheme;
-        final String? syncLabel = _syncLabel;
         return Card(
             margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-                children: [
-                    IntrinsicHeight(
-                        child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                                Expanded(
-                                    child: Tooltip(
-                                        message: _onHomeScreen ? "Update balance" : "",
-                                        child: InkWell(
-                                            onTap: _onHomeScreen ? _updateBalance : null,
-                                            onLongPress: _onHomeScreen ? _updateBalance : null,
-                                            child: _balanceFigure("CURRENT BALANCE", _summary.startBalance,
-                                                scheme.primary),
-                                        ),
-                                    ),
+            child: IntrinsicHeight(
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                        Expanded(
+                            child: Tooltip(
+                                message: _onHomeScreen ? "Update balance" : "",
+                                child: InkWell(
+                                    onTap: _onHomeScreen ? _updateBalance : null,
+                                    onLongPress: _onHomeScreen ? _updateBalance : null,
+                                    child: _balanceFigure("CURRENT BALANCE", _summary.startBalance,
+                                        scheme.primary),
                                 ),
-                                const VerticalDivider(width: 1, indent: 12, endIndent: 12),
-                                Expanded(
-                                    child: _balanceFigure(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK", after,
-                                        BujitColors.of(context).forAmount(after)),
-                                ),
-                            ],
+                            ),
                         ),
-                    ),
-                    if (syncLabel != null)
-                        Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(syncLabel, style: TextStyle(fontSize: 11,
-                                color: scheme.onSurface.withValues(alpha: 0.6))),
+                        const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+                        Expanded(
+                            child: _balanceFigure(nextCheck ? "NEXT CHECK" : "AFTER THIS CHECK", after,
+                                BujitColors.of(context).forAmount(after)),
                         ),
-                ],
+                    ],
+                ),
             ),
         );
     }
@@ -476,18 +470,52 @@ class ExpenseActivityState extends State<ExpenseActivity> {
         ],
     );
 
-    // Expense list header, over the rows' name (with its details) and amount.
+    // Expense list header: the check's credits, debits and net, then the column labels
+    // over the rows' name (with its details) and amount.
     Widget get expenseListHeader {
         final TextStyle style = TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.9,
             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55));
+        final BujitColors colors = BujitColors.of(context);
+        final double credits = _credits, debits = _debits, net = credits - debits;
         return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-            child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Text("EXPENSE", style: style), Text("AMOUNT", style: style)],
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            child: Column(
+                children: [
+                    // Equal thirds, so Debits sits in the middle whatever the amounts' widths.
+                    Row(
+                        children: [
+                            Expanded(child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: _totalLabel("Credits", "+${_money(credits)}", colors.positive))),
+                            Expanded(child: Center(
+                                child: _totalLabel("Debits", "−${_money(debits)}", colors.negative))),
+                            Expanded(child: Align(
+                                alignment: Alignment.centerRight,
+                                child: _totalLabel("Net", "${net < 0 ? "−" : "+"}${_money(net.abs())}",
+                                    colors.forAmount(net)))),
+                        ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [Text("EXPENSE", style: style), Text("AMOUNT", style: style)],
+                    ),
+                ],
             ),
         );
     }
+
+    // One line, shrunk to fit its third of a narrow screen rather than wrapping.
+    Widget _totalLabel(String label, String value, Color color) => FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text.rich(TextSpan(
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            children: [
+                TextSpan(text: "$label "),
+                TextSpan(text: value, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+            ],
+        )),
+    );
 
     // The Java app's Rate column: the amount per period ("$15.99/mo", "$40.00/2wk").
     // A card has no fixed rate, so it shows what it owes as of this check

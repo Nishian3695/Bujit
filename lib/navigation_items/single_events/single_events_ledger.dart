@@ -69,6 +69,28 @@ class SingleEventsLedger {
         return before - events.length;
     }
 
+    // Credits and debits (both positive) of the events made on or after [from]
+    // that moved currentBalance -- not those on a card, whose payment the
+    // check's expenses already count, or on an account outside the balance.
+    ({double credits, double debits}) balanceTotalsSince(DateTime from) {
+        double credits = 0.00, debits = 0.00;
+        for (final SingleEventModel event in events) {
+            if (event.createdDate.isBefore(dateOnly(from)) || !_hitsBalance(event)) continue;
+            if (event.isDebit) {
+                debits += event.amount;
+            } else {
+                credits += event.amount;
+            }
+        }
+        return (credits: credits, debits: debits);
+    }
+
+    bool _hitsBalance(SingleEventModel event) => switch (event.target) {
+        EventTarget.balance => true,
+        EventTarget.creditCard => false,
+        EventTarget.manualAccount => balance.manualAccount(event.targetId)?.countsTowardBalance ?? false,
+    };
+
     // What an event can be applied to: the balance, manual accounts, then cards.
     List<SourceOption> get targets => [
         SourceOption.currentBalance,

@@ -1,5 +1,5 @@
 // The home screen's remaining Java features: multi-select (Select, Select All,
-// Delete), the rows' rate/end/link/utilization details, the bank sync line, and
+// Delete), the rows' rate/end/link/utilization details, the credits/debits line, and
 // the first-launch disclaimer before the tutorial. Starts from the tutorial's
 // sample data: Rent $850 (in 2 days), Netflix $15.99 (5), Electric Bill $110 (9),
 // and cards Everyday ($450 of $2000), Travel ($1200 of $3000), Hobby ($6000 of $6200).
@@ -9,10 +9,12 @@ import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_activity.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
 import 'package:bujit/navigation_items/expense_activity/funding_source.dart';
+import 'package:bujit/navigation_items/single_events/single_event_model.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/storage_management/database/app_database.dart';
 import 'package:bujit/utils/date_utils.dart';
 import 'package:bujit/utils/frequency_unit.dart';
+import 'package:bujit/utils/money.dart';
 import 'package:bujit/utils/sample_data.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -156,20 +158,33 @@ void main() {
         });
     });
 
-    testWidgets("the sync line shows while linked accounts make up the balance", (tester) async {
+    testWidgets("credits and debits sum the check's income, expenses and this period's single events",
+        (tester) async {
         final AppState state = _sampleState();
-        state.balance.linkedAccounts.add(BankAccountModel(id: "chk", itemKey: "k", name: "Checking",
-            type: "depository", ledger: 100.0, countsTowardBalance: true));
-        final DateTime now = DateTime.now();
-        state.data.lastBankSync = DateTime(now.year, now.month, now.day, 15, 4);
+        state.data.singleEventsLedger
+            ..add(SingleEventModel(name: "Refund", amount: 25.0, isDebit: false))
+            ..add(SingleEventModel(name: "Lunch", amount: 5.0, isDebit: true))
+            // On a card: its payment is already among the expenses, so it isn't counted again.
+            ..add(SingleEventModel(name: "Gift", amount: 10.0, isDebit: true,
+                target: EventTarget.creditCard, targetName: "Everyday Card"));
         await _pumpHome(tester, state);
 
-        expect(find.text("Synced today at 3:04 PM"), findsOneWidget);
+        final BalanceModel balance = state.balance;
+        final CheckSummary current = balance.check(0);
+        final double credits = balance.periodIncome(current.window.start, current.window.end) + 25.0;
+        final double debits = current.expensesDue + 5.0;
+        expect(find.text("Credits +${Money.format(credits)}", findRichText: true), findsOneWidget);
+        expect(find.text("Debits −${Money.format(debits)}", findRichText: true), findsOneWidget);
+        final double net = credits - debits;
+        expect(find.text("Net ${net < 0 ? "−" : "+"}${Money.format(net.abs())}", findRichText: true),
+            findsOneWidget);
 
-        state.balance.linkedAccounts.single.countsTowardBalance = false;
-        await state.changed();
+        // A projected check: its income and what's due in it, without single events.
+        await tester.tap(find.byTooltip("Next check"));
         await tester.pump();
-        expect(find.textContaining("Synced"), findsNothing);
+        final CheckSummary next = balance.check(1);
+        expect(find.text("Credits +${Money.format(next.income)}", findRichText: true), findsOneWidget);
+        expect(find.text("Debits −${Money.format(next.expensesDue)}", findRichText: true), findsOneWidget);
     });
 
     group("first launch", () {
