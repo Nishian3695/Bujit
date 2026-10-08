@@ -118,8 +118,12 @@ void main() {
             expect(checking.isCash, isTrue);
             expect(data.balance.linkedAccount("cc")!.limit, isNull);
             expect(data.lastBankSync, noon);
-            // Nothing counts toward the balance until picked.
-            expect(data.balance.currentBalance, 1000.0);
+            // Its bank accounts make up the balance right away; cards and loans don't.
+            expect(checking.countsTowardBalance, isTrue);
+            expect(data.balance.linkedAccount("sav")!.countsTowardBalance, isTrue);
+            expect(data.balance.linkedAccount("cc")!.countsTowardBalance, isFalse);
+            expect(data.balance.linkedAccount("car")!.countsTowardBalance, isFalse);
+            expect(data.balance.currentBalance, 2500.5 + 10000.0);
             // Every call carries the Firebase tokens; account calls the access token.
             final http.Request accountsCall = backend.requests.firstWhere((r) => r.url.path == "/plaid/accounts");
             expect(accountsCall.headers["X-Plaid-Token"], "access-1");
@@ -153,7 +157,7 @@ void main() {
         });
 
         test("without linked accounts in the balance, syncing leaves it alone", () async {
-            data.balance.currentBalance = 777.0;
+            data.balance.setBalanceTyped(777.0, 0.0);
             await service.refresh(data, force: true, now: noon);
             expect(data.balance.currentBalance, 777.0);
         });
@@ -237,6 +241,7 @@ void main() {
             backend.nextAccessToken = "access-2";
             backend.accounts["access-2"] = [
                 _account("chk-2", "depository", "checking", "1111", 2600, name: "Checking"),
+                _account("sav-2", "depository", "savings", "2222", 10000, name: "Savings"),
             ];
 
             await service.linkBank(data, replacing: old, now: noon);
@@ -245,6 +250,8 @@ void main() {
             expect(backend.removed, ["access-1"]);
             expect(data.balance.linkedAccount("chk"), isNull);
             expect(data.balance.linkedAccount("chk-2")!.countsTowardBalance, isTrue);
+            // Taken out of the balance before, so it stays out.
+            expect(data.balance.linkedAccount("sav-2")!.countsTowardBalance, isFalse);
             expect(rent.sourceId, "chk-2");
             expect(data.balance.currentBalance, 2600.0);
         });
@@ -282,11 +289,12 @@ void main() {
 
         test("isn't deducted here when it comes due: the bank's balance shows it at the next sync", () {
             data.balance.makeRecent(today: DateTime(2026, 10, 16));
-            expect(data.balance.currentBalance, 1000.0);
+            expect(data.balance.currentBalance, 2500.5 + 10000.0);
         });
 
         test("counts in projections only if the account is part of the balance", () {
             final window = data.balance.window(0, today: DateTime(2026, 10, 14));
+            data.balance.setBalanceFromAccounts({"sav"}, 0.0);
             expect(data.balance.hitsBalance(rent), isFalse);
             data.balance.setBalanceFromAccounts({"chk"}, 0.0);
             expect(data.balance.hitsBalance(rent), isTrue);

@@ -24,7 +24,8 @@ class BankAccountModel {
     double? ledger; // Current balance (what a card or loan owes)
     double? available;
     double? limit; // Credit limit, when the bank reports one
-    // Picked "From Accounts" in Update Balance: its balance is part of the current balance.
+    // Its balance is part of the current balance: on from linking for bank accounts,
+    // and changed "From Accounts" in Update Balance.
     bool countsTowardBalance;
 
     BankAccountModel({
@@ -45,6 +46,8 @@ class BankAccountModel {
     bool get isLoan => type.toLowerCase() == "loan";
     // Money you have (what can make up the balance or pay for things), not money owed.
     bool get isCash => !isCredit && !isLoan;
+    // A bank account (checking, savings), not investments: counted in the balance when linked.
+    bool get isDepository => type.toLowerCase() == "depository";
 
     // "Depository – Checking", as in the Java app.
     String get displayType {

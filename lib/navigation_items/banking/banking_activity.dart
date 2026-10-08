@@ -1,8 +1,9 @@
 // Mirrors NavigationItems/Banking/BankingActivity.java in the original Java app:
 // the Linked Accounts screen. Banks linked through Plaid (link, reconnect an
 // expired one, pull to sync, disconnect) and "My Accounts", the manual accounts
-// (add/edit/delete). Which accounts make up the current balance is chosen in
-// Update Balance on the home screen ("From Accounts"), as in the Java app.
+// (add/edit/delete). A newly linked bank's checking and savings accounts make up
+// the current balance; which accounts do is changed in Update Balance on the
+// home screen ("From Accounts"), as in the Java app.
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import '../../utils/money.dart';
@@ -49,9 +50,10 @@ class _BankingActivityState extends State<BankingActivity> {
             final Set<String> before = {for (final a in _balance.linkedAccounts) a.id};
             final String? institution = await widget.state.linkBank(replacing: replacing);
             if (institution != null) {
-                messenger.showSnackBar(SnackBar(content: Text(
-                    "${institution.isEmpty ? "Bank" : institution} linked. Pick its accounts for your balance "
-                    "with \"From Accounts\" when you update it.")));
+                messenger.showSnackBar(SnackBar(content: Text(replacing == null
+                    ? "${institution.isEmpty ? "Bank" : institution} linked. Its bank accounts are now your "
+                        "current balance; change which count with \"From Accounts\" when you update it."
+                    : "${institution.isEmpty ? "Bank" : institution} reconnected.")));
                 if (replacing == null) {
                     newCards = [
                         for (final BankAccountModel a in _balance.linkedAccounts)

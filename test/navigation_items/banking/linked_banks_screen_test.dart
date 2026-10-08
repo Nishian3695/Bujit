@@ -180,9 +180,12 @@ void main() {
         expect(saved, isNull);
     });
 
-    testWidgets("From Accounts offers linked checking and savings, not cards", (tester) async {
+    testWidgets("a linked bank's checking makes up the balance; From Accounts offers it, not cards",
+        (tester) async {
         final AppState state = _sampleState();
         await state.linkBank();
+        expect(state.balance.linkedAccount("chk")!.countsTowardBalance, isTrue);
+        expect(state.balance.currentBalance, 2500.0);
         await tester.pumpWidget(MaterialApp(home: ExpenseActivity(state: state)));
 
         await tester.tap(find.text("CURRENT BALANCE"));
@@ -191,14 +194,14 @@ void main() {
         await tester.tap(find.text("From Accounts"));
         await tester.pumpAndSettle();
         expect(find.text("Chase Sapphire …3333"), findsNothing);
-        await tester.tap(find.text("Chase Checking …1111"));
+        await tester.tap(find.text("Chase Checking …1111")); // already picked: this takes it out
         await tester.tap(find.text("OK"));
         await tester.pumpAndSettle();
         await tester.tap(find.text("Save"));
         await tester.pumpAndSettle();
 
-        expect(state.balance.currentBalance, 2500.0);
-        expect(state.balance.linkedAccount("chk")!.countsTowardBalance, isTrue);
+        expect(state.balance.linkedAccount("chk")!.countsTowardBalance, isFalse);
+        expect(state.balance.currentBalance, 0.0);
     });
 
     testWidgets("an expense's amount can come from a connected card or loan", (tester) async {

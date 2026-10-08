@@ -1,7 +1,8 @@
 // Linked banks (the Java app's BankingActivity/BankingPrefs logic plus its balance
 // syncs in ExpenseActivity and CreditUtilActivity), kept apart from the screens
 // so it can be tested against a fake backend:
-//   - linking a bank through Plaid Link, and reconnecting an expired one;
+//   - linking a bank through Plaid Link (its bank accounts count toward the
+//     balance from the start), and reconnecting an expired one;
 //   - syncing balances: at most every 15 minutes on opening, or on demand
 //     (pull to refresh). Linked accounts picked for the balance set it (with
 //     counted manual accounts and additional funds), and items linked to an
@@ -57,6 +58,11 @@ class BankingService {
         final BalanceModel balance = data.balance;
         data.linkedItems.add(item);
         balance.linkedAccounts.addAll(accounts);
+        // Its bank accounts (checking, savings) make up the current balance right
+        // away; reconnected ones keep their earlier setting below.
+        for (final BankAccountModel account in accounts) {
+            account.countsTowardBalance = account.isDepository;
+        }
         if (replacing != null) {
             final List<BankAccountModel> old =
                 balance.linkedAccounts.where((a) => a.itemKey == replacing.key).toList();
