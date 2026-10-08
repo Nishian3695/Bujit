@@ -19,7 +19,7 @@ const String disclaimerAcknowledgement =
     "reflect real-time data, projections are estimates, and should not be relied upon for financial decisions.";
 
 class Links {
-    static const String helpSuggestions = "https://github.com/Nishian3695/Bujit/issues/new";
+    static const String helpSuggestions = "https://bujits.com/support.html";
     static const String website = "https://bujits.com/";
     static const String csvReference = "https://bujits.com/csv-import-reference.html";
     static const String privacyPolicy = "https://bujits.com/privacy-policy.html";

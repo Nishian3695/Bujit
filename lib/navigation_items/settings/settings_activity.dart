@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../app_state.dart';
 import '../../dialogs/text_prompt_dialog.dart';
@@ -572,10 +573,37 @@ class _SettingsActivityState extends State<SettingsActivity> {
                         _link("Privacy Policy", "", Links.privacyPolicy),
                         _link("Plaid Legal and Privacy Policy", "Third-party banking data provider", Links.plaidPrivacy),
                         ListTile(title: const Text("Disclaimer"), onTap: _showDisclaimer),
+                        const _AppVersion(),
                     ],
                     ),
                 ),
             ),
+        );
+    }
+}
+
+// The bottom of Settings: "Bujit 0.5.9 (5009)", for support requests (the
+// website's problem form asks for it). Nothing shows if the version can't be read.
+class _AppVersion extends StatelessWidget {
+    const _AppVersion();
+
+    static final Future<PackageInfo> _info = PackageInfo.fromPlatform();
+
+    @override
+    Widget build(BuildContext context) {
+        return FutureBuilder<PackageInfo>(
+            future: _info,
+            builder: (context, snapshot) {
+                final PackageInfo? info = snapshot.data;
+                if (info == null) return const SizedBox(height: 24);
+                return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: Text(
+                        "Bujit ${info.version} (${info.buildNumber})",
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                );
+            },
         );
     }
 }
