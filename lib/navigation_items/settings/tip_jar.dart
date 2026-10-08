@@ -1,5 +1,6 @@
 // The tip jar (the Java app's SettingsActivity Play Billing code): three one-time
-// tips, sold as consumable in-app products tip_small, tip_medium and tip_large.
+// tips, sold as consumable in-app products tip_small (tip_small_ios on the App
+// Store), tip_medium and tip_large.
 // Prices come from the store; a finished purchase is completed (consumed, so it
 // can be bought again) and thanked. TipStore wraps the store so tests can fake it.
 import 'dart:async';
@@ -7,14 +8,21 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 enum Tip {
-    small("tip_small", "☕", "\$0.99"),
+    // On the App Store the small tip is tip_small_ios: tip_small was deleted there,
+    // and Apple never lets a product ID be used again.
+    small("tip_small", "☕", "\$0.99", iosProductId: "tip_small_ios"),
     medium("tip_medium", "🍕", "\$2.99"),
     large("tip_large", "❤️", "\$4.99");
 
-    const Tip(this.productId, this.emoji, this.defaultPrice);
-    final String productId;
+    const Tip(this._productId, this.emoji, this.defaultPrice, {this.iosProductId});
+    final String _productId;
+    final String? iosProductId; // When the App Store's ID differs
     final String emoji;
     final String defaultPrice; // Shown until the store's (local) price arrives
+
+    // This platform's store ID for the tip.
+    String get productId =>
+        defaultTargetPlatform == TargetPlatform.iOS ? (iosProductId ?? _productId) : _productId;
 }
 
 abstract class TipStore {

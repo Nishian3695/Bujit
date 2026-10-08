@@ -8,6 +8,7 @@ import 'package:bujit/navigation_items/settings/settings_activity.dart';
 import 'package:bujit/navigation_items/settings/tip_jar.dart';
 import 'package:bujit/storage_management/app_data_store.dart';
 import 'package:bujit/utils/sample_data.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -118,5 +119,17 @@ void main() {
         expect(find.textContaining("Owed  \$7650.00", findRichText: true), findsOneWidget);
         expect(find.textContaining("Total limit  \$11200.00", findRichText: true), findsOneWidget);
         expect(find.text("68%"), findsOneWidget);
+    });
+
+    test("the small tip uses its own product ID on the App Store", () {
+        expect(Tip.small.productId, "tip_small");
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        try {
+            expect(Tip.small.productId, "tip_small_ios"); // tip_small can't be reused there
+            expect(Tip.medium.productId, "tip_medium");
+            expect(Tip.large.productId, "tip_large");
+        } finally {
+            debugDefaultTargetPlatformOverride = null;
+        }
     });
 }

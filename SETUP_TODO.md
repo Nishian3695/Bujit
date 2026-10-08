@@ -182,8 +182,10 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
 
 ## Tips and ratings
 
-- **Tips** sell `tip_small`, `tip_medium` and `tip_large` (one-time, consumable).
-  On Play they already exist. Purchases only work in builds installed from a store.
+- **Tips** sell `tip_small`, `tip_medium` and `tip_large` (one-time, consumable);
+  on the App Store the small one is `tip_small_ios` (`tip_small` was deleted there,
+  and Apple never allows a product ID again, even after deletion). On Play they
+  already exist. Purchases only work in builds installed from a store.
 - **Rating:** only "Rate Bujit" in Settings, which opens the store's review page.
   The app never pops up a rating prompt on its own.
 
@@ -192,8 +194,8 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
       page (not inside the app), **Business**
       (https://appstoreconnect.apple.com/business).
 - [ ] In the app: **Monetization → In-App Purchases → +**, three **Consumable**
-      purchases with product IDs `tip_small` ($0.99), `tip_medium` ($2.99) and
-      `tip_large` ($4.99). In review notes, say they're tips that unlock nothing.
+      purchases with product IDs `tip_small_ios` ($0.99), `tip_medium` ($2.99) and
+      `tip_large` ($4.99). Never delete one: its ID can't be used again. In review notes, say they're tips that unlock nothing.
 - [x] The app's **Apple ID** (6818891149) is in [legal.dart](lib/utils/legal.dart),
       so "Rate Bujit" opens the App Store page.
 
