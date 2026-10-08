@@ -223,6 +223,47 @@ main.narrow { max-width: 760px; }
 .card-desc { font-size: 0.85rem; color: var(--ink-2); }
 .card-chevron { color: var(--ink-2); font-size: 1.2rem; }
 
+/* ── Support page: FAQ and the embedded Google Forms ──────── */
+.faq { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.faq details { border-bottom: 1px solid var(--border); }
+.faq details:last-child { border-bottom: none; }
+.faq summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.95rem 2.6rem 0.95rem 1.2rem;
+  font-weight: 600;
+  position: relative;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: '+';
+  position: absolute; right: 1.2rem; top: 50%; transform: translateY(-50%);
+  font-size: 1.3rem; font-weight: 400; color: var(--accent);
+}
+.faq details[open] summary::after { content: '−'; }
+.faq summary:hover { background: var(--surface-2); }
+.faq details p { padding: 0 1.2rem 1rem; color: var(--ink-2); font-size: 0.95rem; }
+
+.form-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.form-tabs button {
+  font: inherit; font-size: 0.92rem; font-weight: 600;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.form-tabs button:hover { background: var(--surface-2); }
+.form-tabs button[aria-selected="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+.form-panel { margin-bottom: 1.5rem; }
+.form-panel iframe {
+  display: block; width: 100%; border: 0;
+  border-radius: var(--radius);
+  background: #fff;   /* Google Forms are light-only; keep them on white in dark mode too */
+}
+.form-fallback { font-size: 0.85rem; color: var(--ink-2); margin-top: 0.5rem; }
+
 /* ── Site footer (every page) ─────────────────────────────── */
 .site-footer {
   border-top: 1px solid var(--border);

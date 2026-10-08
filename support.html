@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bujit: Support</title>
+  <meta name="description" content="Answers to common questions, and forms to report a problem, suggest a feature or contact Bujit.">
+  <link rel="icon" type="image/svg+xml" href="site-assets/bujit-logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="site-assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="site-assets/apple-touch-icon.png">
+  <meta name="theme-color" content="#F495B7">
+  <meta property="og:image" content="https://bujits.com/site-assets/bujit-logo-512.png">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="./"><img src="site-assets/bujit-mark.svg" alt="Bujit home" width="88" height="60"></a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="./">Home</a>
+      <a href="support.html" aria-current="page">Support</a>
+      <a href="csv-import-reference.html">CSV import</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="data-deletion.html">Delete data</a>
+    </nav>
+  </div>
+</header>
+
+<main class="narrow">
+
+<h1 class="page-title">Support</h1>
+<p class="lead">Check the common questions below, or send us a message with one of the forms.
+Forms don't need a Google account; leave an email if you'd like a reply.</p>
+
+<p class="section-label">Common questions</p>
+<div class="faq">
+  <details>
+    <summary>A bank says "connection expired" or won't update</summary>
+    <p>Banks occasionally ask you to sign in again. Open <strong>Linked Accounts</strong> from the
+    menu and tap <strong>Reconnect</strong> on that bank. If it still fails, report a problem below
+    and include the bank's name.</p>
+  </details>
+  <details>
+    <summary>Google says "Google hasn't verified this app" when I turn on Google Tasks sync</summary>
+    <p>Google's review of Bujit's Tasks access is in progress. Until it's done, tap
+    <strong>Advanced</strong>, then <strong>Go to Bujit</strong>, to continue. Bujit only uses
+    its own "Bujit" list in Google Tasks.</p>
+  </details>
+  <details>
+    <summary>How do I move my budget into Bujit?</summary>
+    <p>Fill in the <a href="bujit_import_template.csv" download>CSV template</a> and use
+    <strong>Settings → Import from CSV</strong>. The <a href="csv-import-reference.html">CSV import
+    reference</a> explains every column, with examples.</p>
+  </details>
+  <details>
+    <summary>How do I move Bujit to a new phone?</summary>
+    <p>On the old phone, use <strong>Settings → Export backup</strong> and choose a passphrase. On
+    the new phone, use <strong>Settings → Import backup</strong> with the same passphrase. Linked
+    banks need to be reconnected afterwards.</p>
+  </details>
+  <details>
+    <summary>How do I delete my data?</summary>
+    <p>See <a href="data-deletion.html">Delete your data</a>. For anything it doesn't cover, use the
+    contact form below with "Delete my data" as the topic.</p>
+  </details>
+</div>
+
+<p class="section-label">Send us a message</p>
+<div class="form-tabs" role="tablist" aria-label="Forms">
+  <button type="button" role="tab" id="tab-problem" aria-controls="problem" aria-selected="true">🐛 Report a problem</button>
+  <button type="button" role="tab" id="tab-idea" aria-controls="idea" aria-selected="false">💡 Suggest a feature</button>
+  <button type="button" role="tab" id="tab-contact" aria-controls="contact" aria-selected="false">✉️ Contact</button>
+</div>
+
+<section class="form-panel" id="problem" role="tabpanel" aria-labelledby="tab-problem">
+  <iframe title="Report a problem" loading="lazy" height="1250"
+    src="https://docs.google.com/forms/d/e/1FAIpQLSeFwEd0E0fXbqVDwErItvVMejNbC5mXrSrcZdOYSBWcLuDMVw/viewform?embedded=true">Loading…</iframe>
+  <p class="form-fallback">Form not showing? <a href="https://docs.google.com/forms/d/e/1FAIpQLSeFwEd0E0fXbqVDwErItvVMejNbC5mXrSrcZdOYSBWcLuDMVw/viewform" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
+</section>
+
+<section class="form-panel" id="idea" role="tabpanel" aria-labelledby="tab-idea">
+  <iframe title="Suggest a feature" loading="lazy" height="900"
+    src="https://docs.google.com/forms/d/e/1FAIpQLSfoQD4nDZEtaYJAoLBZKZhsbEFJvg7sSpohILwI8m1QRLto5w/viewform?embedded=true">Loading…</iframe>
+  <p class="form-fallback">Form not showing? <a href="https://docs.google.com/forms/d/e/1FAIpQLSfoQD4nDZEtaYJAoLBZKZhsbEFJvg7sSpohILwI8m1QRLto5w/viewform" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
+</section>
+
+<section class="form-panel" id="contact" role="tabpanel" aria-labelledby="tab-contact">
+  <iframe title="Contact" loading="lazy" height="950"
+    src="https://docs.google.com/forms/d/e/1FAIpQLSfpTvNs-b5hYcq45AVz9GMLztCmgan7wRHow5_VmjMSK3peoA/viewform?embedded=true">Loading…</iframe>
+  <p class="form-fallback">Form not showing? <a href="https://docs.google.com/forms/d/e/1FAIpQLSfpTvNs-b5hYcq45AVz9GMLztCmgan7wRHow5_VmjMSK3peoA/viewform" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
+</section>
+
+<p class="note">Forms are hosted by Google Forms. What you send goes only to Bujit's developer;
+see the <a href="privacy-policy.html">privacy policy</a>.</p>
+
+</main>
+
+<footer class="site-footer">
+  <div class="bar">
+    <div class="links">
+      <a href="./">Home</a>
+      <a href="support.html">Support</a>
+      <a href="csv-import-reference.html">CSV import reference</a>
+      <a href="bujit_import_template.csv" download>CSV template</a>
+      <a href="privacy-policy.html">Privacy policy</a>
+      <a href="data-deletion.html">Delete your data</a>
+    </div>
+    <div>Bujit is a personal budgeting tool for informational purposes only. It does not constitute financial advice. Balance projections are estimates and should not be relied upon for financial decisions.</div>
+    <div>&copy; 2026 <a href="https://github.com/Nishian3695" target="_blank" rel="noopener">Nishian3695</a></div>
+  </div>
+</footer>
+
+<script>
+  // Tabs: one form at a time. The address's #problem / #idea / #contact picks the
+  // tab, so other pages (and the app) can link straight to a form. Without
+  // JavaScript every form simply shows, one after another.
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.form-tabs [role="tab"]'));
+    function show(id, focus) {
+      tabs.forEach(function (tab) {
+        var on = tab.getAttribute('aria-controls') === id;
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.tabIndex = on ? 0 : -1;
+        document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
+        if (on && focus) tab.focus();
+      });
+    }
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        var id = tab.getAttribute('aria-controls');
+        show(id);
+        history.replaceState(null, '', '#' + id);
+      });
+      tab.addEventListener('keydown', function (e) {
+        var step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        var next = tabs[(i + step + tabs.length) % tabs.length];
+        show(next.getAttribute('aria-controls'), true);
+      });
+    });
+    function fromHash() {
+      var id = location.hash.slice(1);
+      var known = tabs.some(function (t) { return t.getAttribute('aria-controls') === id; });
+      show(known ? id : 'problem');
+      if (known) document.querySelector('.form-tabs').scrollIntoView();
+    }
+    window.addEventListener('hashchange', fromHash);
+    fromHash();
+  })();
+</script>
+
+</body>
+</html>
