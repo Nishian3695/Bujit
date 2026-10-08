@@ -28,7 +28,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
   none = internal, `-closed` = internal + both closed tracks, `-open` = open
   testing, `-all` = every testing track. Production is a promotion in Play Console.
 - **Versions.** The version code is major·10000 + minor·1000 + patch, continuing
-  from the Java app's 0.4.5 (4005). Latest: `v0.5.6-closed` (5006). Never reuse one.
+  from the Java app's 0.4.5 (4005). Latest: `v0.5.10-all` and `ios-v0.5.10` (5010). Never reuse one.
 - **Signing.** Builds are signed with the Java app's upload key; Play re-signs them
   with its app signing key (SHA-1 `41:97:BF:65:17:8D:63:1A:83:A5:7D:B0:3C:3E:CC:4C:F0:E5:FA:83`).
 - **CI** analyzes and tests every push to `main`, and fails on any analyzer issue.
