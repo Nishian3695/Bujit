@@ -45,6 +45,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
     final _formKey = GlobalKey<FormState>();
     late FrequencyUnit _unit = widget.existing?.frequencyUnits ?? FrequencyUnit.weekly;
     late MonthDays _monthDays = widget.existing?.monthDays ?? MonthDays.standard;
+    late bool _weekendToFriday = widget.existing?.weekendToFriday ?? false;
     late DateTime _startDate = widget.existing?.startDate ?? todayDate();
 
     @override
@@ -66,6 +67,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
         frequency: _twiceAMonth ? 1 : int.parse(_frequency.text.trim()),
         frequencyUnits: _unit,
         monthDays: _twiceAMonth ? _monthDays : null,
+        weekendToFriday: _unit.isDateBased && _weekendToFriday,
         isActive: widget.existing?.isActive ?? false,
         googleTaskId: widget.existing?.googleTaskId,
     );
@@ -119,10 +121,12 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                     ),
                                     Expanded(
                                         child: DropdownButtonFormField<FrequencyUnit>(
+                                            // Fills its half of the row; a long unit ("Twice a month") is cut short rather than overflowing.
+                                            isExpanded: true,
                                             initialValue: _unit,
                                             decoration: const InputDecoration(labelText: "Unit"),
                                             items: FrequencyUnit.values
-                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
+                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label, overflow: TextOverflow.ellipsis)))
                                                 .toList(),
                                             onChanged: (unit) => setState(() => _unit = unit!),
                                         ),
@@ -131,6 +135,15 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                             ),
                             if (_twiceAMonth)
                                 MonthDaysField(value: _monthDays, onChanged: (days) => setState(() => _monthDays = days)),
+                            if (_unit.isDateBased)
+                                CheckboxListTile(
+                                    key: const ValueKey("weekendToFriday"),
+                                    contentPadding: EdgeInsets.zero,
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    title: const Text("On a weekend, paid the Friday before"),
+                                    value: _weekendToFriday,
+                                    onChanged: (value) => setState(() => _weekendToFriday = value ?? false),
+                                ),
                             DateField(
                                 label: _twiceAMonth ? "First payday on or after" : "Starting date",
                                 value: _startDate,

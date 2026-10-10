@@ -14,10 +14,14 @@ class ExpenseItem {
     FrequencyUnit frequencyUnits; // Tag to track frequency
     // The two days of a twice-a-month (semimonthly) item; null for other units.
     MonthDays? monthDays;
+    // A date on a Saturday or Sunday moves to the Friday before (date-based
+    // units only; see Projector.weekendToFriday).
+    bool weekendToFriday;
     double amount; // Amount due each occurrence (a credit card's current balance)
-    // First occurrence. Also anchors the schedule: its day of month is what a
-    // monthly expense returns to after a short month (Jan 31 -> Feb 28 -> Mar 31),
-    // and no occurrence ever falls before it.
+    // First scheduled date. Also anchors the schedule: its day of month is what a
+    // monthly expense returns to after a short month (Jan 31 -> Feb 28 -> Mar 31).
+    // Nothing falls before the first occurrence (firstDate), which is this date
+    // or, moved off a weekend, the Friday before.
     DateTime startDate;
     // Next occurrence that hasn't been paid yet. Everything before it is paid.
     DateTime currentDueDate;
@@ -56,28 +60,43 @@ class ExpenseItem {
         this.sourceId,
         this.linkedAccountId,
         this.monthDays,
+        this.weekendToFriday = false,
     }) : startDate = dateOnly(startDate),
          currentDueDate = dateOnly(currentDueDate ?? startDate),
          endDate = endDate == null ? null : dateOnly(endDate) {
         // Twice a month, the start (and next due date) must be one of the two
-        // days: move each to the first one on or after it.
+        // days: move each to the first one on or after it (as scheduled, before
+        // any move off a weekend).
         if (frequencyUnits == FrequencyUnit.semimonthly) {
-            this.startDate = _projector.firstOnOrAfter(this.startDate);
-            this.currentDueDate = _projector.firstOnOrAfter(maxDate(this.currentDueDate, this.startDate));
+            final Projector scheduled = _makeProjector(weekendRule: false);
+            this.startDate = scheduled.firstOnOrAfter(this.startDate);
+            this.currentDueDate = scheduled.firstOnOrAfter(maxDate(this.currentDueDate, this.startDate));
+        }
+        // With the weekend rule, a next due date on a weekend (as scheduled, or from
+        // before the rule was turned on) is really the Friday before.
+        if (weekendToFriday && frequencyUnits.isDateBased
+                && _projector.firstOnOrAfter(this.currentDueDate) != this.currentDueDate) {
+            this.currentDueDate = _projector.firstOnOrAfter(addDays(this.currentDueDate, -2));
         }
         shownDate = this.currentDueDate;
         periodAmount = amount;
     }
 
     // Built on demand so it always reflects the current startDate/frequency.
-    // Occurrence 0 is startDate itself.
-    Projector get _projector => Projector(
+    // Occurrence 0 is firstDate.
+    Projector get _projector => _makeProjector();
+
+    Projector _makeProjector({bool weekendRule = true}) => Projector(
         baseDate: startDate,
         originDate: startDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         monthDays: monthDays,
+        weekendToFriday: weekendRule && weekendToFriday,
     );
+
+    // The first occurrence: startDate, or the Friday before it under the weekend rule.
+    DateTime get firstDate => _projector.occurrenceDate(0);
 
     // True once no occurrences remain: the next due date is past the end date.
     bool get hasEnded => endDate != null && currentDueDate.isAfter(endDate!);
@@ -85,10 +104,10 @@ class ExpenseItem {
     // Methods
 
     // Number of unpaid occurrences from [from] through [to], both inclusive.
-    // Never counts anything before startDate, before currentDueDate (already
+    // Never counts anything before firstDate, before currentDueDate (already
     // paid) or after endDate.
     int occurrencesBetween(DateTime from, DateTime to) {
-        final DateTime lo = maxDate(maxDate(dateOnly(from), startDate), currentDueDate);
+        final DateTime lo = maxDate(maxDate(dateOnly(from), firstDate), currentDueDate);
         final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
         if (lo.isAfter(hi)) return 0;
         return _projector.countBetween(lo, hi);
@@ -97,7 +116,7 @@ class ExpenseItem {
     // Dates of the unpaid occurrences from [from] through [to], both inclusive
     // (the same ones occurrencesBetween counts).
     List<DateTime> occurrenceDatesBetween(DateTime from, DateTime to) {
-        final DateTime lo = maxDate(maxDate(dateOnly(from), startDate), currentDueDate);
+        final DateTime lo = maxDate(maxDate(dateOnly(from), firstDate), currentDueDate);
         final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
         final List<DateTime> dates = [];
         DateTime date = _projector.firstOnOrAfter(lo);
@@ -122,9 +141,9 @@ class ExpenseItem {
 
     // Total of every occurrence from [from] through [to] (inclusive), paid or not --
     // for history and the Visuals charts, which show what falls in a period rather
-    // than what's still owed. Bounded by startDate and endDate.
+    // than what's still owed. Bounded by firstDate and endDate.
     double historicalAmountBetween(DateTime from, DateTime to) {
-        final DateTime lo = maxDate(dateOnly(from), startDate);
+        final DateTime lo = maxDate(dateOnly(from), firstDate);
         final DateTime hi = endDate == null ? dateOnly(to) : minDate(dateOnly(to), endDate!);
         if (lo.isAfter(hi)) return 0.00;
         return amount * _projector.countBetween(lo, hi);
@@ -167,6 +186,6 @@ class ExpenseItem {
     void toCheck(CheckWindow check) {
         periodAmount = amountDueInCheck(check);
         final DateTime from = maxDate(check.expensesFrom, currentDueDate);
-        shownDate = _projector.firstOnOrAfter(maxDate(from, startDate));
+        shownDate = _projector.firstOnOrAfter(maxDate(from, firstDate));
     }
 }

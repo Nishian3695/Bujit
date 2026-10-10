@@ -16,6 +16,10 @@ class Projector {
     bool endClosed; // Whether the end of the period is closed (inclusive) or open (exclusive) wrt periodOccurrences
     // The two days of a twice-a-month (semimonthly) schedule; unused otherwise.
     final MonthDays monthDays;
+    // A date-based occurrence (FrequencyUnit.isDateBased) on a Saturday or Sunday
+    // moves to the Friday before, as many employers do with paydays. Never
+    // reorders occurrences (two can share a Friday), so counting still works.
+    final bool weekendToFriday;
 
     // Invalid days (bad data) fall back to the standard pair: paydays must
     // always move forward, or stepping between them would never end.
@@ -27,6 +31,7 @@ class Projector {
         this.endClosed = false,
         DateTime? originDate,
         MonthDays? monthDays,
+        this.weekendToFriday = false,
     }) : monthDays = (monthDays != null && monthDays.isValid) ? monthDays : MonthDays.standard,
          baseDate = dateOnly(baseDate),
          originDate = dateOnly(originDate ?? baseDate); // If originDate is not provided, set it to baseDate
@@ -64,6 +69,19 @@ class Projector {
         // A non-positive frequency (invalid data, e.g. migrated) is a one-off: only
         // occurrence 0 exists, and "the next one" is never.
         if (frequency <= 0 && k > 0) return never;
+        final DateTime date = _scheduledDate(k);
+        return weekendToFriday && frequencyUnits.isDateBased && date.isBefore(never) ? _beforeWeekend(date) : date;
+    }
+
+    // Saturday and Sunday become the Friday before; weekdays stay.
+    static DateTime _beforeWeekend(DateTime date) => switch (date.weekday) {
+        DateTime.saturday => addDays(date, -1),
+        DateTime.sunday => addDays(date, -2),
+        _ => date,
+    };
+
+    // The k-th date as scheduled, before the weekend rule.
+    DateTime _scheduledDate(int k) {
         return switch (frequencyUnits) {
             FrequencyUnit.daily => addDays(baseDate, frequency * k),
             FrequencyUnit.weekly => addDays(baseDate, frequency * 7 * k),

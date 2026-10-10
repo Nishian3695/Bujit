@@ -49,7 +49,8 @@ class AppDatabase extends _$AppDatabase {
   //
   // Versions: 1, the first; 2, Settings > Appearance (theme mode and accent color);
   // 3, Apple Reminders as a task sync service; 4, balance history (Visuals > Net Balance);
-  // 5, twice-a-month schedules (the two days on expenses and income streams).
+  // 5, twice-a-month schedules (the two days on expenses and income streams) and
+  // moving weekend dates to the Friday before.
   @override
   int get schemaVersion => 5;
 
@@ -73,6 +74,8 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(schema.expenseItemRows, schema.expenseItemRows.monthDay2);
             await m.addColumn(schema.incomeStreamModelRows, schema.incomeStreamModelRows.monthDay1);
             await m.addColumn(schema.incomeStreamModelRows, schema.incomeStreamModelRows.monthDay2);
+            await m.addColumn(schema.expenseItemRows, schema.expenseItemRows.weekendToFriday);
+            await m.addColumn(schema.incomeStreamModelRows, schema.incomeStreamModelRows.weekendToFriday);
           },
         ),
       );

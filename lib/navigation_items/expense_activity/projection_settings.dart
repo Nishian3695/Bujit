@@ -31,8 +31,8 @@ class ProjectionSettings {
     // The [k]-th projected check's opening day, counting from [firstStart] (k = 0).
     // (Twice a month -- only the stream's own period -- the checks open on its two days.)
     DateTime checkStart(DateTime firstStart, int k) =>
-        Projector(baseDate: firstStart, frequency: frequency, frequencyUnits: unit, monthDays: stream.monthDays)
-            .occurrenceDate(k);
+        Projector(baseDate: firstStart, frequency: frequency, frequencyUnits: unit, monthDays: stream.monthDays,
+            weekendToFriday: !isCustomPeriod && stream.weekendToFriday).occurrenceDate(k);
 
     // Income for one projected check: the stream's amount, scaled by days for a custom period.
     double amountPerCheck({DateTime? today}) {
@@ -41,14 +41,16 @@ class ProjectionSettings {
         final int customDays = daysBetween(day, checkStart(day, 1));
         final int streamDays = stream.frequency > 0
             ? daysBetween(day, Projector(baseDate: day, frequency: stream.frequency,
-                frequencyUnits: stream.frequencyUnits, monthDays: stream.monthDays).occurrenceDate(1))
+                frequencyUnits: stream.frequencyUnits, monthDays: stream.monthDays,
+                weekendToFriday: stream.weekendToFriday).occurrenceDate(1))
             : 0;
         return streamDays <= 0 ? stream.amount : stream.amount * customDays / streamDays;
     }
 
     // For the home screen: "Side Job · every 1 month".
     String describe() =>
-        "${stream.name} · ${_lowerFirst(describeFrequency(frequency, unit, days: stream.monthDays))}";
+        "${stream.name} · ${_lowerFirst(describeFrequency(frequency, unit, days: stream.monthDays,
+            weekendToFriday: !isCustomPeriod && stream.weekendToFriday))}";
 
     static String _lowerFirst(String s) => s.isEmpty ? s : s[0].toLowerCase() + s.substring(1);
 }

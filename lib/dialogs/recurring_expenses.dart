@@ -79,6 +79,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     // Defined things to change but keep locally until Save is pressed
     late FrequencyUnit _frequencyUnit = widget.existing?.frequencyUnits ?? FrequencyUnit.values.first;
     late MonthDays _monthDays = widget.existing?.monthDays ?? MonthDays.standard;
+    late bool _weekendToFriday = widget.existing?.weekendToFriday ?? false;
     // Twice a month has two days instead of a frequency count.
     bool get _twiceAMonth => _frequencyUnit == FrequencyUnit.semimonthly;
     late String _category = widget.existing?.category ?? otherCategory;
@@ -156,6 +157,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 frequency: frequency,
                 frequencyUnits: _frequencyUnit,
                 monthDays: _twiceAMonth ? _monthDays : null,
+                weekendToFriday: _frequencyUnit.isDateBased && _weekendToFriday,
                 startDate: keepSchedule ? existing.startDate : _startDate,
                 currentDueDate: keepSchedule ? existing.currentDueDate : null,
                 endDate: _endDate,
@@ -297,10 +299,12 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     // Frequency unit dropdown
                                     Expanded(
                                         child: DropdownButtonFormField<FrequencyUnit>(
+                                            // Fills its half of the row; a long unit ("Twice a month") is cut short rather than overflowing.
+                                            isExpanded: true,
                                             initialValue: _frequencyUnit,
                                             decoration: const InputDecoration(labelText: "Unit"),
                                             items: FrequencyUnit.values
-                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label)))
+                                                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit.label, overflow: TextOverflow.ellipsis)))
                                                 .toList(),
                                             onChanged: (unit) => setState(() => _frequencyUnit = unit!),
                                         ),
@@ -309,6 +313,15 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                             ),
                             if (_twiceAMonth)
                                 MonthDaysField(value: _monthDays, onChanged: (days) => setState(() => _monthDays = days)),
+                            if (_frequencyUnit.isDateBased)
+                                CheckboxListTile(
+                                    key: const ValueKey("weekendToFriday"),
+                                    contentPadding: EdgeInsets.zero,
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    title: const Text("On a weekend, due the Friday before"),
+                                    value: _weekendToFriday,
+                                    onChanged: (value) => setState(() => _weekendToFriday = value ?? false),
+                                ),
                             DateField(
                                 label: _twiceAMonth ? "First due on or after" : "Starting date",
                                 value: _startDate,

@@ -91,6 +91,16 @@ class ExpenseItemRows extends Table
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> weekendToFriday = GeneratedColumn<int>(
+    'weekend_to_friday',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT 0 CHECK (weekend_to_friday IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
     'category',
     aliasedName,
@@ -171,6 +181,7 @@ class ExpenseItemRows extends Table
     frequencyUnits,
     monthDay1,
     monthDay2,
+    weekendToFriday,
     category,
     isCredit,
     creditLimit,
@@ -231,6 +242,10 @@ class ExpenseItemRows extends Table
         DriftSqlType.int,
         data['${effectivePrefix}month_day2'],
       ),
+      weekendToFriday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekend_to_friday'],
+      )!,
       category: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category'],
@@ -287,6 +302,7 @@ class ExpenseItemRowsData extends DataClass
   final String frequencyUnits;
   final int? monthDay1;
   final int? monthDay2;
+  final int weekendToFriday;
   final String category;
   final int isCredit;
   final double? creditLimit;
@@ -306,6 +322,7 @@ class ExpenseItemRowsData extends DataClass
     required this.frequencyUnits,
     this.monthDay1,
     this.monthDay2,
+    required this.weekendToFriday,
     required this.category,
     required this.isCredit,
     this.creditLimit,
@@ -334,6 +351,7 @@ class ExpenseItemRowsData extends DataClass
     if (!nullToAbsent || monthDay2 != null) {
       map['month_day2'] = Variable<int>(monthDay2);
     }
+    map['weekend_to_friday'] = Variable<int>(weekendToFriday);
     map['category'] = Variable<String>(category);
     map['is_credit'] = Variable<int>(isCredit);
     if (!nullToAbsent || creditLimit != null) {
@@ -371,6 +389,7 @@ class ExpenseItemRowsData extends DataClass
       monthDay2: monthDay2 == null && nullToAbsent
           ? const Value.absent()
           : Value(monthDay2),
+      weekendToFriday: Value(weekendToFriday),
       category: Value(category),
       isCredit: Value(isCredit),
       creditLimit: creditLimit == null && nullToAbsent
@@ -406,6 +425,7 @@ class ExpenseItemRowsData extends DataClass
       frequencyUnits: serializer.fromJson<String>(json['frequencyUnits']),
       monthDay1: serializer.fromJson<int?>(json['monthDay1']),
       monthDay2: serializer.fromJson<int?>(json['monthDay2']),
+      weekendToFriday: serializer.fromJson<int>(json['weekendToFriday']),
       category: serializer.fromJson<String>(json['category']),
       isCredit: serializer.fromJson<int>(json['isCredit']),
       creditLimit: serializer.fromJson<double?>(json['creditLimit']),
@@ -430,6 +450,7 @@ class ExpenseItemRowsData extends DataClass
       'frequencyUnits': serializer.toJson<String>(frequencyUnits),
       'monthDay1': serializer.toJson<int?>(monthDay1),
       'monthDay2': serializer.toJson<int?>(monthDay2),
+      'weekendToFriday': serializer.toJson<int>(weekendToFriday),
       'category': serializer.toJson<String>(category),
       'isCredit': serializer.toJson<int>(isCredit),
       'creditLimit': serializer.toJson<double?>(creditLimit),
@@ -452,6 +473,7 @@ class ExpenseItemRowsData extends DataClass
     String? frequencyUnits,
     Value<int?> monthDay1 = const Value.absent(),
     Value<int?> monthDay2 = const Value.absent(),
+    int? weekendToFriday,
     String? category,
     int? isCredit,
     Value<double?> creditLimit = const Value.absent(),
@@ -471,6 +493,7 @@ class ExpenseItemRowsData extends DataClass
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     monthDay1: monthDay1.present ? monthDay1.value : this.monthDay1,
     monthDay2: monthDay2.present ? monthDay2.value : this.monthDay2,
+    weekendToFriday: weekendToFriday ?? this.weekendToFriday,
     category: category ?? this.category,
     isCredit: isCredit ?? this.isCredit,
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
@@ -498,6 +521,9 @@ class ExpenseItemRowsData extends DataClass
           : this.frequencyUnits,
       monthDay1: data.monthDay1.present ? data.monthDay1.value : this.monthDay1,
       monthDay2: data.monthDay2.present ? data.monthDay2.value : this.monthDay2,
+      weekendToFriday: data.weekendToFriday.present
+          ? data.weekendToFriday.value
+          : this.weekendToFriday,
       category: data.category.present ? data.category.value : this.category,
       isCredit: data.isCredit.present ? data.isCredit.value : this.isCredit,
       creditLimit: data.creditLimit.present
@@ -530,6 +556,7 @@ class ExpenseItemRowsData extends DataClass
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('monthDay1: $monthDay1, ')
           ..write('monthDay2: $monthDay2, ')
+          ..write('weekendToFriday: $weekendToFriday, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
@@ -554,6 +581,7 @@ class ExpenseItemRowsData extends DataClass
     frequencyUnits,
     monthDay1,
     monthDay2,
+    weekendToFriday,
     category,
     isCredit,
     creditLimit,
@@ -577,6 +605,7 @@ class ExpenseItemRowsData extends DataClass
           other.frequencyUnits == this.frequencyUnits &&
           other.monthDay1 == this.monthDay1 &&
           other.monthDay2 == this.monthDay2 &&
+          other.weekendToFriday == this.weekendToFriday &&
           other.category == this.category &&
           other.isCredit == this.isCredit &&
           other.creditLimit == this.creditLimit &&
@@ -598,6 +627,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
   final Value<String> frequencyUnits;
   final Value<int?> monthDay1;
   final Value<int?> monthDay2;
+  final Value<int> weekendToFriday;
   final Value<String> category;
   final Value<int> isCredit;
   final Value<double?> creditLimit;
@@ -617,6 +647,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
     this.frequencyUnits = const Value.absent(),
     this.monthDay1 = const Value.absent(),
     this.monthDay2 = const Value.absent(),
+    this.weekendToFriday = const Value.absent(),
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
@@ -637,6 +668,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
     required String frequencyUnits,
     this.monthDay1 = const Value.absent(),
     this.monthDay2 = const Value.absent(),
+    this.weekendToFriday = const Value.absent(),
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
@@ -662,6 +694,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
     Expression<String>? frequencyUnits,
     Expression<int>? monthDay1,
     Expression<int>? monthDay2,
+    Expression<int>? weekendToFriday,
     Expression<String>? category,
     Expression<int>? isCredit,
     Expression<double>? creditLimit,
@@ -682,6 +715,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (monthDay1 != null) 'month_day1': monthDay1,
       if (monthDay2 != null) 'month_day2': monthDay2,
+      if (weekendToFriday != null) 'weekend_to_friday': weekendToFriday,
       if (category != null) 'category': category,
       if (isCredit != null) 'is_credit': isCredit,
       if (creditLimit != null) 'credit_limit': creditLimit,
@@ -704,6 +738,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
     Value<String>? frequencyUnits,
     Value<int?>? monthDay1,
     Value<int?>? monthDay2,
+    Value<int>? weekendToFriday,
     Value<String>? category,
     Value<int>? isCredit,
     Value<double?>? creditLimit,
@@ -724,6 +759,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       monthDay1: monthDay1 ?? this.monthDay1,
       monthDay2: monthDay2 ?? this.monthDay2,
+      weekendToFriday: weekendToFriday ?? this.weekendToFriday,
       category: category ?? this.category,
       isCredit: isCredit ?? this.isCredit,
       creditLimit: creditLimit ?? this.creditLimit,
@@ -768,6 +804,9 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
     if (monthDay2.present) {
       map['month_day2'] = Variable<int>(monthDay2.value);
     }
+    if (weekendToFriday.present) {
+      map['weekend_to_friday'] = Variable<int>(weekendToFriday.value);
+    }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
@@ -808,6 +847,7 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRowsData> {
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('monthDay1: $monthDay1, ')
           ..write('monthDay2: $monthDay2, ')
+          ..write('weekendToFriday: $weekendToFriday, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
@@ -892,6 +932,16 @@ class IncomeStreamModelRows extends Table
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> weekendToFriday = GeneratedColumn<int>(
+    'weekend_to_friday',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT 0 CHECK (weekend_to_friday IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
   late final GeneratedColumn<int> isActive = GeneratedColumn<int>(
     'is_active',
     aliasedName,
@@ -919,6 +969,7 @@ class IncomeStreamModelRows extends Table
     frequencyUnits,
     monthDay1,
     monthDay2,
+    weekendToFriday,
     isActive,
     googleTaskId,
   ];
@@ -968,6 +1019,10 @@ class IncomeStreamModelRows extends Table
         DriftSqlType.int,
         data['${effectivePrefix}month_day2'],
       ),
+      weekendToFriday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekend_to_friday'],
+      )!,
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}is_active'],
@@ -998,6 +1053,7 @@ class IncomeStreamModelRowsData extends DataClass
   final String frequencyUnits;
   final int? monthDay1;
   final int? monthDay2;
+  final int weekendToFriday;
   final int isActive;
   final String? googleTaskId;
   const IncomeStreamModelRowsData({
@@ -1009,6 +1065,7 @@ class IncomeStreamModelRowsData extends DataClass
     required this.frequencyUnits,
     this.monthDay1,
     this.monthDay2,
+    required this.weekendToFriday,
     required this.isActive,
     this.googleTaskId,
   });
@@ -1027,6 +1084,7 @@ class IncomeStreamModelRowsData extends DataClass
     if (!nullToAbsent || monthDay2 != null) {
       map['month_day2'] = Variable<int>(monthDay2);
     }
+    map['weekend_to_friday'] = Variable<int>(weekendToFriday);
     map['is_active'] = Variable<int>(isActive);
     if (!nullToAbsent || googleTaskId != null) {
       map['google_task_id'] = Variable<String>(googleTaskId);
@@ -1048,6 +1106,7 @@ class IncomeStreamModelRowsData extends DataClass
       monthDay2: monthDay2 == null && nullToAbsent
           ? const Value.absent()
           : Value(monthDay2),
+      weekendToFriday: Value(weekendToFriday),
       isActive: Value(isActive),
       googleTaskId: googleTaskId == null && nullToAbsent
           ? const Value.absent()
@@ -1069,6 +1128,7 @@ class IncomeStreamModelRowsData extends DataClass
       frequencyUnits: serializer.fromJson<String>(json['frequencyUnits']),
       monthDay1: serializer.fromJson<int?>(json['monthDay1']),
       monthDay2: serializer.fromJson<int?>(json['monthDay2']),
+      weekendToFriday: serializer.fromJson<int>(json['weekendToFriday']),
       isActive: serializer.fromJson<int>(json['isActive']),
       googleTaskId: serializer.fromJson<String?>(json['googleTaskId']),
     );
@@ -1085,6 +1145,7 @@ class IncomeStreamModelRowsData extends DataClass
       'frequencyUnits': serializer.toJson<String>(frequencyUnits),
       'monthDay1': serializer.toJson<int?>(monthDay1),
       'monthDay2': serializer.toJson<int?>(monthDay2),
+      'weekendToFriday': serializer.toJson<int>(weekendToFriday),
       'isActive': serializer.toJson<int>(isActive),
       'googleTaskId': serializer.toJson<String?>(googleTaskId),
     };
@@ -1099,6 +1160,7 @@ class IncomeStreamModelRowsData extends DataClass
     String? frequencyUnits,
     Value<int?> monthDay1 = const Value.absent(),
     Value<int?> monthDay2 = const Value.absent(),
+    int? weekendToFriday,
     int? isActive,
     Value<String?> googleTaskId = const Value.absent(),
   }) => IncomeStreamModelRowsData(
@@ -1110,6 +1172,7 @@ class IncomeStreamModelRowsData extends DataClass
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
     monthDay1: monthDay1.present ? monthDay1.value : this.monthDay1,
     monthDay2: monthDay2.present ? monthDay2.value : this.monthDay2,
+    weekendToFriday: weekendToFriday ?? this.weekendToFriday,
     isActive: isActive ?? this.isActive,
     googleTaskId: googleTaskId.present ? googleTaskId.value : this.googleTaskId,
   );
@@ -1127,6 +1190,9 @@ class IncomeStreamModelRowsData extends DataClass
           : this.frequencyUnits,
       monthDay1: data.monthDay1.present ? data.monthDay1.value : this.monthDay1,
       monthDay2: data.monthDay2.present ? data.monthDay2.value : this.monthDay2,
+      weekendToFriday: data.weekendToFriday.present
+          ? data.weekendToFriday.value
+          : this.weekendToFriday,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       googleTaskId: data.googleTaskId.present
           ? data.googleTaskId.value
@@ -1145,6 +1211,7 @@ class IncomeStreamModelRowsData extends DataClass
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('monthDay1: $monthDay1, ')
           ..write('monthDay2: $monthDay2, ')
+          ..write('weekendToFriday: $weekendToFriday, ')
           ..write('isActive: $isActive, ')
           ..write('googleTaskId: $googleTaskId')
           ..write(')'))
@@ -1161,6 +1228,7 @@ class IncomeStreamModelRowsData extends DataClass
     frequencyUnits,
     monthDay1,
     monthDay2,
+    weekendToFriday,
     isActive,
     googleTaskId,
   );
@@ -1176,6 +1244,7 @@ class IncomeStreamModelRowsData extends DataClass
           other.frequencyUnits == this.frequencyUnits &&
           other.monthDay1 == this.monthDay1 &&
           other.monthDay2 == this.monthDay2 &&
+          other.weekendToFriday == this.weekendToFriday &&
           other.isActive == this.isActive &&
           other.googleTaskId == this.googleTaskId);
 }
@@ -1190,6 +1259,7 @@ class IncomeStreamModelRowsCompanion
   final Value<String> frequencyUnits;
   final Value<int?> monthDay1;
   final Value<int?> monthDay2;
+  final Value<int> weekendToFriday;
   final Value<int> isActive;
   final Value<String?> googleTaskId;
   const IncomeStreamModelRowsCompanion({
@@ -1201,6 +1271,7 @@ class IncomeStreamModelRowsCompanion
     this.frequencyUnits = const Value.absent(),
     this.monthDay1 = const Value.absent(),
     this.monthDay2 = const Value.absent(),
+    this.weekendToFriday = const Value.absent(),
     this.isActive = const Value.absent(),
     this.googleTaskId = const Value.absent(),
   });
@@ -1213,6 +1284,7 @@ class IncomeStreamModelRowsCompanion
     required String frequencyUnits,
     this.monthDay1 = const Value.absent(),
     this.monthDay2 = const Value.absent(),
+    this.weekendToFriday = const Value.absent(),
     this.isActive = const Value.absent(),
     this.googleTaskId = const Value.absent(),
   }) : name = Value(name),
@@ -1229,6 +1301,7 @@ class IncomeStreamModelRowsCompanion
     Expression<String>? frequencyUnits,
     Expression<int>? monthDay1,
     Expression<int>? monthDay2,
+    Expression<int>? weekendToFriday,
     Expression<int>? isActive,
     Expression<String>? googleTaskId,
   }) {
@@ -1241,6 +1314,7 @@ class IncomeStreamModelRowsCompanion
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
       if (monthDay1 != null) 'month_day1': monthDay1,
       if (monthDay2 != null) 'month_day2': monthDay2,
+      if (weekendToFriday != null) 'weekend_to_friday': weekendToFriday,
       if (isActive != null) 'is_active': isActive,
       if (googleTaskId != null) 'google_task_id': googleTaskId,
     });
@@ -1255,6 +1329,7 @@ class IncomeStreamModelRowsCompanion
     Value<String>? frequencyUnits,
     Value<int?>? monthDay1,
     Value<int?>? monthDay2,
+    Value<int>? weekendToFriday,
     Value<int>? isActive,
     Value<String?>? googleTaskId,
   }) {
@@ -1267,6 +1342,7 @@ class IncomeStreamModelRowsCompanion
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
       monthDay1: monthDay1 ?? this.monthDay1,
       monthDay2: monthDay2 ?? this.monthDay2,
+      weekendToFriday: weekendToFriday ?? this.weekendToFriday,
       isActive: isActive ?? this.isActive,
       googleTaskId: googleTaskId ?? this.googleTaskId,
     );
@@ -1299,6 +1375,9 @@ class IncomeStreamModelRowsCompanion
     if (monthDay2.present) {
       map['month_day2'] = Variable<int>(monthDay2.value);
     }
+    if (weekendToFriday.present) {
+      map['weekend_to_friday'] = Variable<int>(weekendToFriday.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<int>(isActive.value);
     }
@@ -1319,6 +1398,7 @@ class IncomeStreamModelRowsCompanion
           ..write('frequencyUnits: $frequencyUnits, ')
           ..write('monthDay1: $monthDay1, ')
           ..write('monthDay2: $monthDay2, ')
+          ..write('weekendToFriday: $weekendToFriday, ')
           ..write('isActive: $isActive, ')
           ..write('googleTaskId: $googleTaskId')
           ..write(')'))

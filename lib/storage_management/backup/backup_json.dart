@@ -12,7 +12,8 @@
 //   - Java units are ChronoUnit names (expenses) or 0-3 = days/weeks/months/years
 //     (streams); biweekly here is written as 2x weeks. Twice a month (which the
 //     Java app didn't have) is "HALF_MONTHS" (streams: 4) with its two days in
-//     "monthDays" ([15, 31]).
+//     "monthDays" ([15, 31]). "weekendToFriday": true moves weekend dates to the
+//     Friday before (also new).
 //   - Java's "incomeCreditedThrough" is lastUpdated: paychecks through it are in the balance.
 //   - Which manual accounts count toward the balance lived in Java's preferences,
 //     not its backups, so they don't count after restoring a Java backup.
@@ -112,6 +113,7 @@ class BackupJson {
             "endDate": e.endDate == null ? null : _iso(e.endDate!),
             "anchorDay": e.startDate.day,
             if (e.monthDays != null) "monthDays": [e.monthDays!.first, e.monthDays!.second],
+            if (e.weekendToFriday) "weekendToFriday": true,
             if (e is CreditModel) "creditLimit": e.creditLimit.toStringAsFixed(2),
             if (e is! CreditModel) ...{
                 "isVariable": false,
@@ -132,6 +134,7 @@ class BackupJson {
             "frequency": unit.$1,
             "frequencyTag": _streamUnits.indexOf(unit.$2),
             if (s.monthDays != null) "monthDays": [s.monthDays!.first, s.monthDays!.second],
+            if (s.weekendToFriday) "weekendToFriday": true,
             "selected": identical(s, active),
             "googleTaskId": s.googleTaskId,
         };
@@ -309,6 +312,7 @@ class BackupJson {
                 frequency: unit.$2,
                 frequencyUnits: unit.$1,
                 monthDays: days,
+                weekendToFriday: o["weekendToFriday"] == true,
                 category: category.isEmpty ? otherCategory : category,
                 googleTaskId: taskId,
                 remindInTasks: remind,
@@ -357,6 +361,7 @@ class BackupJson {
                 frequency: unit.$2,
                 frequencyUnits: unit.$1,
                 monthDays: _monthDays(o["monthDays"], unit.$1),
+                weekendToFriday: o["weekendToFriday"] == true,
                 isActive: o["selected"] == true,
                 googleTaskId: _string(o["googleTaskId"]),
             );

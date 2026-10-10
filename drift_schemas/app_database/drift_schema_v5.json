@@ -133,6 +133,20 @@
             "dsl_features": []
           },
           {
+            "name": "weekend_to_friday",
+            "getter_name": "weekendToFriday",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"weekend_to_friday\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"weekend_to_friday\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
             "name": "category",
             "getter_name": "category",
             "moor_type": "string",
@@ -332,6 +346,20 @@
             "nullable": true,
             "customConstraints": null,
             "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "weekend_to_friday",
+            "getter_name": "weekendToFriday",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"weekend_to_friday\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"weekend_to_friday\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
             "default_client_dart": null,
             "dsl_features": []
           },
@@ -1269,7 +1297,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"expense_item_rows\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"amount\" REAL NOT NULL, \"start_date\" INTEGER NOT NULL, \"current_due_date\" INTEGER NOT NULL, \"end_date\" INTEGER NULL, \"frequency\" INTEGER NOT NULL, \"frequency_units\" TEXT NOT NULL, \"month_day1\" INTEGER NULL, \"month_day2\" INTEGER NULL, \"category\" TEXT NOT NULL DEFAULT 'Other', \"is_credit\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_credit\" IN (0, 1)), \"credit_limit\" REAL NULL, \"google_task_id\" TEXT NULL, \"remind_in_tasks\" INTEGER NOT NULL DEFAULT 1 CHECK (\"remind_in_tasks\" IN (0, 1)), \"source\" TEXT NOT NULL DEFAULT 'balance', \"source_id\" TEXT NULL, \"linked_account_id\" TEXT NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"expense_item_rows\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"amount\" REAL NOT NULL, \"start_date\" INTEGER NOT NULL, \"current_due_date\" INTEGER NOT NULL, \"end_date\" INTEGER NULL, \"frequency\" INTEGER NOT NULL, \"frequency_units\" TEXT NOT NULL, \"month_day1\" INTEGER NULL, \"month_day2\" INTEGER NULL, \"weekend_to_friday\" INTEGER NOT NULL DEFAULT 0 CHECK (\"weekend_to_friday\" IN (0, 1)), \"category\" TEXT NOT NULL DEFAULT 'Other', \"is_credit\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_credit\" IN (0, 1)), \"credit_limit\" REAL NULL, \"google_task_id\" TEXT NULL, \"remind_in_tasks\" INTEGER NOT NULL DEFAULT 1 CHECK (\"remind_in_tasks\" IN (0, 1)), \"source\" TEXT NOT NULL DEFAULT 'balance', \"source_id\" TEXT NULL, \"linked_account_id\" TEXT NULL);"
         }
       ]
     },
@@ -1278,7 +1306,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"income_stream_model_rows\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"amount\" REAL NOT NULL, \"start_date\" INTEGER NOT NULL, \"frequency\" INTEGER NOT NULL, \"frequency_units\" TEXT NOT NULL, \"month_day1\" INTEGER NULL, \"month_day2\" INTEGER NULL, \"is_active\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_active\" IN (0, 1)), \"google_task_id\" TEXT NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"income_stream_model_rows\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"amount\" REAL NOT NULL, \"start_date\" INTEGER NOT NULL, \"frequency\" INTEGER NOT NULL, \"frequency_units\" TEXT NOT NULL, \"month_day1\" INTEGER NULL, \"month_day2\" INTEGER NULL, \"weekend_to_friday\" INTEGER NOT NULL DEFAULT 0 CHECK (\"weekend_to_friday\" IN (0, 1)), \"is_active\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_active\" IN (0, 1)), \"google_task_id\" TEXT NULL);"
         }
       ]
     },

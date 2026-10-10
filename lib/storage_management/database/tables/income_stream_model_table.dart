@@ -24,6 +24,8 @@ class IncomeStreamModelRows extends Table {
   // month's last day); null for every other unit. Added in schema version 5.
   IntColumn get monthDay1 => integer().nullable()();
   IntColumn get monthDay2 => integer().nullable()();
+  // A date on a weekend moves to the Friday before (date-based units). Schema version 5.
+  BoolColumn get weekendToFriday => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(false))();
   TextColumn get googleTaskId => text().nullable()(); // Its Google Task once synced
 }

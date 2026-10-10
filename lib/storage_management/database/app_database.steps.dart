@@ -1518,6 +1518,7 @@ final class Schema5 extends i0.VersionedSchema {
         _column_7,
         _column_68,
         _column_69,
+        _column_70,
         _column_8,
         _column_9,
         _column_10,
@@ -1546,6 +1547,7 @@ final class Schema5 extends i0.VersionedSchema {
         _column_7,
         _column_68,
         _column_69,
+        _column_70,
         _column_16,
         _column_11,
       ],
@@ -1728,6 +1730,8 @@ class Shape12 extends i0.VersionedTable {
       columnsByName['month_day1']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get monthDay2 =>
       columnsByName['month_day2']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get weekendToFriday =>
+      columnsByName['weekend_to_friday']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<String> get category =>
       columnsByName['category']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<int> get isCredit =>
@@ -1762,6 +1766,16 @@ i1.GeneratedColumn<int> _column_69(String aliasedName) =>
       type: i1.DriftSqlType.int,
       $customConstraints: 'NULL',
     );
+i1.GeneratedColumn<int> _column_70(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'weekend_to_friday',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints:
+          'NOT NULL DEFAULT 0 CHECK (weekend_to_friday IN (0, 1))',
+      defaultValue: const i1.CustomExpression('0'),
+    );
 
 class Shape13 extends i0.VersionedTable {
   Shape13({required super.source, required super.alias}) : super.aliased();
@@ -1781,6 +1795,8 @@ class Shape13 extends i0.VersionedTable {
       columnsByName['month_day1']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get monthDay2 =>
       columnsByName['month_day2']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get weekendToFriday =>
+      columnsByName['weekend_to_friday']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get isActive =>
       columnsByName['is_active']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<String> get googleTaskId =>

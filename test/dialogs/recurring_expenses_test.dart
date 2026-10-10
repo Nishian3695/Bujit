@@ -200,4 +200,27 @@ void main() {
         expect(expense.monthDays, const MonthDays(14, 28));
         expect(expense.startDate.day, anyOf(14, 28)); // The first of the two on or after today
     });
+
+    testWidgets("the weekend rule is offered for date-based units and saved", (tester) async {
+        final resultFuture = await _openDialog(tester);
+        await tester.enterText(find.byType(TextFormField).at(_nameFieldIndex), "Rent");
+        await tester.enterText(find.byType(TextFormField).at(_amountFieldIndex), "900.00");
+        // Daily (the default) has no weekend rule
+        expect(find.byKey(const ValueKey("weekendToFriday")), findsNothing);
+
+        await tester.tap(find.byType(DropdownButtonFormField<FrequencyUnit>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("Monthly").last);
+        await tester.pumpAndSettle();
+        expect(find.text("On a weekend, due the Friday before"), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey("weekendToFriday")));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(TextButton, "Save"));
+        await tester.pumpAndSettle();
+        final expense = (await resultFuture())!;
+        expect(expense.frequencyUnits, FrequencyUnit.monthly);
+        expect(expense.weekendToFriday, isTrue);
+        expect(expense.currentDueDate.weekday, lessThanOrEqualTo(DateTime.friday));
+    });
 }

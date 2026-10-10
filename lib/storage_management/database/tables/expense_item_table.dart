@@ -45,6 +45,8 @@ class ExpenseItemRows extends Table {
   // month's last day); null for every other unit. Added in schema version 5.
   IntColumn get monthDay1 => integer().nullable()();
   IntColumn get monthDay2 => integer().nullable()();
+  // A date on a weekend moves to the Friday before (date-based units). Schema version 5.
+  BoolColumn get weekendToFriday => boolean().withDefault(const Constant(false))();
   TextColumn get category => text().withDefault(const Constant(otherCategory))();
   // Credit cards share this table (CreditModel extends ExpenseItem): amount is
   // the card's balance and creditLimit its limit; null for regular expenses.

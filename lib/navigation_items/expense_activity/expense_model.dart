@@ -19,6 +19,7 @@ class ExpenseModel extends ExpenseItem {
         super.sourceId,
         super.linkedAccountId,
         super.monthDays,
+        super.weekendToFriday,
     });
 
     // Getters

@@ -1,5 +1,6 @@
-// Twice-a-month (semimonthly) schedules: the date math, the models, and every
-// way the two days are saved and read back (database, backups, CSV).
+// Twice-a-month (semimonthly) schedules and the weekend rule (a date on a
+// Saturday or Sunday moves to the Friday before): the date math, the models,
+// and every way they're saved and read back (database, backups, CSV).
 import 'package:bujit/navigation_items/expense_activity/balance_model.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_item.dart';
 import 'package:bujit/navigation_items/expense_activity/expense_model.dart';
@@ -229,6 +230,103 @@ void main() {
             expect(r.errors[0], contains("15/last"));
             expect(r.errors[1], contains("1-27"));
             expect(r.errors[2], contains("ambiguous"));
+        });
+    });
+
+    group("the weekend rule", () {
+        Projector monthly(DateTime base, {bool rule = true}) => Projector(
+            baseDate: base, frequency: 1, frequencyUnits: FrequencyUnit.monthly, weekendToFriday: rule);
+
+        test("a Saturday or Sunday date moves to the Friday before", () {
+            // Oct 31 2026 is a Saturday, Nov 30 a Monday, Jan 31 2027 a Sunday
+            expect(_first(monthly(DateTime(2026, 10, 31)), 4), [
+                DateTime(2026, 10, 30), DateTime(2026, 11, 30), DateTime(2026, 12, 31), DateTime(2027, 1, 29),
+            ]);
+            expect(monthly(DateTime(2026, 10, 31), rule: false).occurrenceDate(0), DateTime(2026, 10, 31));
+        });
+
+        test("twice a month", () {
+            final Projector p = Projector(baseDate: DateTime(2026, 11, 1), frequency: 1,
+                frequencyUnits: FrequencyUnit.semimonthly, weekendToFriday: true);
+            expect(_first(p, 2), [DateTime(2026, 11, 13), DateTime(2026, 11, 30)]); // Nov 15 is a Sunday
+        });
+
+        test("day counts keep their weekday", () {
+            final Projector weekly = Projector(baseDate: DateTime(2026, 10, 31), frequency: 1,
+                frequencyUnits: FrequencyUnit.weekly, weekendToFriday: true);
+            expect(weekly.occurrenceDate(1), DateTime(2026, 11, 7));
+        });
+
+        test("two dates on one weekend share the Friday, and both count", () {
+            // Feb 27 and 28 2027 are a Saturday and Sunday
+            final Projector p = Projector(baseDate: DateTime(2027, 2, 1), frequency: 1,
+                frequencyUnits: FrequencyUnit.semimonthly, monthDays: const MonthDays(27, 28), weekendToFriday: true);
+            expect(_first(p, 2), [DateTime(2027, 2, 26), DateTime(2027, 2, 26)]);
+            expect(p.countBetween(DateTime(2027, 2, 26), DateTime(2027, 2, 26)), 2);
+        });
+
+        test("counts and lookups agree with the dates, over years", () {
+            final Projector p = Projector(baseDate: DateTime(2026, 1, 15), frequency: 1,
+                frequencyUnits: FrequencyUnit.semimonthly, weekendToFriday: true);
+            final List<DateTime> dates = _first(p, 120);
+            for (int k = 0; k < dates.length; k++) {
+                expect(dates[k].weekday, lessThanOrEqualTo(DateTime.friday));
+                if (k > 0) expect(dates[k].isAfter(dates[k - 1]), isTrue);
+                expect(p.countBetween(dates[0], dates[k]), k + 1);
+                expect(p.firstOnOrAfter(dates[k]), dates[k]);
+                expect(p.lastOnOrBefore(dates[k]), dates[k]);
+            }
+        });
+
+        test("a stream starting on a Saturday is first paid the Friday before", () {
+            final IncomeStreamModel s = IncomeStreamModel(name: "Job", amount: 1000.0,
+                startDate: DateTime(2026, 10, 31), frequency: 1, frequencyUnits: FrequencyUnit.monthly,
+                weekendToFriday: true);
+            expect(s.firstPayday, DateTime(2026, 10, 30));
+            expect(s.occurrencesBetween(DateTime(2026, 10, 30), DateTime(2026, 10, 30)), 1);
+            expect(s.paydayAfter(DateTime(2026, 10, 30)), DateTime(2026, 11, 30));
+            expect(s.displayString(), "Every 1 month, Friday if on a weekend");
+
+            final BalanceModel balance = BalanceModel(currentBalance: 0.0, lastUpdated: DateTime(2026, 10, 29));
+            balance.incomeStreams.add(s);
+            balance.activeIncome = s;
+            balance.makeRecent(today: DateTime(2026, 10, 31));
+            expect(balance.currentBalance, 1000.0); // Paid Friday the 30th
+        });
+
+        test("an expense due on a Saturday is due, and paid, the Friday before", () {
+            final ExpenseModel e = ExpenseModel(name: "Rent", amount: 900.0, startDate: DateTime(2026, 10, 31),
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, weekendToFriday: true);
+            expect(e.currentDueDate, DateTime(2026, 10, 30));
+            expect(e.makeRecent(today: DateTime(2026, 11, 2)), 900.0);
+            expect(e.currentDueDate, DateTime(2026, 11, 30));
+        });
+
+        test("turning it on for a next due date on a weekend moves it to the Friday", () {
+            final ExpenseModel e = ExpenseModel(name: "Rent", amount: 900.0, startDate: DateTime(2026, 8, 31),
+                currentDueDate: DateTime(2026, 10, 31), // As scheduled: Saturday the 31st
+                frequency: 1, frequencyUnits: FrequencyUnit.monthly, weekendToFriday: true);
+            expect(e.currentDueDate, DateTime(2026, 10, 30));
+        });
+
+        test("it's saved and read back", () async {
+            AppData data() {
+                final AppData d = AppData(balance: BalanceModel(currentBalance: 0.0, lastUpdated: DateTime(2026, 10, 1)));
+                d.balance.incomeStreams.add(IncomeStreamModel(name: "Job", amount: 1.0, startDate: DateTime(2026, 10, 15),
+                    frequency: 1, frequencyUnits: FrequencyUnit.semimonthly, monthDays: MonthDays.standard,
+                    weekendToFriday: true));
+                d.balance.expenses.add(ExpenseModel(name: "Rent", amount: 1.0, startDate: DateTime(2026, 11, 1),
+                    frequency: 1, frequencyUnits: FrequencyUnit.monthly, weekendToFriday: true));
+                return d;
+            }
+            void expectRule(AppData d) {
+                expect(d.balance.incomeStreams.single.weekendToFriday, isTrue);
+                expect(d.balance.expenses.single.weekendToFriday, isTrue);
+            }
+            final AppDataStore store = AppDataStore(AppDatabase(NativeDatabase.memory()));
+            await store.save(data());
+            expectRule((await store.load())!);
+            expectRule(BackupJson.decode(BackupJson.encode(data()), today: DateTime(2026, 10, 1)));
         });
     });
 }

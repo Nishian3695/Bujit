@@ -15,6 +15,7 @@ extension IncomeStreamRowMapper on IncomeStreamModelRow {
         frequency: frequency,
         frequencyUnits: frequencyUnits,
         monthDays: monthDay1 == null || monthDay2 == null ? null : MonthDays(monthDay1!, monthDay2!),
+        weekendToFriday: weekendToFriday,
         isActive: isActive,
         googleTaskId: googleTaskId,
       );
@@ -30,6 +31,7 @@ extension IncomeStreamModelMapper on IncomeStreamModel {
         frequencyUnits: frequencyUnits,
         monthDay1: Value(monthDays?.first),
         monthDay2: Value(monthDays?.second),
+        weekendToFriday: Value(weekendToFriday),
         isActive: Value(isActive),
         googleTaskId: Value(googleTaskId),
       );

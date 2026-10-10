@@ -16,6 +16,12 @@ enum FrequencyUnit {
 
     const FrequencyUnit(this.label);
     final String label; // Display text for dropdowns and other UI.
+
+    // Units whose dates are days of the month (or year), which can fall on a
+    // weekend and are often moved to the Friday before (see Projector.weekendToFriday).
+    // Day counts (daily, weekly, biweekly) keep their weekday, so it doesn't apply.
+    bool get isDateBased =>
+        this == FrequencyUnit.semimonthly || this == FrequencyUnit.monthly || this == FrequencyUnit.yearly;
 }
 
 // The two days of a twice-a-month schedule: [first] is 1-27 and [second] is
@@ -65,9 +71,11 @@ String ordinalDay(int day) {
 
 // "Every 2 weeks", "Every 1 month", "Twice a month (15th and last day)", etc.
 // [days] is only used for semimonthly (default: MonthDays.standard).
-String describeFrequency(int frequency, FrequencyUnit unit, {MonthDays? days}) {
+// [weekendToFriday] adds ", Friday if on a weekend" for date-based units.
+String describeFrequency(int frequency, FrequencyUnit unit, {MonthDays? days, bool weekendToFriday = false}) {
+    final String weekend = weekendToFriday && unit.isDateBased ? ", Friday if on a weekend" : "";
     if (unit == FrequencyUnit.semimonthly) {
-        return "Twice a month (${(days ?? MonthDays.standard).describe()})";
+        return "Twice a month (${(days ?? MonthDays.standard).describe()})$weekend";
     }
     final String plurality = frequency > 1 ? 's' : '';
     final String base = switch (unit) {
@@ -78,5 +86,5 @@ String describeFrequency(int frequency, FrequencyUnit unit, {MonthDays? days}) {
         FrequencyUnit.monthly => 'month',
         FrequencyUnit.yearly => 'year',
     };
-    return 'Every $frequency $base$plurality';
+    return 'Every $frequency $base$plurality$weekend';
 }
