@@ -172,12 +172,12 @@ starts with a tag saying what it adds.</p>
         <div class="field-row">
           <span class="field-name">&lt;frequency&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">How many units between occurrences e.g. <code>2</code> for every two weeks</span>
+          <span class="field-desc">How many units between occurrences e.g. <code>2</code> for every two weeks. For twice a month, use <code>semimonthly</code> and put the two days here instead, e.g. <code>15/last</code> or <code>1/15</code></span>
         </div>
         <div class="field-row">
           <span class="field-name">&lt;unit&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">Unit of recurrence: day, week, month, or year</span>
+          <span class="field-desc">Unit of recurrence: day, week, biweek, semimonthly (twice a month), month, or year</span>
         </div>
         <div class="field-row">
           <span class="field-name">&lt;_category&gt;</span>
@@ -257,12 +257,12 @@ starts with a tag saying what it adds.</p>
         <div class="field-row">
           <span class="field-name">&lt;frequency&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">How many units between paychecks: e.g. <code>2</code> for biweekly</span>
+          <span class="field-desc">How many units between paychecks: e.g. <code>2</code> with <code>week</code> for every two weeks. For twice a month, use <code>semimonthly</code> and put the two days here instead, e.g. <code>15/last</code> or <code>1/15</code></span>
         </div>
         <div class="field-row">
           <span class="field-name">&lt;unit&gt;</span>
           <span class="badge badge-req">required</span>
-          <span class="field-desc">Unit of recurrence: day, week, month, or year</span>
+          <span class="field-desc">Unit of recurrence: day, week, biweek, semimonthly (twice a month), month, or year</span>
         </div>
       </div>
     </div>
@@ -326,15 +326,15 @@ starts with a tag saying what it adds.</p>
         </tr>
         <tr>
           <td class="field-mono">&lt;frequency&gt;</td>
-          <td class="field-desc">Integer, number of units between occurrences. For example, <code>2</code> with unit <code>week</code> means every two weeks.</td>
+          <td class="field-desc">Integer, number of units between occurrences. For example, <code>2</code> with unit <code>week</code> means every two weeks. For <code>semimonthly</code>, the two days of the month instead: <code>15/last</code> (the 15th and the last day) or <code>1/15</code>. The first day is 1&ndash;27; <code>last</code> is the month&rsquo;s last day.</td>
         </tr>
         <tr>
           <td class="field-mono">&lt;unit&gt;</td>
           <td class="field-desc">
             Recurrence unit. Case-insensitive; singular or plural both accepted.
             <div class="chip-row">
-              <span class="chip">day</span><span class="chip">week</span>
-              <span class="chip">month</span><span class="chip">year</span>
+              <span class="chip">day</span><span class="chip">week</span><span class="chip">biweek</span>
+              <span class="chip">semimonthly</span><span class="chip">month</span><span class="chip">year</span>
             </div>
           </td>
         </tr>

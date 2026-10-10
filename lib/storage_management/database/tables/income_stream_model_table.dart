@@ -20,6 +20,10 @@ class IncomeStreamModelRows extends Table {
   // date for every stream, AppMetaRows.lastUpdated -- see BalanceModel.makeRecent.)
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
+  // The two days of a twice-a-month (semimonthly) schedule (MonthDays; 31 = the
+  // month's last day); null for every other unit. Added in schema version 5.
+  IntColumn get monthDay1 => integer().nullable()();
+  IntColumn get monthDay2 => integer().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(false))();
   TextColumn get googleTaskId => text().nullable()(); // Its Google Task once synced
 }

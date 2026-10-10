@@ -1484,10 +1484,314 @@ i1.GeneratedColumn<String> _column_67(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
     );
+
+final class Schema5 extends i0.VersionedSchema {
+  Schema5({required super.database}) : super(version: 5);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    expenseItemRows,
+    incomeStreamModelRows,
+    categoryRows,
+    appMetaRows,
+    singleEventRows,
+    periodSnapshotRows,
+    syncedTaskRows,
+    manualAccountRows,
+    linkedItemRows,
+    linkedAccountRows,
+    balanceHistoryRows,
+  ];
+  late final Shape12 expenseItemRows = Shape12(
+    source: i0.VersionedTable(
+      entityName: 'expense_item_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_68,
+        _column_69,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 incomeStreamModelRows = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'income_stream_model_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_6,
+        _column_7,
+        _column_68,
+        _column_69,
+        _column_16,
+        _column_11,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 categoryRows = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'category_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_0, _column_17],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 appMetaRows = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'app_meta_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_18,
+        _column_19,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_27,
+        _column_28,
+        _column_29,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_36,
+        _column_65,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape4 singleEventRows = Shape4(
+    source: i0.VersionedTable(
+      entityName: 'single_event_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_37,
+        _column_38,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_43,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 periodSnapshotRows = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'period_snapshot_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_0, _column_44, _column_45, _column_46],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape6 syncedTaskRows = Shape6(
+    source: i0.VersionedTable(
+      entityName: 'synced_task_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(task_id)'],
+      columns: [_column_47, _column_48],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape7 manualAccountRows = Shape7(
+    source: i0.VersionedTable(
+      entityName: 'manual_account_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_49,
+        _column_50,
+        _column_1,
+        _column_51,
+        _column_52,
+        _column_53,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape8 linkedItemRows = Shape8(
+    source: i0.VersionedTable(
+      entityName: 'linked_item_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_54, _column_55, _column_56, _column_57],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 linkedAccountRows = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'linked_account_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_49,
+        _column_58,
+        _column_50,
+        _column_1,
+        _column_59,
+        _column_60,
+        _column_61,
+        _column_62,
+        _column_63,
+        _column_64,
+        _column_10,
+        _column_53,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape11 balanceHistoryRows = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'balance_history_rows',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['UNIQUE(date, account_key)'],
+      columns: [_column_0, _column_66, _column_67, _column_1, _column_2],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+}
+
+class Shape12 extends i0.VersionedTable {
+  Shape12({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get name =>
+      columnsByName['name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<double> get amount =>
+      columnsByName['amount']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<int> get startDate =>
+      columnsByName['start_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get currentDueDate =>
+      columnsByName['current_due_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get endDate =>
+      columnsByName['end_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get frequency =>
+      columnsByName['frequency']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get frequencyUnits =>
+      columnsByName['frequency_units']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get monthDay1 =>
+      columnsByName['month_day1']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get monthDay2 =>
+      columnsByName['month_day2']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get category =>
+      columnsByName['category']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get isCredit =>
+      columnsByName['is_credit']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get creditLimit =>
+      columnsByName['credit_limit']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<String> get googleTaskId =>
+      columnsByName['google_task_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get remindInTasks =>
+      columnsByName['remind_in_tasks']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get source =>
+      columnsByName['source']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sourceId =>
+      columnsByName['source_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get linkedAccountId =>
+      columnsByName['linked_account_id']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<int> _column_68(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'month_day1',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_69(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'month_day2',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+
+class Shape13 extends i0.VersionedTable {
+  Shape13({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get name =>
+      columnsByName['name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<double> get amount =>
+      columnsByName['amount']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<int> get startDate =>
+      columnsByName['start_date']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get frequency =>
+      columnsByName['frequency']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get frequencyUnits =>
+      columnsByName['frequency_units']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get monthDay1 =>
+      columnsByName['month_day1']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get monthDay2 =>
+      columnsByName['month_day2']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get isActive =>
+      columnsByName['is_active']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get googleTaskId =>
+      columnsByName['google_task_id']! as i1.GeneratedColumn<String>;
+}
+
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
+  required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -1506,6 +1810,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from3To4(migrator, schema);
         return 4;
+      case 4:
+        final schema = Schema5(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from4To5(migrator, schema);
+        return 5;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -1516,10 +1825,12 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
+  required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
     from2To3: from2To3,
     from3To4: from3To4,
+    from4To5: from4To5,
   ),
 );

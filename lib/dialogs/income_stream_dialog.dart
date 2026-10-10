@@ -6,6 +6,7 @@ import '../utils/date_utils.dart';
 import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 import 'date_field.dart';
+import 'month_days_field.dart';
 
 // Returns the created/edited stream, or null if cancelled or deleted. When
 // editing, Delete asks for confirmation and then calls [onDelete].
@@ -14,6 +15,7 @@ import 'date_field.dart';
 // credited by BalanceModel.makeRecent: a starting date in the future gets its
 // first paycheck credited when it arrives; a past or current one is treated as
 // already in the balance, and editing only ever affects future paydays.
+// Twice a month, the stream starts on the first of its two days on or after it.
 Future<IncomeStreamModel?> showIncomeStreamDialog(
     BuildContext context, {
     IncomeStreamModel? existing,
@@ -42,6 +44,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
         TextEditingController(text: widget.existing?.frequency.toString() ?? "2");
     final _formKey = GlobalKey<FormState>();
     late FrequencyUnit _unit = widget.existing?.frequencyUnits ?? FrequencyUnit.weekly;
+    late MonthDays _monthDays = widget.existing?.monthDays ?? MonthDays.standard;
     late DateTime _startDate = widget.existing?.startDate ?? todayDate();
 
     @override
@@ -52,13 +55,17 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
         super.dispose();
     }
 
+    // Twice a month has two days instead of an "every N" count.
+    bool get _twiceAMonth => _unit == FrequencyUnit.semimonthly;
+
     IncomeStreamModel _build() => IncomeStreamModel(
         id: widget.existing?.id,
         name: _name.text.trim(),
         amount: double.parse(_amount.text.trim()),
         startDate: _startDate,
-        frequency: int.parse(_frequency.text.trim()),
+        frequency: _twiceAMonth ? 1 : int.parse(_frequency.text.trim()),
         frequencyUnits: _unit,
+        monthDays: _twiceAMonth ? _monthDays : null,
         isActive: widget.existing?.isActive ?? false,
         googleTaskId: widget.existing?.googleTaskId,
     );
@@ -97,7 +104,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 spacing: 12,
                                 children: [
-                                    Expanded(
+                                    if (!_twiceAMonth) Expanded(
                                         child: TextFormField(
                                             controller: _frequency,
                                             keyboardType: TextInputType.number,
@@ -122,8 +129,10 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
                                     ),
                                 ],
                             ),
+                            if (_twiceAMonth)
+                                MonthDaysField(value: _monthDays, onChanged: (days) => setState(() => _monthDays = days)),
                             DateField(
-                                label: "Starting date",
+                                label: _twiceAMonth ? "First payday on or after" : "Starting date",
                                 value: _startDate,
                                 onPicked: (date) => setState(() => _startDate = date),
                             ),

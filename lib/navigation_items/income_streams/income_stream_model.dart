@@ -13,6 +13,8 @@ class IncomeStreamModel {
     DateTime startDate;
     int frequency; // Frequency
     FrequencyUnit frequencyUnits; // Tag to track frequency
+    // The two paydays of a twice-a-month (semimonthly) stream; null for other units.
+    MonthDays? monthDays;
     bool isActive; // Whether this stream sets the pay periods (see BalanceModel)
     String? googleTaskId; // Its task in Google Tasks, once synced (see TasksSync)
     double periodAmount = 0.00; // Amount for the check currently on screen
@@ -26,7 +28,14 @@ class IncomeStreamModel {
         required this.frequencyUnits,
         this.isActive = false, // Default to inactive
         this.googleTaskId,
-    }) : startDate = dateOnly(startDate);
+        this.monthDays,
+    }) : startDate = dateOnly(startDate) {
+        // Twice a month, the first payday must be one of the two days: the first
+        // one on or after the chosen date.
+        if (frequencyUnits == FrequencyUnit.semimonthly) {
+            this.startDate = _projector.firstOnOrAfter(this.startDate);
+        }
+    }
 
     // Built on demand so it always reflects the current startDate/frequency.
     // Occurrence 0 is startDate itself.
@@ -35,12 +44,13 @@ class IncomeStreamModel {
         originDate: startDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
+        monthDays: monthDays,
     );
 
     // Methods
 
     // Human-readable string representation of the income stream
-    String displayString() => describeFrequency(frequency, frequencyUnits);
+    String displayString() => describeFrequency(frequency, frequencyUnits, days: monthDays);
 
     // Number of paydays from [from] through [to], both inclusive.
     int occurrencesBetween(DateTime from, DateTime to) {

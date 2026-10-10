@@ -10,7 +10,9 @@
 //     date (Java kept the original start date after re-dating) is replaced by
 //     one that does: the due date itself, or an earlier date on the anchor day.
 //   - Java units are ChronoUnit names (expenses) or 0-3 = days/weeks/months/years
-//     (streams); biweekly here is written as 2x weeks.
+//     (streams); biweekly here is written as 2x weeks. Twice a month (which the
+//     Java app didn't have) is "HALF_MONTHS" (streams: 4) with its two days in
+//     "monthDays" ([15, 31]).
 //   - Java's "incomeCreditedThrough" is lastUpdated: paychecks through it are in the balance.
 //   - Which manual accounts count toward the balance lived in Java's preferences,
 //     not its backups, so they don't count after restoring a Java backup.
@@ -109,6 +111,7 @@ class BackupJson {
             "startDate": _iso(e.startDate),
             "endDate": e.endDate == null ? null : _iso(e.endDate!),
             "anchorDay": e.startDate.day,
+            if (e.monthDays != null) "monthDays": [e.monthDays!.first, e.monthDays!.second],
             if (e is CreditModel) "creditLimit": e.creditLimit.toStringAsFixed(2),
             if (e is! CreditModel) ...{
                 "isVariable": false,
@@ -127,7 +130,8 @@ class BackupJson {
             "amount": s.amount.toStringAsFixed(2),
             "checkDate": "${s.startDate.year.toString().padLeft(4, "0")}.${_two(s.startDate.month)}.${_two(s.startDate.day)}",
             "frequency": unit.$1,
-            "frequencyTag": const ["DAYS", "WEEKS", "MONTHS", "YEARS"].indexOf(unit.$2),
+            "frequencyTag": _streamUnits.indexOf(unit.$2),
+            if (s.monthDays != null) "monthDays": [s.monthDays!.first, s.monthDays!.second],
             "selected": identical(s, active),
             "googleTaskId": s.googleTaskId,
         };
@@ -158,9 +162,13 @@ class BackupJson {
         FrequencyUnit.daily => (frequency, "DAYS"),
         FrequencyUnit.weekly => (frequency, "WEEKS"),
         FrequencyUnit.biweekly => (frequency * 2, "WEEKS"),
+        FrequencyUnit.semimonthly => (frequency, "HALF_MONTHS"),
         FrequencyUnit.monthly => (frequency, "MONTHS"),
         FrequencyUnit.yearly => (frequency, "YEARS"),
     };
+
+    // A stream's frequencyTag: Java's 0-3, plus 4 for twice a month.
+    static const List<String> _streamUnits = ["DAYS", "WEEKS", "MONTHS", "YEARS", "HALF_MONTHS"];
 
     // ── Reading ─────────────────────────────────────────────────────────────
 
@@ -259,7 +267,12 @@ class BackupJson {
             final (FrequencyUnit, int) unit = isCredit
                 ? (FrequencyUnit.monthly, 1)
                 : _unitFromChrono(_string(o["frequencyTag"]) ?? "MONTHS", _int(o["frequency"], 1));
-            final DateTime start = _alignedStart(_date(o["startDate"]), due, unit.$2, unit.$1, _int(o["anchorDay"], 0));
+            final MonthDays? days = _monthDays(o["monthDays"], unit.$1);
+            // Twice a month, the start just has to be on or before the due date
+            // (ExpenseItem moves it to a payday).
+            final DateTime start = unit.$1 == FrequencyUnit.semimonthly
+                ? minDate(_date(o["startDate"]) ?? due, due)
+                : _alignedStart(_date(o["startDate"]), due, unit.$2, unit.$1, _int(o["anchorDay"], 0));
             final (FundingSource, String?) source = switch (_string(o["source"])) {
                 "MANUAL_ACCOUNT" => (FundingSource.manualAccount, _string(o["sourceId"])),
                 "CREDIT_CARD" when !isCredit => (FundingSource.creditCard, _string(o["sourceId"])),
@@ -295,6 +308,7 @@ class BackupJson {
                 endDate: end != null && end.isBefore(start) ? start : end,
                 frequency: unit.$2,
                 frequencyUnits: unit.$1,
+                monthDays: days,
                 category: category.isEmpty ? otherCategory : category,
                 googleTaskId: taskId,
                 remindInTasks: remind,
@@ -335,13 +349,14 @@ class BackupJson {
             if (name.isEmpty || start == null) return null;
             final int tag = _int(o["frequencyTag"], 1);
             final (FrequencyUnit, int) unit = _unitFromChrono(
-                const ["DAYS", "WEEKS", "MONTHS", "YEARS"][tag >= 0 && tag <= 3 ? tag : 1], _int(o["frequency"], 1));
+                _streamUnits[tag >= 0 && tag < _streamUnits.length ? tag : 1], _int(o["frequency"], 1));
             return IncomeStreamModel(
                 name: name,
                 amount: _money(o["amount"]),
                 startDate: start,
                 frequency: unit.$2,
                 frequencyUnits: unit.$1,
+                monthDays: _monthDays(o["monthDays"], unit.$1),
                 isActive: o["selected"] == true,
                 googleTaskId: _string(o["googleTaskId"]),
             );
@@ -388,8 +403,20 @@ class BackupJson {
         "DAYS" => (FrequencyUnit.daily, frequency),
         "WEEKS" => (FrequencyUnit.weekly, frequency),
         "YEARS" => (FrequencyUnit.yearly, frequency),
+        "HALF_MONTHS" => (FrequencyUnit.semimonthly, frequency),
         _ => (FrequencyUnit.monthly, frequency),
     };
+
+    // A twice-a-month schedule's days from [value] ([15, 31]); the usual 15th and
+    // last day if they're missing or invalid. Null for other units.
+    static MonthDays? _monthDays(Object? value, FrequencyUnit unit) {
+        if (unit != FrequencyUnit.semimonthly) return null;
+        if (value is List && value.length == 2 && value[0] is num && value[1] is num) {
+            final MonthDays days = MonthDays((value[0] as num).toInt(), (value[1] as num).toInt());
+            if (days.isValid) return days;
+        }
+        return MonthDays.standard;
+    }
 
     // ── Field helpers ───────────────────────────────────────────────────────
 

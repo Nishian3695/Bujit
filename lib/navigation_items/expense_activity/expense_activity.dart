@@ -527,6 +527,7 @@ class ExpenseActivityState extends State<ExpenseActivity> {
             FrequencyUnit.daily => f == 1 ? "day" : "${f}d",
             FrequencyUnit.weekly => f == 1 ? "wk" : "${f}wk",
             FrequencyUnit.biweekly => "${2 * f}wk",
+            FrequencyUnit.semimonthly => "half-mo", // "$600.00/half-mo": twice a month
             FrequencyUnit.monthly => f == 1 ? "mo" : "${f}mo",
             FrequencyUnit.yearly => f == 1 ? "yr" : "${f}yr",
         };

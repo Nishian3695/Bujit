@@ -9,6 +9,7 @@ import '../utils/frequency_unit.dart';
 import 'confirm_delete.dart';
 import 'connected_account_field.dart';
 import 'date_field.dart';
+import 'month_days_field.dart';
 import 'paid_from_field.dart';
 import '../utils/date_utils.dart';
 
@@ -77,6 +78,9 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
     final _formKey = GlobalKey<FormState>();
     // Defined things to change but keep locally until Save is pressed
     late FrequencyUnit _frequencyUnit = widget.existing?.frequencyUnits ?? FrequencyUnit.values.first;
+    late MonthDays _monthDays = widget.existing?.monthDays ?? MonthDays.standard;
+    // Twice a month has two days instead of a frequency count.
+    bool get _twiceAMonth => _frequencyUnit == FrequencyUnit.semimonthly;
     late String _category = widget.existing?.category ?? otherCategory;
     // Like the Java app, editing shows the next due date and adding defaults to today.
     late DateTime _startDate = widget.existing?.currentDueDate ?? todayDate();
@@ -135,8 +139,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
             final String name = _nameController.text.trim();
             // Amount should already be in currency format based on allowed input
             final double? amount = double.tryParse(_amountController.text.trim());
-            // Frequency should be a positive integer
-            final int? frequency = int.tryParse(_frequencyController.text.trim());
+            // Frequency should be a positive integer (always 1 twice a month)
+            final int? frequency = _twiceAMonth ? 1 : int.tryParse(_frequencyController.text.trim());
             // Inputs should be validated by the form, but we can double-check here
             if (name.isEmpty || amount == null || amount <= 0 || frequency == null || frequency <= 0) {
                 // Raise an error -- this should not happen if the form is validated correctly
@@ -151,6 +155,7 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                 amount: amount,
                 frequency: frequency,
                 frequencyUnits: _frequencyUnit,
+                monthDays: _twiceAMonth ? _monthDays : null,
                 startDate: keepSchedule ? existing.startDate : _startDate,
                 currentDueDate: keepSchedule ? existing.currentDueDate : null,
                 endDate: _endDate,
@@ -269,8 +274,8 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 spacing: 12,
                                 children: [
-                                    // Frequency count field
-                                    Expanded(
+                                    // Frequency count field (none twice a month: the two days below)
+                                    if (!_twiceAMonth) Expanded(
                                         child: TextFormField(
                                             controller: _frequencyController,
                                             // Whole numbers only: the frequency is parsed with int.tryParse
@@ -302,8 +307,10 @@ class _RecurringExpenseDialogState extends State<_RecurringExpenseDialog> {
                                     ),
                                 ],
                             ),
+                            if (_twiceAMonth)
+                                MonthDaysField(value: _monthDays, onChanged: (days) => setState(() => _monthDays = days)),
                             DateField(
-                                label: "Starting date",
+                                label: _twiceAMonth ? "First due on or after" : "Starting date",
                                 value: _startDate,
                                 onPicked: (date) => setState(() => _startDate = date),
                             ),

@@ -12,6 +12,8 @@ class ExpenseItem {
     String name; // Name of the expense
     int frequency; // Frequency in units of frequencyUnits
     FrequencyUnit frequencyUnits; // Tag to track frequency
+    // The two days of a twice-a-month (semimonthly) item; null for other units.
+    MonthDays? monthDays;
     double amount; // Amount due each occurrence (a credit card's current balance)
     // First occurrence. Also anchors the schedule: its day of month is what a
     // monthly expense returns to after a short month (Jan 31 -> Feb 28 -> Mar 31),
@@ -53,9 +55,16 @@ class ExpenseItem {
         this.source = FundingSource.balance,
         this.sourceId,
         this.linkedAccountId,
+        this.monthDays,
     }) : startDate = dateOnly(startDate),
          currentDueDate = dateOnly(currentDueDate ?? startDate),
          endDate = endDate == null ? null : dateOnly(endDate) {
+        // Twice a month, the start (and next due date) must be one of the two
+        // days: move each to the first one on or after it.
+        if (frequencyUnits == FrequencyUnit.semimonthly) {
+            this.startDate = _projector.firstOnOrAfter(this.startDate);
+            this.currentDueDate = _projector.firstOnOrAfter(maxDate(this.currentDueDate, this.startDate));
+        }
         shownDate = this.currentDueDate;
         periodAmount = amount;
     }
@@ -67,6 +76,7 @@ class ExpenseItem {
         originDate: startDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
+        monthDays: monthDays,
     );
 
     // True once no occurrences remain: the next due date is past the end date.

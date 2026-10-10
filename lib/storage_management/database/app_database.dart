@@ -48,9 +48,10 @@ class AppDatabase extends _$AppDatabase {
   // test/drift/app_database/schema_test.dart fails if step 1 happens without the rest.
   //
   // Versions: 1, the first; 2, Settings > Appearance (theme mode and accent color);
-  // 3, Apple Reminders as a task sync service; 4, balance history (Visuals > Net Balance).
+  // 3, Apple Reminders as a task sync service; 4, balance history (Visuals > Net Balance);
+  // 5, twice-a-month schedules (the two days on expenses and income streams).
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +67,12 @@ class AppDatabase extends _$AppDatabase {
           },
           from3To4: (m, schema) async {
             await m.createTable(schema.balanceHistoryRows);
+          },
+          from4To5: (m, schema) async {
+            await m.addColumn(schema.expenseItemRows, schema.expenseItemRows.monthDay1);
+            await m.addColumn(schema.expenseItemRows, schema.expenseItemRows.monthDay2);
+            await m.addColumn(schema.incomeStreamModelRows, schema.incomeStreamModelRows.monthDay1);
+            await m.addColumn(schema.incomeStreamModelRows, schema.incomeStreamModelRows.monthDay2);
           },
         ),
       );

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../../../utils/frequency_unit.dart';
 import '../../../navigation_items/income_streams/income_stream_model.dart';
 
 // Converts between drift's generated IncomeStreamModelRow/Companion classes and
@@ -13,6 +14,7 @@ extension IncomeStreamRowMapper on IncomeStreamModelRow {
         startDate: startDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
+        monthDays: monthDay1 == null || monthDay2 == null ? null : MonthDays(monthDay1!, monthDay2!),
         isActive: isActive,
         googleTaskId: googleTaskId,
       );
@@ -26,6 +28,8 @@ extension IncomeStreamModelMapper on IncomeStreamModel {
         startDate: startDate,
         frequency: frequency,
         frequencyUnits: frequencyUnits,
+        monthDay1: Value(monthDays?.first),
+        monthDay2: Value(monthDays?.second),
         isActive: Value(isActive),
         googleTaskId: Value(googleTaskId),
       );

@@ -14,7 +14,11 @@ class Projector {
     FrequencyUnit frequencyUnits; // Frequency units of the expense
     bool startClosed; // Whether the start of the period is closed (inclusive) or open (exclusive) wrt periodOccurrences
     bool endClosed; // Whether the end of the period is closed (inclusive) or open (exclusive) wrt periodOccurrences
+    // The two days of a twice-a-month (semimonthly) schedule; unused otherwise.
+    final MonthDays monthDays;
 
+    // Invalid days (bad data) fall back to the standard pair: paydays must
+    // always move forward, or stepping between them would never end.
     Projector({
         required DateTime baseDate,
         required this.frequency,
@@ -22,7 +26,9 @@ class Projector {
         this.startClosed = true,
         this.endClosed = false,
         DateTime? originDate,
-    }) : baseDate = dateOnly(baseDate),
+        MonthDays? monthDays,
+    }) : monthDays = (monthDays != null && monthDays.isValid) ? monthDays : MonthDays.standard,
+         baseDate = dateOnly(baseDate),
          originDate = dateOnly(originDate ?? baseDate); // If originDate is not provided, set it to baseDate
 
     // Methods
@@ -34,6 +40,8 @@ class Projector {
             FrequencyUnit.daily => frequency,
             FrequencyUnit.weekly => frequency * 7,
             FrequencyUnit.biweekly => frequency * 14,
+            // Half a month on average; the exact dates come from occurrenceDate.
+            FrequencyUnit.semimonthly => (_monthsToDays(frequency, calendar) / 2).round(),
             FrequencyUnit.monthly => _monthsToDays(frequency, calendar),
             FrequencyUnit.yearly => _yearsToDays(frequency, calendar),
         };
@@ -60,6 +68,7 @@ class Projector {
             FrequencyUnit.daily => addDays(baseDate, frequency * k),
             FrequencyUnit.weekly => addDays(baseDate, frequency * 7 * k),
             FrequencyUnit.biweekly => addDays(baseDate, frequency * 14 * k),
+            FrequencyUnit.semimonthly => _slotDate(_baseSlot + frequency * k),
             FrequencyUnit.monthly => _addMonthsClamped(frequency * k),
             FrequencyUnit.yearly => _clampedDate(baseDate.year + frequency * k, originDate.month, originDate.day),
         };
@@ -73,6 +82,28 @@ class Projector {
         int month0 = totalMonths0 % 12; // Dart's `%` on int is floor-mod: always in [0, 11].
         int year = (totalMonths0 - month0) ~/ 12;
         return _clampedDate(year, month0 + 1, originDate.day);
+    }
+
+    // Twice a month: every month has two "slots", numbered continuously from year
+    // 0 (slot 2m is month m's first day, 2m + 1 its second day), so stepping
+    // through paydays is integer arithmetic and short months can't cause drift.
+    // Occurrence 0 is the first payday on or after baseDate.
+    int get _baseSlot => _firstSlotOnOrAfter(baseDate);
+
+    // The payday a slot stands for (clamped like a monthly date: day 31 is the
+    // month's last day).
+    DateTime _slotDate(int slot) {
+        final int month = slot ~/ 2; // Months since year 0 (slots are never negative)
+        final int day = slot.isEven ? monthDays.first : monthDays.second;
+        return _clampedDate(month ~/ 12, month % 12 + 1, day);
+    }
+
+    // The first slot whose payday is on or after [date].
+    int _firstSlotOnOrAfter(DateTime date) {
+        final int firstOfMonth = 2 * (date.year * 12 + date.month - 1);
+        if (!date.isAfter(_slotDate(firstOfMonth))) return firstOfMonth;
+        if (!date.isAfter(_slotDate(firstOfMonth + 1))) return firstOfMonth + 1;
+        return firstOfMonth + 2;
     }
 
     // Due dates on last day (e.g., Jan. 31) are usually last day of month (e.g., Feb. 28/29)
@@ -96,6 +127,8 @@ class Projector {
             FrequencyUnit.weekly => (daysBetween(baseDate, date) / (frequency * 7)).round(),
             // Difference in biweeks divided by frequency, rounded to nearest integer
             FrequencyUnit.biweekly => (daysBetween(baseDate, date) / (frequency * 14)).round(),
+            // Slots between the base payday and the date's, divided by frequency
+            FrequencyUnit.semimonthly => (_firstSlotOnOrAfter(date) - _baseSlot) ~/ frequency,
             // Difference in months (excluding day portion) divided by frequency
             FrequencyUnit.monthly =>
                 ((date.year - baseDate.year) * 12 + date.month - baseDate.month) ~/ frequency,

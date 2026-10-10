@@ -614,7 +614,7 @@ class _VisualsActivityState extends State<VisualsActivity> {
                         icon: Icons.receipt_long_outlined,
                         title: expense.name,
                         subtitle: "${_money(expense.amount)} · "
-                            "${describeFrequency(expense.frequency, expense.frequencyUnits)}",
+                            "${describeFrequency(expense.frequency, expense.frequencyUnits, days: expense.monthDays)}",
                         onChanged: (shown) => toggle<Object>(_excludedNet, expense, shown),
                     ),
                 const SizedBox(height: 8),

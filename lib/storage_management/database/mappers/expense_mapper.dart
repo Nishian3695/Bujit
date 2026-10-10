@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../../../utils/frequency_unit.dart';
 import '../../../navigation_items/expense_activity/credit_model.dart';
 import '../../../navigation_items/expense_activity/expense_item.dart';
 import '../../../navigation_items/expense_activity/expense_model.dart';
@@ -40,6 +41,7 @@ extension ExpenseRowMapper on ExpenseItemRow {
           endDate: endDate,
           frequency: frequency,
           frequencyUnits: frequencyUnits,
+          monthDays: _monthDays(monthDay1, monthDay2),
           category: category,
           googleTaskId: googleTaskId,
           remindInTasks: remindInTasks,
@@ -68,6 +70,8 @@ extension ExpenseItemMapper on ExpenseItem {
       endDate: Value(endDate),
       frequency: frequency,
       frequencyUnits: frequencyUnits,
+      monthDay1: Value(monthDays?.first),
+      monthDay2: Value(monthDays?.second),
       category: Value(category),
       isCredit: Value(card != null),
       creditLimit: Value(card?.creditLimit),
@@ -79,3 +83,7 @@ extension ExpenseItemMapper on ExpenseItem {
     );
   }
 }
+
+// The stored pair of days, or null when either is missing (any unit but semimonthly).
+MonthDays? _monthDays(int? first, int? second) =>
+    first == null || second == null ? null : MonthDays(first, second);

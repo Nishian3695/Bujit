@@ -9,3 +9,5 @@ expense,Rent,2200,2024-01-01,1,month,Housing
 expense,Car Payment,350,2024-01-10,1,month,Transportation,2028-12-10
 credit,Card Name,156,1000,2024-01-15
 income_stream,Hardware Store,2500.56,2022-03-15,2,week
+# Twice a month: the two days go where the count does ("last" = the month's last day), e.g.
+# income_stream,Main Job,1800,2024-01-15,15/last,semimonthly

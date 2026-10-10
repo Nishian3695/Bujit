@@ -41,6 +41,10 @@ class ExpenseItemRows extends Table {
   DateTimeColumn get endDate => dateTime().nullable()();
   IntColumn get frequency => integer()();
   TextColumn get frequencyUnits => textEnum<FrequencyUnit>()();
+  // The two days of a twice-a-month (semimonthly) schedule (MonthDays; 31 = the
+  // month's last day); null for every other unit. Added in schema version 5.
+  IntColumn get monthDay1 => integer().nullable()();
+  IntColumn get monthDay2 => integer().nullable()();
   TextColumn get category => text().withDefault(const Constant(otherCategory))();
   // Credit cards share this table (CreditModel extends ExpenseItem): amount is
   // the card's balance and creditLimit its limit; null for regular expenses.

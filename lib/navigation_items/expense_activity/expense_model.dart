@@ -18,6 +18,7 @@ class ExpenseModel extends ExpenseItem {
         super.source,
         super.sourceId,
         super.linkedAccountId,
+        super.monthDays,
     });
 
     // Getters

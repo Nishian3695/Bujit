@@ -101,6 +101,28 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
       ).withConverter<FrequencyUnit>(
         $ExpenseItemRowsTable.$converterfrequencyUnits,
       );
+  static const VerificationMeta _monthDay1Meta = const VerificationMeta(
+    'monthDay1',
+  );
+  @override
+  late final GeneratedColumn<int> monthDay1 = GeneratedColumn<int>(
+    'month_day1',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _monthDay2Meta = const VerificationMeta(
+    'monthDay2',
+  );
+  @override
+  late final GeneratedColumn<int> monthDay2 = GeneratedColumn<int>(
+    'month_day2',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _categoryMeta = const VerificationMeta(
     'category',
   );
@@ -207,6 +229,8 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
     endDate,
     frequency,
     frequencyUnits,
+    monthDay1,
+    monthDay2,
     category,
     isCredit,
     creditLimit,
@@ -279,6 +303,18 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
       );
     } else if (isInserting) {
       context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('month_day1')) {
+      context.handle(
+        _monthDay1Meta,
+        monthDay1.isAcceptableOrUnknown(data['month_day1']!, _monthDay1Meta),
+      );
+    }
+    if (data.containsKey('month_day2')) {
+      context.handle(
+        _monthDay2Meta,
+        monthDay2.isAcceptableOrUnknown(data['month_day2']!, _monthDay2Meta),
+      );
     }
     if (data.containsKey('category')) {
       context.handle(
@@ -377,6 +413,14 @@ class $ExpenseItemRowsTable extends ExpenseItemRows
           data['${effectivePrefix}frequency_units'],
         )!,
       ),
+      monthDay1: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}month_day1'],
+      ),
+      monthDay2: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}month_day2'],
+      ),
       category: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category'],
@@ -436,6 +480,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
   final DateTime? endDate;
   final int frequency;
   final FrequencyUnit frequencyUnits;
+  final int? monthDay1;
+  final int? monthDay2;
   final String category;
   final bool isCredit;
   final double? creditLimit;
@@ -453,6 +499,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     this.endDate,
     required this.frequency,
     required this.frequencyUnits,
+    this.monthDay1,
+    this.monthDay2,
     required this.category,
     required this.isCredit,
     this.creditLimit,
@@ -478,6 +526,12 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       map['frequency_units'] = Variable<String>(
         $ExpenseItemRowsTable.$converterfrequencyUnits.toSql(frequencyUnits),
       );
+    }
+    if (!nullToAbsent || monthDay1 != null) {
+      map['month_day1'] = Variable<int>(monthDay1);
+    }
+    if (!nullToAbsent || monthDay2 != null) {
+      map['month_day2'] = Variable<int>(monthDay2);
     }
     map['category'] = Variable<String>(category);
     map['is_credit'] = Variable<bool>(isCredit);
@@ -514,6 +568,12 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           : Value(endDate),
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
+      monthDay1: monthDay1 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDay1),
+      monthDay2: monthDay2 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDay2),
       category: Value(category),
       isCredit: Value(isCredit),
       creditLimit: creditLimit == null && nullToAbsent
@@ -549,6 +609,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       frequencyUnits: $ExpenseItemRowsTable.$converterfrequencyUnits.fromJson(
         serializer.fromJson<String>(json['frequencyUnits']),
       ),
+      monthDay1: serializer.fromJson<int?>(json['monthDay1']),
+      monthDay2: serializer.fromJson<int?>(json['monthDay2']),
       category: serializer.fromJson<String>(json['category']),
       isCredit: serializer.fromJson<bool>(json['isCredit']),
       creditLimit: serializer.fromJson<double?>(json['creditLimit']),
@@ -575,6 +637,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       'frequencyUnits': serializer.toJson<String>(
         $ExpenseItemRowsTable.$converterfrequencyUnits.toJson(frequencyUnits),
       ),
+      'monthDay1': serializer.toJson<int?>(monthDay1),
+      'monthDay2': serializer.toJson<int?>(monthDay2),
       'category': serializer.toJson<String>(category),
       'isCredit': serializer.toJson<bool>(isCredit),
       'creditLimit': serializer.toJson<double?>(creditLimit),
@@ -597,6 +661,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     Value<DateTime?> endDate = const Value.absent(),
     int? frequency,
     FrequencyUnit? frequencyUnits,
+    Value<int?> monthDay1 = const Value.absent(),
+    Value<int?> monthDay2 = const Value.absent(),
     String? category,
     bool? isCredit,
     Value<double?> creditLimit = const Value.absent(),
@@ -614,6 +680,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     endDate: endDate.present ? endDate.value : this.endDate,
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
+    monthDay1: monthDay1.present ? monthDay1.value : this.monthDay1,
+    monthDay2: monthDay2.present ? monthDay2.value : this.monthDay2,
     category: category ?? this.category,
     isCredit: isCredit ?? this.isCredit,
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
@@ -639,6 +707,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
       frequencyUnits: data.frequencyUnits.present
           ? data.frequencyUnits.value
           : this.frequencyUnits,
+      monthDay1: data.monthDay1.present ? data.monthDay1.value : this.monthDay1,
+      monthDay2: data.monthDay2.present ? data.monthDay2.value : this.monthDay2,
       category: data.category.present ? data.category.value : this.category,
       isCredit: data.isCredit.present ? data.isCredit.value : this.isCredit,
       creditLimit: data.creditLimit.present
@@ -669,6 +739,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
+          ..write('monthDay1: $monthDay1, ')
+          ..write('monthDay2: $monthDay2, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
@@ -691,6 +763,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
     endDate,
     frequency,
     frequencyUnits,
+    monthDay1,
+    monthDay2,
     category,
     isCredit,
     creditLimit,
@@ -712,6 +786,8 @@ class ExpenseItemRow extends DataClass implements Insertable<ExpenseItemRow> {
           other.endDate == this.endDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
+          other.monthDay1 == this.monthDay1 &&
+          other.monthDay2 == this.monthDay2 &&
           other.category == this.category &&
           other.isCredit == this.isCredit &&
           other.creditLimit == this.creditLimit &&
@@ -731,6 +807,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
   final Value<DateTime?> endDate;
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
+  final Value<int?> monthDay1;
+  final Value<int?> monthDay2;
   final Value<String> category;
   final Value<bool> isCredit;
   final Value<double?> creditLimit;
@@ -748,6 +826,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.endDate = const Value.absent(),
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
+    this.monthDay1 = const Value.absent(),
+    this.monthDay2 = const Value.absent(),
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
@@ -766,6 +846,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     this.endDate = const Value.absent(),
     required int frequency,
     required FrequencyUnit frequencyUnits,
+    this.monthDay1 = const Value.absent(),
+    this.monthDay2 = const Value.absent(),
     this.category = const Value.absent(),
     this.isCredit = const Value.absent(),
     this.creditLimit = const Value.absent(),
@@ -789,6 +871,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Expression<DateTime>? endDate,
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
+    Expression<int>? monthDay1,
+    Expression<int>? monthDay2,
     Expression<String>? category,
     Expression<bool>? isCredit,
     Expression<double>? creditLimit,
@@ -807,6 +891,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       if (endDate != null) 'end_date': endDate,
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
+      if (monthDay1 != null) 'month_day1': monthDay1,
+      if (monthDay2 != null) 'month_day2': monthDay2,
       if (category != null) 'category': category,
       if (isCredit != null) 'is_credit': isCredit,
       if (creditLimit != null) 'credit_limit': creditLimit,
@@ -827,6 +913,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
     Value<DateTime?>? endDate,
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
+    Value<int?>? monthDay1,
+    Value<int?>? monthDay2,
     Value<String>? category,
     Value<bool>? isCredit,
     Value<double?>? creditLimit,
@@ -845,6 +933,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
       endDate: endDate ?? this.endDate,
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
+      monthDay1: monthDay1 ?? this.monthDay1,
+      monthDay2: monthDay2 ?? this.monthDay2,
       category: category ?? this.category,
       isCredit: isCredit ?? this.isCredit,
       creditLimit: creditLimit ?? this.creditLimit,
@@ -887,6 +977,12 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
         ),
       );
     }
+    if (monthDay1.present) {
+      map['month_day1'] = Variable<int>(monthDay1.value);
+    }
+    if (monthDay2.present) {
+      map['month_day2'] = Variable<int>(monthDay2.value);
+    }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
@@ -927,6 +1023,8 @@ class ExpenseItemRowsCompanion extends UpdateCompanion<ExpenseItemRow> {
           ..write('endDate: $endDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
+          ..write('monthDay1: $monthDay1, ')
+          ..write('monthDay2: $monthDay2, ')
           ..write('category: $category, ')
           ..write('isCredit: $isCredit, ')
           ..write('creditLimit: $creditLimit, ')
@@ -1015,6 +1113,28 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
       ).withConverter<FrequencyUnit>(
         $IncomeStreamModelRowsTable.$converterfrequencyUnits,
       );
+  static const VerificationMeta _monthDay1Meta = const VerificationMeta(
+    'monthDay1',
+  );
+  @override
+  late final GeneratedColumn<int> monthDay1 = GeneratedColumn<int>(
+    'month_day1',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _monthDay2Meta = const VerificationMeta(
+    'monthDay2',
+  );
+  @override
+  late final GeneratedColumn<int> monthDay2 = GeneratedColumn<int>(
+    'month_day2',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -1049,6 +1169,8 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
     startDate,
     frequency,
     frequencyUnits,
+    monthDay1,
+    monthDay2,
     isActive,
     googleTaskId,
   ];
@@ -1098,6 +1220,18 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
       );
     } else if (isInserting) {
       context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('month_day1')) {
+      context.handle(
+        _monthDay1Meta,
+        monthDay1.isAcceptableOrUnknown(data['month_day1']!, _monthDay1Meta),
+      );
+    }
+    if (data.containsKey('month_day2')) {
+      context.handle(
+        _monthDay2Meta,
+        monthDay2.isAcceptableOrUnknown(data['month_day2']!, _monthDay2Meta),
+      );
     }
     if (data.containsKey('is_active')) {
       context.handle(
@@ -1150,6 +1284,14 @@ class $IncomeStreamModelRowsTable extends IncomeStreamModelRows
               data['${effectivePrefix}frequency_units'],
             )!,
           ),
+      monthDay1: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}month_day1'],
+      ),
+      monthDay2: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}month_day2'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -1180,6 +1322,8 @@ class IncomeStreamModelRow extends DataClass
   final DateTime startDate;
   final int frequency;
   final FrequencyUnit frequencyUnits;
+  final int? monthDay1;
+  final int? monthDay2;
   final bool isActive;
   final String? googleTaskId;
   const IncomeStreamModelRow({
@@ -1189,6 +1333,8 @@ class IncomeStreamModelRow extends DataClass
     required this.startDate,
     required this.frequency,
     required this.frequencyUnits,
+    this.monthDay1,
+    this.monthDay2,
     required this.isActive,
     this.googleTaskId,
   });
@@ -1207,6 +1353,12 @@ class IncomeStreamModelRow extends DataClass
         ),
       );
     }
+    if (!nullToAbsent || monthDay1 != null) {
+      map['month_day1'] = Variable<int>(monthDay1);
+    }
+    if (!nullToAbsent || monthDay2 != null) {
+      map['month_day2'] = Variable<int>(monthDay2);
+    }
     map['is_active'] = Variable<bool>(isActive);
     if (!nullToAbsent || googleTaskId != null) {
       map['google_task_id'] = Variable<String>(googleTaskId);
@@ -1222,6 +1374,12 @@ class IncomeStreamModelRow extends DataClass
       startDate: Value(startDate),
       frequency: Value(frequency),
       frequencyUnits: Value(frequencyUnits),
+      monthDay1: monthDay1 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDay1),
+      monthDay2: monthDay2 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDay2),
       isActive: Value(isActive),
       googleTaskId: googleTaskId == null && nullToAbsent
           ? const Value.absent()
@@ -1242,6 +1400,8 @@ class IncomeStreamModelRow extends DataClass
       frequency: serializer.fromJson<int>(json['frequency']),
       frequencyUnits: $IncomeStreamModelRowsTable.$converterfrequencyUnits
           .fromJson(serializer.fromJson<String>(json['frequencyUnits'])),
+      monthDay1: serializer.fromJson<int?>(json['monthDay1']),
+      monthDay2: serializer.fromJson<int?>(json['monthDay2']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       googleTaskId: serializer.fromJson<String?>(json['googleTaskId']),
     );
@@ -1260,6 +1420,8 @@ class IncomeStreamModelRow extends DataClass
           frequencyUnits,
         ),
       ),
+      'monthDay1': serializer.toJson<int?>(monthDay1),
+      'monthDay2': serializer.toJson<int?>(monthDay2),
       'isActive': serializer.toJson<bool>(isActive),
       'googleTaskId': serializer.toJson<String?>(googleTaskId),
     };
@@ -1272,6 +1434,8 @@ class IncomeStreamModelRow extends DataClass
     DateTime? startDate,
     int? frequency,
     FrequencyUnit? frequencyUnits,
+    Value<int?> monthDay1 = const Value.absent(),
+    Value<int?> monthDay2 = const Value.absent(),
     bool? isActive,
     Value<String?> googleTaskId = const Value.absent(),
   }) => IncomeStreamModelRow(
@@ -1281,6 +1445,8 @@ class IncomeStreamModelRow extends DataClass
     startDate: startDate ?? this.startDate,
     frequency: frequency ?? this.frequency,
     frequencyUnits: frequencyUnits ?? this.frequencyUnits,
+    monthDay1: monthDay1.present ? monthDay1.value : this.monthDay1,
+    monthDay2: monthDay2.present ? monthDay2.value : this.monthDay2,
     isActive: isActive ?? this.isActive,
     googleTaskId: googleTaskId.present ? googleTaskId.value : this.googleTaskId,
   );
@@ -1294,6 +1460,8 @@ class IncomeStreamModelRow extends DataClass
       frequencyUnits: data.frequencyUnits.present
           ? data.frequencyUnits.value
           : this.frequencyUnits,
+      monthDay1: data.monthDay1.present ? data.monthDay1.value : this.monthDay1,
+      monthDay2: data.monthDay2.present ? data.monthDay2.value : this.monthDay2,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       googleTaskId: data.googleTaskId.present
           ? data.googleTaskId.value
@@ -1310,6 +1478,8 @@ class IncomeStreamModelRow extends DataClass
           ..write('startDate: $startDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
+          ..write('monthDay1: $monthDay1, ')
+          ..write('monthDay2: $monthDay2, ')
           ..write('isActive: $isActive, ')
           ..write('googleTaskId: $googleTaskId')
           ..write(')'))
@@ -1324,6 +1494,8 @@ class IncomeStreamModelRow extends DataClass
     startDate,
     frequency,
     frequencyUnits,
+    monthDay1,
+    monthDay2,
     isActive,
     googleTaskId,
   );
@@ -1337,6 +1509,8 @@ class IncomeStreamModelRow extends DataClass
           other.startDate == this.startDate &&
           other.frequency == this.frequency &&
           other.frequencyUnits == this.frequencyUnits &&
+          other.monthDay1 == this.monthDay1 &&
+          other.monthDay2 == this.monthDay2 &&
           other.isActive == this.isActive &&
           other.googleTaskId == this.googleTaskId);
 }
@@ -1349,6 +1523,8 @@ class IncomeStreamModelRowsCompanion
   final Value<DateTime> startDate;
   final Value<int> frequency;
   final Value<FrequencyUnit> frequencyUnits;
+  final Value<int?> monthDay1;
+  final Value<int?> monthDay2;
   final Value<bool> isActive;
   final Value<String?> googleTaskId;
   const IncomeStreamModelRowsCompanion({
@@ -1358,6 +1534,8 @@ class IncomeStreamModelRowsCompanion
     this.startDate = const Value.absent(),
     this.frequency = const Value.absent(),
     this.frequencyUnits = const Value.absent(),
+    this.monthDay1 = const Value.absent(),
+    this.monthDay2 = const Value.absent(),
     this.isActive = const Value.absent(),
     this.googleTaskId = const Value.absent(),
   });
@@ -1368,6 +1546,8 @@ class IncomeStreamModelRowsCompanion
     required DateTime startDate,
     required int frequency,
     required FrequencyUnit frequencyUnits,
+    this.monthDay1 = const Value.absent(),
+    this.monthDay2 = const Value.absent(),
     this.isActive = const Value.absent(),
     this.googleTaskId = const Value.absent(),
   }) : name = Value(name),
@@ -1382,6 +1562,8 @@ class IncomeStreamModelRowsCompanion
     Expression<DateTime>? startDate,
     Expression<int>? frequency,
     Expression<String>? frequencyUnits,
+    Expression<int>? monthDay1,
+    Expression<int>? monthDay2,
     Expression<bool>? isActive,
     Expression<String>? googleTaskId,
   }) {
@@ -1392,6 +1574,8 @@ class IncomeStreamModelRowsCompanion
       if (startDate != null) 'start_date': startDate,
       if (frequency != null) 'frequency': frequency,
       if (frequencyUnits != null) 'frequency_units': frequencyUnits,
+      if (monthDay1 != null) 'month_day1': monthDay1,
+      if (monthDay2 != null) 'month_day2': monthDay2,
       if (isActive != null) 'is_active': isActive,
       if (googleTaskId != null) 'google_task_id': googleTaskId,
     });
@@ -1404,6 +1588,8 @@ class IncomeStreamModelRowsCompanion
     Value<DateTime>? startDate,
     Value<int>? frequency,
     Value<FrequencyUnit>? frequencyUnits,
+    Value<int?>? monthDay1,
+    Value<int?>? monthDay2,
     Value<bool>? isActive,
     Value<String?>? googleTaskId,
   }) {
@@ -1414,6 +1600,8 @@ class IncomeStreamModelRowsCompanion
       startDate: startDate ?? this.startDate,
       frequency: frequency ?? this.frequency,
       frequencyUnits: frequencyUnits ?? this.frequencyUnits,
+      monthDay1: monthDay1 ?? this.monthDay1,
+      monthDay2: monthDay2 ?? this.monthDay2,
       isActive: isActive ?? this.isActive,
       googleTaskId: googleTaskId ?? this.googleTaskId,
     );
@@ -1444,6 +1632,12 @@ class IncomeStreamModelRowsCompanion
         ),
       );
     }
+    if (monthDay1.present) {
+      map['month_day1'] = Variable<int>(monthDay1.value);
+    }
+    if (monthDay2.present) {
+      map['month_day2'] = Variable<int>(monthDay2.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -1462,6 +1656,8 @@ class IncomeStreamModelRowsCompanion
           ..write('startDate: $startDate, ')
           ..write('frequency: $frequency, ')
           ..write('frequencyUnits: $frequencyUnits, ')
+          ..write('monthDay1: $monthDay1, ')
+          ..write('monthDay2: $monthDay2, ')
           ..write('isActive: $isActive, ')
           ..write('googleTaskId: $googleTaskId')
           ..write(')'))
@@ -5859,6 +6055,8 @@ typedef $$ExpenseItemRowsTableCreateCompanionBuilder =
       Value<DateTime?> endDate,
       required int frequency,
       required FrequencyUnit frequencyUnits,
+      Value<int?> monthDay1,
+      Value<int?> monthDay2,
       Value<String> category,
       Value<bool> isCredit,
       Value<double?> creditLimit,
@@ -5878,6 +6076,8 @@ typedef $$ExpenseItemRowsTableUpdateCompanionBuilder =
       Value<DateTime?> endDate,
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
+      Value<int?> monthDay1,
+      Value<int?> monthDay2,
       Value<String> category,
       Value<bool> isCredit,
       Value<double?> creditLimit,
@@ -5936,6 +6136,16 @@ class $$ExpenseItemRowsTableFilterComposer
   get frequencyUnits => $composableBuilder(
     column: $table.frequencyUnits,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get monthDay1 => $composableBuilder(
+    column: $table.monthDay1,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get monthDay2 => $composableBuilder(
+    column: $table.monthDay2,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get category => $composableBuilder(
@@ -6029,6 +6239,16 @@ class $$ExpenseItemRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get monthDay1 => $composableBuilder(
+    column: $table.monthDay1,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get monthDay2 => $composableBuilder(
+    column: $table.monthDay2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get category => $composableBuilder(
     column: $table.category,
     builder: (column) => ColumnOrderings(column),
@@ -6108,6 +6328,12 @@ class $$ExpenseItemRowsTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<int> get monthDay1 =>
+      $composableBuilder(column: $table.monthDay1, builder: (column) => column);
+
+  GeneratedColumn<int> get monthDay2 =>
+      $composableBuilder(column: $table.monthDay2, builder: (column) => column);
+
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
@@ -6186,6 +6412,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<DateTime?> endDate = const Value.absent(),
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
+                Value<int?> monthDay1 = const Value.absent(),
+                Value<int?> monthDay2 = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<bool> isCredit = const Value.absent(),
                 Value<double?> creditLimit = const Value.absent(),
@@ -6203,6 +6431,8 @@ class $$ExpenseItemRowsTableTableManager
                 endDate: endDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
+                monthDay1: monthDay1,
+                monthDay2: monthDay2,
                 category: category,
                 isCredit: isCredit,
                 creditLimit: creditLimit,
@@ -6222,6 +6452,8 @@ class $$ExpenseItemRowsTableTableManager
                 Value<DateTime?> endDate = const Value.absent(),
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
+                Value<int?> monthDay1 = const Value.absent(),
+                Value<int?> monthDay2 = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<bool> isCredit = const Value.absent(),
                 Value<double?> creditLimit = const Value.absent(),
@@ -6239,6 +6471,8 @@ class $$ExpenseItemRowsTableTableManager
                 endDate: endDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
+                monthDay1: monthDay1,
+                monthDay2: monthDay2,
                 category: category,
                 isCredit: isCredit,
                 creditLimit: creditLimit,
@@ -6281,6 +6515,8 @@ typedef $$IncomeStreamModelRowsTableCreateCompanionBuilder =
       required DateTime startDate,
       required int frequency,
       required FrequencyUnit frequencyUnits,
+      Value<int?> monthDay1,
+      Value<int?> monthDay2,
       Value<bool> isActive,
       Value<String?> googleTaskId,
     });
@@ -6292,6 +6528,8 @@ typedef $$IncomeStreamModelRowsTableUpdateCompanionBuilder =
       Value<DateTime> startDate,
       Value<int> frequency,
       Value<FrequencyUnit> frequencyUnits,
+      Value<int?> monthDay1,
+      Value<int?> monthDay2,
       Value<bool> isActive,
       Value<String?> googleTaskId,
     });
@@ -6334,6 +6572,16 @@ class $$IncomeStreamModelRowsTableFilterComposer
   get frequencyUnits => $composableBuilder(
     column: $table.frequencyUnits,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get monthDay1 => $composableBuilder(
+    column: $table.monthDay1,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get monthDay2 => $composableBuilder(
+    column: $table.monthDay2,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<bool> get isActive => $composableBuilder(
@@ -6386,6 +6634,16 @@ class $$IncomeStreamModelRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get monthDay1 => $composableBuilder(
+    column: $table.monthDay1,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get monthDay2 => $composableBuilder(
+    column: $table.monthDay2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -6426,6 +6684,12 @@ class $$IncomeStreamModelRowsTableAnnotationComposer
         column: $table.frequencyUnits,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get monthDay1 =>
+      $composableBuilder(column: $table.monthDay1, builder: (column) => column);
+
+  GeneratedColumn<int> get monthDay2 =>
+      $composableBuilder(column: $table.monthDay2, builder: (column) => column);
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -6488,6 +6752,8 @@ class $$IncomeStreamModelRowsTableTableManager
                 Value<DateTime> startDate = const Value.absent(),
                 Value<int> frequency = const Value.absent(),
                 Value<FrequencyUnit> frequencyUnits = const Value.absent(),
+                Value<int?> monthDay1 = const Value.absent(),
+                Value<int?> monthDay2 = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<String?> googleTaskId = const Value.absent(),
               }) => IncomeStreamModelRowsCompanion(
@@ -6497,6 +6763,8 @@ class $$IncomeStreamModelRowsTableTableManager
                 startDate: startDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
+                monthDay1: monthDay1,
+                monthDay2: monthDay2,
                 isActive: isActive,
                 googleTaskId: googleTaskId,
               ),
@@ -6508,6 +6776,8 @@ class $$IncomeStreamModelRowsTableTableManager
                 required DateTime startDate,
                 required int frequency,
                 required FrequencyUnit frequencyUnits,
+                Value<int?> monthDay1 = const Value.absent(),
+                Value<int?> monthDay2 = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<String?> googleTaskId = const Value.absent(),
               }) => IncomeStreamModelRowsCompanion.insert(
@@ -6517,6 +6787,8 @@ class $$IncomeStreamModelRowsTableTableManager
                 startDate: startDate,
                 frequency: frequency,
                 frequencyUnits: frequencyUnits,
+                monthDay1: monthDay1,
+                monthDay2: monthDay2,
                 isActive: isActive,
                 googleTaskId: googleTaskId,
               ),

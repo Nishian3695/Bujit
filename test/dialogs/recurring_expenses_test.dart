@@ -163,4 +163,41 @@ void main() {
         expect(find.text("Weekly"), findsOneWidget);
         expect(find.text("Daily"), findsNothing);
     });
+
+    testWidgets("twice a month swaps the count for two days and saves them", (tester) async {
+        final resultFuture = await _openDialog(tester);
+        await tester.enterText(find.byType(TextFormField).at(_nameFieldIndex), "Daycare");
+        await tester.enterText(find.byType(TextFormField).at(_amountFieldIndex), "300.00");
+
+        await tester.tap(find.byType(DropdownButtonFormField<FrequencyUnit>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("Twice a month").last);
+        await tester.pumpAndSettle();
+
+        // No count field; the two days (default: the 15th and the last day) instead.
+        expect(find.text("Frequency"), findsNothing);
+        expect(find.text("First day"), findsOneWidget);
+        expect(find.text("15th"), findsOneWidget);
+        expect(find.text("Last day"), findsOneWidget);
+        expect(find.text("First due on or after"), findsOneWidget);
+
+        // The 14th and the 28th (menus open scrolled to the current choice, so
+        // these are on screen)
+        await tester.tap(find.byKey(const ValueKey("monthDays.first")));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("14th").last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey("monthDays.second.14")));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text("28th").last);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(TextButton, "Save"));
+        await tester.pumpAndSettle();
+        final expense = (await resultFuture())!;
+        expect(expense.frequencyUnits, FrequencyUnit.semimonthly);
+        expect(expense.frequency, 1);
+        expect(expense.monthDays, const MonthDays(14, 28));
+        expect(expense.startDate.day, anyOf(14, 28)); // The first of the two on or after today
+    });
 }

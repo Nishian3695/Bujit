@@ -80,6 +80,7 @@ class VisualsData {
         FrequencyUnit.daily => 1.0,
         FrequencyUnit.weekly => 7.0,
         FrequencyUnit.biweekly => 14.0,
+        FrequencyUnit.semimonthly => 15.22, // Half a month
         FrequencyUnit.monthly => 30.44,
         FrequencyUnit.yearly => 365.25,
     };

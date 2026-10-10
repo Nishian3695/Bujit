@@ -323,7 +323,7 @@ class TasksSync {
         final DateTime? end = expense.endDate;
         final String notes = expense is CreditModel
             ? "Credit card balance, due monthly\nBujit Credit Card"
-            : "${describeFrequency(expense.frequency, expense.frequencyUnits)}"
+            : "${describeFrequency(expense.frequency, expense.frequencyUnits, days: expense.monthDays)}"
                 "${end == null ? "" : " until ${_isoDate(end)}"}\nBujit Budget Expense";
         return {
             "title": "${expense.name} — \$${expense.amount.toStringAsFixed(2)}",

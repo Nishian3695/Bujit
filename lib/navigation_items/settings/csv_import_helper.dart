@@ -6,6 +6,9 @@
 //   credit,<name>,<balance>,<credit_limit>,<due_date>
 //   income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>
 //   manual_account,<name>,<type>,<balance>
+// Twice a month: <unit> is "semimonthly" (or "twice-monthly") and <frequency>
+// holds the two days instead of a count, e.g. "15/last" or "1/15" ("last" is the
+// month's last day; blank means 15/last).
 // Lines starting with # are comments. Rows are appended to (not merged with)
 // existing data. A malformed row is skipped with a line-numbered error; the
 // rest of the file still imports.
@@ -95,8 +98,7 @@ class CsvImportHelper {
         final String name = _nonEmpty(p[1], "name");
         final double amount = _parseAmount(p[2]);
         final DateTime date = _parseDate(p[3]);
-        final int frequency = _parseFrequency(p[4]);
-        final FrequencyUnit unit = _parseUnit(p[5]);
+        final (int, FrequencyUnit, MonthDays?) schedule = _parseSchedule(p[4], p[5]);
         final String category = (p.length > 6 && p[6].trim().isNotEmpty) ? p[6].trim() : otherCategory;
         final DateTime? endDate = (p.length > 7 && p[7].trim().isNotEmpty) ? _parseDate(p[7]) : null;
         if (endDate != null && endDate.isBefore(date)) {
@@ -106,8 +108,9 @@ class CsvImportHelper {
             name: name,
             amount: amount,
             startDate: date,
-            frequency: frequency,
-            frequencyUnits: unit,
+            frequency: schedule.$1,
+            frequencyUnits: schedule.$2,
+            monthDays: schedule.$3,
             category: category,
             endDate: endDate,
         );
@@ -142,12 +145,14 @@ class CsvImportHelper {
     // The first stream becomes active if there isn't one yet.
     static void parseIncomeStream(List<String> p, AppData data, CsvImportResult r) {
         _require(p, 6, "income_stream,<name>,<amount>,<start_date>,<frequency>,<unit>");
+        final (int, FrequencyUnit, MonthDays?) schedule = _parseSchedule(p[4], p[5]);
         final IncomeStreamModel stream = IncomeStreamModel(
             name: _nonEmpty(p[1], "name"),
             amount: _parseAmount(p[2]),
             startDate: _parseDate(p[3]),
-            frequency: _parseFrequency(p[4]),
-            frequencyUnits: _parseUnit(p[5]),
+            frequency: schedule.$1,
+            frequencyUnits: schedule.$2,
+            monthDays: schedule.$3,
         );
         data.balance.incomeStreams.add(stream);
         data.balance.activeIncome ??= stream;
@@ -173,6 +178,34 @@ class CsvImportHelper {
         return value;
     }
 
+    // The <frequency> and <unit> fields: a count and a unit, or for twice a
+    // month, the two days and "semimonthly".
+    static (int, FrequencyUnit, MonthDays?) _parseSchedule(String frequency, String unit) {
+        final FrequencyUnit parsedUnit = _parseUnit(unit);
+        if (parsedUnit == FrequencyUnit.semimonthly) return (1, parsedUnit, _parseMonthDays(frequency));
+        return (_parseFrequency(frequency), parsedUnit, null);
+    }
+
+    // "15/last", "1/15" or "1&15" (blank: 15/last). The first day is 1-27, the
+    // second later in the month.
+    static MonthDays _parseMonthDays(String s) {
+        final String trimmed = s.trim().toLowerCase();
+        if (trimmed.isEmpty) return MonthDays.standard;
+        final RegExpMatch? m = RegExp(r'^(\d{1,2})\s*[/&]\s*(\d{1,2}|last)$').firstMatch(trimmed);
+        if (m == null) {
+            throw FormatException("twice a month needs its two days as the frequency, e.g. 15/last or 1/15; "
+                "got \"${s.trim()}\"");
+        }
+        final int first = int.parse(m.group(1)!);
+        final int second = m.group(2) == "last" ? MonthDays.lastDay : int.parse(m.group(2)!);
+        final MonthDays days = MonthDays(first, second);
+        if (!days.isValid) {
+            throw FormatException("twice a month: the first day must be 1-${MonthDays.latestFirst} and the "
+                "second later in the month; got \"${s.trim()}\"");
+        }
+        return days;
+    }
+
     // A recurrence count of at least 1.
     static int _parseFrequency(String s) {
         final int? value = int.tryParse(s.trim());
@@ -195,15 +228,21 @@ class CsvImportHelper {
         throw FormatException("invalid date (expected YYYY-MM-DD): \"$trimmed\"");
     }
 
-    // day/week/biweek/month/year, singular or plural, any case ("biweekly" too).
+    // day/week/biweek/semimonthly/month/year, singular or plural, any case ("biweekly" too).
     static FrequencyUnit _parseUnit(String s) {
         return switch (s.trim().toLowerCase()) {
             "day" || "days" => FrequencyUnit.daily,
             "week" || "weeks" => FrequencyUnit.weekly,
             "biweek" || "biweeks" || "biweekly" => FrequencyUnit.biweekly,
+            "semimonthly" || "semi-monthly" || "twice-monthly" || "twice monthly" || "twice a month" =>
+                FrequencyUnit.semimonthly,
             "month" || "months" => FrequencyUnit.monthly,
             "year" || "years" => FrequencyUnit.yearly,
-            _ => throw FormatException("unit must be day/week/month/year; got \"${s.trim()}\""),
+            // Ambiguous: twice a month to some, every two months to others.
+            "bimonthly" || "bi-monthly" => throw const FormatException(
+                "\"bimonthly\" is ambiguous: use semimonthly for twice a month, or 2,month for every two months"),
+            _ => throw FormatException(
+                "unit must be day/week/biweek/semimonthly/month/year; got \"${s.trim()}\""),
         };
     }
 
@@ -242,5 +281,7 @@ class CsvImportHelper {
         "# Optional last field: an end date, after which the expense stops (inclusive)\n"
         "expense,Car Payment,350,2024-01-10,1,month,Transportation,2028-12-10\n"
         "credit,Card Name,156,1000,2024-01-15\n"
-        "income_stream,Hardware Store,2500.56,2022-03-15,2,week\n";
+        "income_stream,Hardware Store,2500.56,2022-03-15,2,week\n"
+        "# Twice a month: the two days go where the count does (\"last\" = the month's last day), e.g.\n"
+        "# income_stream,Main Job,1800,2024-01-15,15/last,semimonthly\n";
 }
