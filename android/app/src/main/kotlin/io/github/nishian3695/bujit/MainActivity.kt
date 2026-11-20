@@ -1,5 +1,7 @@
 package io.github.nishian3695.bujit
 
+import android.os.Build
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,6 +19,26 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success(ReleaseAppCheck.install())
                 } catch (e: Exception) {
                     result.error("app_check", e.message, null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // While the app lock is on, the recents screen shows no snapshot of the budget
+        // (Android 13+); older versions get FLAG_SECURE, which also blocks screenshots.
+        // See AppLockGate.
+        MethodChannel(messenger, "bujit/privacy").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setHiddenInRecents" -> {
+                    val hide = call.arguments as? Boolean ?: false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        setRecentsScreenshotEnabled(!hide)
+                    } else if (hide) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }

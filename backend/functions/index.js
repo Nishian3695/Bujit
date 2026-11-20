@@ -3,42 +3,31 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {defineSecret, defineString} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const axios = require("axios");
-const https = require("https");
+const crypto = require("crypto");
 
 setGlobalOptions({maxInstances: 10});
 
 admin.initializeApp();
 
-// Teller secrets (mTLS certificate + private key stored in Secret Manager)
-const tellerCert = defineSecret("TELLER_CERT");
-const tellerKey = defineSecret("TELLER_PRIVATE_KEY");
-
 // Plaid secrets, selected at runtime by PLAID_ENV.
-const plaidClientId          = defineSecret("PLAID_CLIENT_ID");
-const plaidSecretSandbox     = defineSecret("PLAID_SECRET_SANDBOX");
-const plaidSecretProduction  = defineSecret("PLAID_SECRET_PRODUCTION");
+const plaidClientId = defineSecret("PLAID_CLIENT_ID");
+const plaidSecretSandbox = defineSecret("PLAID_SECRET_SANDBOX");
+const plaidSecretProduction = defineSecret("PLAID_SECRET_PRODUCTION");
 
-function plaidSecretValue() {
-  switch (PLAID_ENV.value()) {
-    case "sandbox":     return plaidSecretSandbox.value();
-    case "production":  return plaidSecretProduction.value();
-    default:            return plaidSecretSandbox.value();  // fallback to sandbox if PLAID_ENV is invalid
-  }
-}
-
-// Plaid environment. Set PLAID_ENV in .env.<project> to one of:
-//   sandbox | development | production   (defaults to production)
+// Plaid environment. Set PLAID_ENV in .env.<project> to sandbox or production
+// (anything else means sandbox).
 const PLAID_ENV = defineString("PLAID_ENV", {default: "production"});
 
-// Plaid base URL based on environment.
-// Sandbox: https://sandbox.plaid.com
-// Development/Production: https://production.plaid.com (they use the same now)
+function plaidSecretValue() {
+  return PLAID_ENV.value() === "production" ?
+    plaidSecretProduction.value() :
+    plaidSecretSandbox.value();
+}
+
 function plaidBaseUrl() {
-  switch (PLAID_ENV.value()) {
-    case "sandbox":     return "https://sandbox.plaid.com";
-    case "production":  return "https://production.plaid.com";
-    default:            return "https://sandbox.plaid.com";  // fallback to sandbox if PLAID_ENV is invalid
-  }
+  return PLAID_ENV.value() === "production" ?
+    "https://production.plaid.com" :
+    "https://sandbox.plaid.com";
 }
 
 // Where Plaid sends iOS users back after a bank's own login page (OAuth). Must be
@@ -48,9 +37,13 @@ const PLAID_REDIRECT_URI = defineString("PLAID_REDIRECT_URI", {
   default: "https://bujit-89ac6.web.app/plaid-oauth",
 });
 
-// Set ENFORCE_APP_CHECK=true in production to require Firebase App Check tokens.
-// Flip this via Cloud Run env vars; leave false during initial rollout/testing.
-const ENFORCE_APP_CHECK = process.env.ENFORCE_APP_CHECK === "true";
+// App Check proves a request comes from the genuine app (Play Integrity on Android,
+// App Attest on iOS). It's required unless ENFORCE_APP_CHECK is exactly "false"
+// (only for local testing): anonymous Firebase sign-in alone lets anyone call this.
+const ENFORCE_APP_CHECK = process.env.ENFORCE_APP_CHECK !== "false";
+
+const ANDROID_PACKAGE = "io.github.nishian3695.bujit";
+const ANDROID_APP_ID = "1:533939418471:android:e39cb96592f09e1c036bc2";
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 
@@ -86,6 +79,48 @@ async function verifyAppCheck(req, res) {
   }
 }
 
+// ─── Bank tokens tied to their user ──────────────────────────────────────────
+//
+// The app never sees a raw Plaid access token. /plaid/exchange returns it sealed
+// with AES-256-GCM together with the caller's Firebase user id, and every later
+// call unseals it and checks that the same user sent it. A copied token is useless
+// to anyone else, even with their own Firebase sign-in. The key is derived from
+// the Plaid secret, so rotating that secret means relinking banks (which a leaked
+// secret needs anyway).
+
+const SEALED_PREFIX = "bujit1.";
+
+function sealingKey() {
+  return Buffer.from(crypto.hkdfSync(
+      "sha256", plaidSecretValue(), "bujit-token-seal", "plaid-access-token", 32));
+}
+
+function sealAccessToken(accessToken, uid) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", sealingKey(), iv);
+  const sealed = Buffer.concat([
+    cipher.update(JSON.stringify({u: uid, t: accessToken}), "utf8"),
+    cipher.final(),
+  ]);
+  return SEALED_PREFIX + Buffer.concat([iv, sealed, cipher.getAuthTag()]).toString("base64url");
+}
+
+// The Plaid access token in [token] if [uid] sealed it, else null.
+function unsealAccessToken(token, uid) {
+  if (typeof token !== "string" || !token.startsWith(SEALED_PREFIX)) return null;
+  try {
+    const raw = Buffer.from(token.slice(SEALED_PREFIX.length), "base64url");
+    if (raw.length < 12 + 16 + 1) return null;
+    const decipher = crypto.createDecipheriv("aes-256-gcm", sealingKey(), raw.subarray(0, 12));
+    decipher.setAuthTag(raw.subarray(raw.length - 16));
+    const plain = Buffer.concat([decipher.update(raw.subarray(12, raw.length - 16)), decipher.final()]);
+    const {u, t} = JSON.parse(plain.toString("utf8"));
+    return u === uid && typeof t === "string" ? t : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ─── Plaid handler ───────────────────────────────────────────────────────────
 
 async function handlePlaidRequest(req, res, decodedToken) {
@@ -96,7 +131,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
   try {
     // POST /plaid/link/token  {platform?: "ios" | "android"}
     // Android names the app's package (Plaid returns to it after OAuth); iOS gives a
-    // redirect URI instead. No platform (the Java app) means Android.
+    // redirect URI instead.
     if (req.method === "POST" && req.path === "/plaid/link/token") {
       const ios = req.body?.platform === "ios";
       const response = await axios.post(`${baseUrl}/link/token/create`, {
@@ -109,16 +144,16 @@ async function handlePlaidRequest(req, res, decodedToken) {
         language: "en",
         ...(ios ?
           {redirect_uri: PLAID_REDIRECT_URI.value()} :
-          {android_package_name: "io.github.nishian3695.bujit"}),
+          {android_package_name: ANDROID_PACKAGE}),
       });
       res.json({link_token: response.data.link_token});
       return;
     }
 
-    // POST /plaid/exchange
+    // POST /plaid/exchange {public_token} -> {access_token} (sealed to this user)
     if (req.method === "POST" && req.path === "/plaid/exchange") {
-      const {public_token: publicToken} = req.body;
-      if (!publicToken) {
+      const publicToken = req.body?.public_token;
+      if (typeof publicToken !== "string" || !publicToken) {
         res.status(400).json({error: "Missing public_token"});
         return;
       }
@@ -127,30 +162,39 @@ async function handlePlaidRequest(req, res, decodedToken) {
         secret: secret,
         public_token: publicToken,
       });
-      res.json({access_token: response.data.access_token});
+      res.json({access_token: sealAccessToken(response.data.access_token, decodedToken.uid)});
       return;
     }
 
-    // POST /plaid/remove  — revokes the Item so the access_token is invalidated on Plaid's side.
+    const token = req.headers["x-plaid-token"];
+    if (!token) {
+      res.status(401).json({error: "Missing X-Plaid-Token header"});
+      return;
+    }
+    const accessToken = unsealAccessToken(token, decodedToken.uid);
+
+    // POST /plaid/remove — revokes the Item so the access token stops working at
+    // Plaid. Also takes a raw token from before tokens were sealed: revoking is the
+    // one thing a holder of an old token should still be able to do.
     if (req.method === "POST" && req.path === "/plaid/remove") {
-      const accessToken = req.headers["x-plaid-token"];
-      if (!accessToken) {
-        res.status(401).json({error: "Missing X-Plaid-Token header"});
+      const revoke = accessToken ?? (token.startsWith(SEALED_PREFIX) ? null : token);
+      if (!revoke) {
+        res.status(401).json({error: "INVALID_ACCESS_TOKEN"});
         return;
       }
       await axios.post(`${baseUrl}/item/remove`, {
         client_id: clientId,
         secret: secret,
-        access_token: accessToken,
+        access_token: revoke,
       });
       res.json({revoked: true});
       return;
     }
 
-    // All remaining Plaid routes require X-Plaid-Token.
-    const accessToken = req.headers["x-plaid-token"];
+    // Everything else needs a token this user sealed. A raw token from before
+    // sealing gets 401, which the app shows as "Reconnect".
     if (!accessToken) {
-      res.status(401).json({error: "Missing X-Plaid-Token header"});
+      res.status(401).json({error: "INVALID_ACCESS_TOKEN"});
       return;
     }
 
@@ -194,77 +238,7 @@ async function handlePlaidRequest(req, res, decodedToken) {
     }
 
     // No route calls Plaid's /accounts/balance/get, which is billed per call: balances
-    // come only from /accounts/get above. (An unused GET /plaid/accounts/{id}/balance
-    // that called it was removed, so no request can run up Plaid charges.)
-
-    // TODO: On-the-fly refresh, Layer 2. User-triggered real-time balance refresh with server-side rate limiting.
-    //
-    // Adds POST /plaid/accounts/{id}/balance/refresh: calls /accounts/balance/get (real-time,
-    // charged per call) but enforces a per-user per-account cooldown via Firestore so no single
-    // user can drive up Plaid costs. The client calls this only when the user explicitly requests
-    // a "force refresh"; normal startup/pull-to-refresh continues to use /accounts/get (free).
-    //
-    // ── To change the cooldown, edit this one line: ──────────────────────────────────────────
-    // const REAL_TIME_BALANCE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour  (change this value)
-    // ─────────────────────────────────────────────────────────────────────────────────────────
-    //
-    // Firestore path: users/{uid}/balanceCache/{accountId}
-    //   Fields: { ledger, available, limit, fetchedAt }
-    // Data is scoped to the Firebase Auth UID that is already verified above, so one user's
-    // cache cannot be read or poisoned by another. No PII is stored beyond what Plaid returns.
-    //
-    // HTTP 200 → fresh real-time data was fetched and cached.
-    // HTTP 429 → cooldown not elapsed; cached values are returned alongside retryAfter (seconds)
-    //            so the client can tell the user when they can refresh again.
-    //
-    // const REAL_TIME_BALANCE_COOLDOWN_MS = 60 * 60 * 1000; // ← change this (currently 1 hour)
-    //
-    // const refreshMatch = req.path.match(/^\/plaid\/accounts\/([^/]+)\/balance\/refresh$/);
-    // if (req.method === "POST" && refreshMatch) {
-    //   const accountId = refreshMatch[1];
-    //   const db        = admin.firestore();
-    //   const cacheRef  = db.collection("users").doc(decodedToken.uid)
-    //                       .collection("balanceCache").doc(accountId);
-    //
-    //   const cached = await cacheRef.get();
-    //   if (cached.exists) {
-    //     const { fetchedAt, ledger, available, limit } = cached.data();
-    //     if (Date.now() - fetchedAt < REAL_TIME_BALANCE_COOLDOWN_MS) {
-    //       // Within cooldown — return the cached snapshot and signal the client.
-    //       res.status(429).json({
-    //         ledger, available, limit: limit ?? null,
-    //         retryAfter: Math.ceil((fetchedAt + REAL_TIME_BALANCE_COOLDOWN_MS - Date.now()) / 1000),
-    //       });
-    //       return;
-    //     }
-    //   }
-    //
-    //   // Cooldown elapsed (or first call) — hit /accounts/balance/get for a real-time pull.
-    //   const response = await axios.post(`${baseUrl}/accounts/balance/get`, {
-    //     client_id:    clientId,
-    //     secret:       secret,
-    //     access_token: accessToken,
-    //     options:      { account_ids: [accountId] },
-    //   });
-    //   const accts = response.data.accounts;
-    //   if (!accts || accts.length === 0) {
-    //     res.status(404).json({ error: "Account not found" });
-    //     return;
-    //   }
-    //   const balances = accts[0].balances;
-    //   const result = {
-    //     ledger:    balances.current   != null ? balances.current.toString()   : "—",
-    //     available: balances.available != null ? balances.available.toString() : "—",
-    //     limit:     balances.limit     != null ? balances.limit.toString()     : null,
-    //   };
-    //
-    //   // Persist under the authenticated UID — Firestore rules should restrict reads/writes
-    //   // to the owning user (users/{uid}/balanceCache/{accountId} → request.auth.uid == uid).
-    //   await cacheRef.set({ ...result, fetchedAt: Date.now() });
-    //
-    //   res.json(result);
-    //   return;
-    // }
+    // come only from /accounts/get above.
 
     res.status(404).json({error: "Unknown Plaid route"});
   } catch (e) {
@@ -276,160 +250,139 @@ async function handlePlaidRequest(req, res, decodedToken) {
   }
 }
 
-// ─── Teller handler ──────────────────────────────────────────────────────────
+// ─── Play Integrity exchange (Android App Check) ─────────────────────────────
+//
+// Android release builds get their App Check token here: a Play Integrity token
+// from a genuine, Play-installed app on a real device buys a one-hour App Check
+// token. Calls are limited per address and each integrity token works once, and
+// only for two minutes, so a captured token can't be reused and garbage can't use
+// up the project's daily Play Integrity quota. (Limits are kept per server
+// instance, which is enough at maxInstances 10.)
 
-async function handleTellerRequest(req, res, agent) {
+const INTEGRITY_MAX_AGE_MS = 2 * 60 * 1000;
+const EXCHANGES_PER_HOUR = 30;
+const recentExchanges = new Map(); // client address -> timestamps in the last hour
+const usedIntegrityTokens = new Map(); // sha256 of a used token -> when it expires
+
+function clientAddress(req) {
+  return (req.headers["x-forwarded-for"] ?? "").split(",")[0].trim() || req.ip || "unknown";
+}
+
+// True if [address] may exchange now (and counts this attempt).
+function allowExchange(address, now) {
+  const recent = (recentExchanges.get(address) ?? []).filter((t) => now - t < 60 * 60 * 1000);
+  if (recent.length >= EXCHANGES_PER_HOUR) {
+    recentExchanges.set(address, recent);
+    return false;
+  }
+  recent.push(now);
+  recentExchanges.set(address, recent);
+  if (recentExchanges.size > 10000) {
+    for (const [key, times] of recentExchanges) {
+      if (times.every((t) => now - t >= 60 * 60 * 1000)) recentExchanges.delete(key);
+    }
+  }
+  return true;
+}
+
+// True the first time [hash] is seen in its two-minute life.
+function firstUse(hash, now) {
+  for (const [key, expires] of usedIntegrityTokens) {
+    if (expires <= now) usedIntegrityTokens.delete(key);
+  }
+  if (usedIntegrityTokens.has(hash)) return false;
+  usedIntegrityTokens.set(hash, now + INTEGRITY_MAX_AGE_MS);
+  return true;
+}
+
+async function exchangeIntegrityToken(req, res) {
+  const now = Date.now();
+  if (!allowExchange(clientAddress(req), now)) {
+    res.status(429).json({error: "Too many requests"});
+    return;
+  }
+  const integrityToken = req.body?.integrityToken;
+  // A Standard API token is a long JWE (base64url parts joined by dots); anything
+  // else is turned away without spending quota on it.
+  if (typeof integrityToken !== "string" || integrityToken.length < 100 ||
+      integrityToken.length > 20000 || !/^[A-Za-z0-9_\-.=]+$/.test(integrityToken)) {
+    res.status(400).json({error: "Missing integrityToken"});
+    return;
+  }
+  const tokenHash = crypto.createHash("sha256").update(integrityToken).digest("hex");
+  if (usedIntegrityTokens.has(tokenHash)) {
+    res.status(403).json({error: "Integrity token already used"});
+    return;
+  }
   try {
-    // POST /teller/remove  — deletes the enrollment so the access_token is invalidated on Teller's side.
-    // Finds the enrollment_id via GET /accounts (each account carries an enrollment_id field),
-    // then DELETE /enrollments/{id}.
-    if (req.method === "POST" && req.path === "/teller/remove") {
-      const accessToken = req.headers["x-teller-token"];
-      if (!accessToken) {
-        res.status(401).json({error: "Missing X-Teller-Token header"});
-        return;
-      }
+    const {GoogleAuth} = require("google-auth-library");
+    const client = await new GoogleAuth({scopes: ["https://www.googleapis.com/auth/playintegrity"]}).getClient();
+    const accessToken = (await client.getAccessToken()).token;
+    const verifyResp = await axios.post(
+        `https://playintegrity.googleapis.com/v1/${ANDROID_PACKAGE}:decodeIntegrityToken`,
+        {integrity_token: integrityToken},
+        {headers: {Authorization: `Bearer ${accessToken}`}},
+    );
+    const payload = verifyResp.data.tokenPayloadExternal;
+    const appVerdict = payload?.appIntegrity?.appRecognitionVerdict;
+    const deviceVerdicts = payload?.deviceIntegrity?.deviceRecognitionVerdict ?? [];
+    const packageName = payload?.requestDetails?.requestPackageName;
+    const tokenAgeMs = now - Number(payload?.requestDetails?.timestampMillis ?? 0);
 
-      let enrollmentId = null;
-      try {
-        const accountsResp = await axios.get("https://api.teller.io/accounts", {
-          httpsAgent: agent,
-          auth: {username: accessToken, password: ""},
-        });
-        const accounts = accountsResp.data;
-        if (accounts && accounts.length > 0) {
-          enrollmentId = accounts[0].enrollment_id;
-        }
-      } catch (e) {
-        if (e.response?.status === 401) {
-          // Already revoked or invalid — treat as success.
-          res.json({revoked: true});
-          return;
-        }
-        throw e;
-      }
-
-      if (!enrollmentId) {
-        // No accounts found; enrollment is already empty or revoked.
-        res.json({revoked: true});
-        return;
-      }
-
-      await axios.delete(`https://api.teller.io/enrollments/${enrollmentId}`, {
-        httpsAgent: agent,
-        auth: {username: accessToken, password: ""},
-      });
-      res.json({revoked: true});
+    if (packageName !== ANDROID_PACKAGE) {
+      console.warn("exchangeIntegrityToken: package mismatch", packageName);
+      res.status(403).json({error: "Package name mismatch"});
+      return;
+    }
+    if (tokenAgeMs > INTEGRITY_MAX_AGE_MS || tokenAgeMs < -60 * 1000) {
+      console.warn("exchangeIntegrityToken: token too old", tokenAgeMs);
+      res.status(403).json({error: "Integrity token too old"});
+      return;
+    }
+    if (appVerdict !== "PLAY_RECOGNIZED" || !deviceVerdicts.includes("MEETS_BASIC_INTEGRITY")) {
+      console.warn("exchangeIntegrityToken: verdict rejected", {appVerdict, deviceVerdicts});
+      res.status(403).json({error: "Integrity check failed"});
+      return;
+    }
+    if (!firstUse(tokenHash, now)) {
+      res.status(403).json({error: "Integrity token already used"});
       return;
     }
 
-    res.status(404).json({error: "Unknown Teller management route"});
+    const appCheckToken = await admin.appCheck().createToken(ANDROID_APP_ID, {ttlMillis: 3600000});
+    res.json({token: appCheckToken.token, ttlMillis: appCheckToken.ttlMillis});
   } catch (e) {
-    const status = e.response?.status ?? 500;
-    const errorCode = e.response?.data?.error?.code ?? "TELLER_ERROR";
-    console.error("handleTellerRequest error:", errorCode, "status:", status);
-    res.status(status).json({error: errorCode});
+    console.error("exchangeIntegrityToken error:", JSON.stringify(e.response?.data ?? e.message));
+    res.status(500).json({error: "Integrity verification failed"});
   }
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
+//
+// Still named tellerProxy (from when it also served Teller) so its address, which
+// the app has built in, stays the same.
 
 exports.tellerProxy = onRequest(
-  {secrets: [tellerCert, tellerKey, plaidClientId, plaidSecretSandbox, plaidSecretProduction], invoker: "public"},
-  async (req, res) => {
-    // POST /exchangeIntegrityToken — verifies a Play Integrity Standard API token via
-    // decodeIntegrityToken, then issues a Firebase App Check token via the Admin SDK.
-    // Placed before App Check enforcement so clients can bootstrap App Check itself.
-    if (req.method === "POST" && req.path === "/exchangeIntegrityToken") {
-      const {integrityToken} = req.body;
-      if (!integrityToken) {
-        res.status(400).json({error: "Missing integrityToken"});
+    {secrets: [plaidClientId, plaidSecretSandbox, plaidSecretProduction], invoker: "public"},
+    async (req, res) => {
+    // Before App Check: this is how Android release builds get an App Check token.
+      if (req.method === "POST" && req.path === "/exchangeIntegrityToken") {
+        await exchangeIntegrityToken(req, res);
         return;
       }
-      try {
-        const {GoogleAuth} = require("google-auth-library");
-        const client = await new GoogleAuth({scopes: ["https://www.googleapis.com/auth/playintegrity"]}).getClient();
-        const accessToken = (await client.getAccessToken()).token;
-        const verifyResp = await axios.post(
-          "https://playintegrity.googleapis.com/v1/io.github.nishian3695.bujit:decodeIntegrityToken",
-          {integrity_token: integrityToken},
-          {headers: {Authorization: `Bearer ${accessToken}`}},
-        );
-        const payload = verifyResp.data.tokenPayloadExternal;
-        const appVerdict = payload?.appIntegrity?.appRecognitionVerdict;
-        const deviceVerdicts = payload?.deviceIntegrity?.deviceRecognitionVerdict ?? [];
-        const packageName = payload?.requestDetails?.requestPackageName;
-        const tokenAgeMs = Date.now() - Number(payload?.requestDetails?.timestampMillis ?? 0);
 
-        if (packageName !== "io.github.nishian3695.bujit") {
-          console.warn("exchangeIntegrityToken: package mismatch", packageName);
-          res.status(403).json({error: "Package name mismatch"});
-          return;
-        }
-        if (tokenAgeMs > 10 * 60 * 1000) {
-          console.warn("exchangeIntegrityToken: token too old", tokenAgeMs);
-          res.status(403).json({error: "Integrity token too old"});
-          return;
-        }
-        if (appVerdict !== "PLAY_RECOGNIZED" || !deviceVerdicts.includes("MEETS_BASIC_INTEGRITY")) {
-          console.warn("exchangeIntegrityToken: verdict rejected", {appVerdict, deviceVerdicts});
-          res.status(403).json({error: "Integrity check failed"});
-          return;
-        }
+      // Step 1: the request comes from the genuine app.
+      if (!await verifyAppCheck(req, res)) return;
 
-        const APP_ID = "1:533939418471:android:e39cb96592f09e1c036bc2";
-        const appCheckToken = await admin.appCheck().createToken(APP_ID, {ttlMillis: 3600000});
-        res.json({token: appCheckToken.token, ttlMillis: appCheckToken.ttlMillis});
-      } catch (e) {
-        console.error("exchangeIntegrityToken error:", JSON.stringify(e.response?.data ?? e.message));
-        res.status(500).json({error: "Integrity verification failed"});
+      // Step 2: a Firebase sign-in (anonymous), which bank tokens are tied to.
+      const decodedToken = await verifyFirebaseToken(req, res);
+      if (!decodedToken) return;
+
+      if (req.path.startsWith("/plaid/")) {
+        await handlePlaidRequest(req, res, decodedToken);
+        return;
       }
-      return;
-    }
 
-    // Step 1: Verify App Check token (when enforcement is enabled).
-    if (!await verifyAppCheck(req, res)) return;
-
-    // Step 2: Verify Firebase ID token — blocks unauthenticated callers for all routes.
-    const decodedToken = await verifyFirebaseToken(req, res);
-    if (!decodedToken) return;
-
-    // Step 3: Route /plaid/* to the Plaid handler.
-    if (req.path.startsWith("/plaid/")) {
-      await handlePlaidRequest(req, res, decodedToken);
-      return;
-    }
-
-    // Step 4: Build the mTLS agent for Teller (used by both management and pass-through routes).
-    const normalizePem = (pem) => pem.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trimEnd() + "\n";
-    const agent = new https.Agent({
-      cert: normalizePem(tellerCert.value()),
-      key: normalizePem(tellerKey.value()),
-    });
-
-    // Step 5: Route /teller/* to the Teller management handler.
-    if (req.path.startsWith("/teller/")) {
-      await handleTellerRequest(req, res, agent);
-      return;
-    }
-
-    // Step 6: Legacy Teller pass-through for account/balance fetches (/accounts, /accounts/{id}/balances).
-    const accessToken = req.headers["x-teller-token"];
-    if (!accessToken) {
-      res.status(401).send("Missing token");
-      return;
-    }
-    try {
-      const response = await axios.get("https://api.teller.io" + req.path, {
-        httpsAgent: agent,
-        auth: {username: accessToken, password: ""},
-      });
-      res.json(response.data);
-    } catch (e) {
-      const status = e.response?.status ?? 500;
-      const errorCode = e.response?.data?.error?.code ?? "TELLER_ERROR";
-      console.error("tellerProxy error:", errorCode, "status:", status);
-      res.status(status).json({error: errorCode});
-    }
-  },
+      res.status(404).json({error: "Unknown route"});
+    },
 );

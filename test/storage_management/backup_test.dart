@@ -92,6 +92,14 @@ void main() {
                 BackupFailure.unsupportedVersion);
         });
 
+        test("a file asking for an absurd number of iterations is refused before deriving a key", () async {
+            final Map<String, dynamic> fields = jsonDecode(_fixture("java_backup.bujitbackup"));
+            final Stopwatch timer = Stopwatch()..start();
+            expect(await _failure(() => BackupCrypto.decrypt(jsonEncode({...fields, "iterations": 2000000000}),
+                passphrase)), BackupFailure.malformedEnvelope);
+            expect(timer.elapsed, lessThan(const Duration(seconds: 5))); // No key was derived
+        });
+
         test("generated passphrases: 5 groups of 4 unambiguous characters", () {
             final String generated = BackupCrypto.generatePassphrase();
             expect(generated, matches(RegExp(r"^[2-9A-HJKMNP-Z]{4}(-[2-9A-HJKMNP-Z]{4}){4}$")));

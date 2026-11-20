@@ -8,7 +8,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
 
 | Area | Android | iPhone |
 |---|---|---|
-| The app itself | **Live** for internal and closed testers (0.5.4) | Builds and runs in the simulator ([previews](#previewing-on-ios-without-a-mac)); not released |
+| The app itself | **Live** on every testing track (1.0.0); production is a promotion in Play Console | Builds and runs in the simulator ([previews](#previewing-on-ios-without-a-mac)); not released |
 | Google Tasks sync | Works for test users; [verification](#google-tasks) pending | Same |
 | Apple Reminders sync | n/a | **Ready**; try it in Appetize |
 | Bank linking (Plaid) | **Works** in release builds | Needs the [Apple setup](#iphone-bank-logins) |
@@ -28,7 +28,7 @@ done, and everything else works. Last reviewed October 3, 2026 (release 0.5.4).
   none = internal, `-closed` = internal + both closed tracks, `-open` = open
   testing, `-all` = every testing track. Production is a promotion in Play Console.
 - **Versions.** The version code is major·10000 + minor·1000 + patch, continuing
-  from the Java app's 0.4.5 (4005). Latest: `v0.5.11-all` and `ios-v0.5.11` (5011). Never reuse one.
+  from the Java app's 0.4.5 (4005). Latest: `v1.0.0-all` and `ios-v1.0.0` (10000). Never reuse one.
 - **Signing.** Builds are signed with the Java app's upload key; Play re-signs them
   with its app signing key (SHA-1 `41:97:BF:65:17:8D:63:1A:83:A5:7D:B0:3C:3E:CC:4C:F0:E5:FA:83`).
 - **CI** analyzes and tests every push to `main`, and fails on any analyzer issue.
@@ -172,6 +172,15 @@ For banks that log in on their own site (Chase, Capital One, …), Plaid returns
 5. [ ] **Firebase → App Check:** register the iOS app with **App Attest** (and
        DeviceCheck as the fallback, which needs a DeviceCheck key from Apple).
 6. [ ] Test on a real iPhone (TestFlight); App Attest doesn't work in the simulator.
+7. [x] **Deploy the hardened backend** (after 4 and 5, or iPhone bank linking stops):
+       `firebase deploy --only functions` in `backend/`. It requires App Check on every
+       call (`ENFORCE_APP_CHECK=true` in `functions/.env.bujit-89ac6`), ties each bank
+       token to the Firebase user who linked it (existing links ask to **Reconnect**
+       once), limits the Play Integrity exchange, and drops the old Teller code.
+8. [ ] After deploying, delete the unused Teller secrets in Google Cloud → Secret
+       Manager: `TELLER_CERT` and `TELLER_PRIVATE_KEY`.
+9. [ ] Debug builds need their App Check debug token registered (Firebase → App
+       Check → Apps → Manage debug tokens), or bank linking refuses them.
 
 | Symptom | Usual cause |
 |---|---|

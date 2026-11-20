@@ -185,6 +185,30 @@ void main() {
             expect(find.text("Bujit is locked"), findsNothing);
         });
 
+        testWidgets("when on, the app switcher sees a cover, not the budget", (tester) async {
+            final AppState state = _sampleState()..data.appLockEnabled = true;
+            final FakeDeviceAuth auth = FakeDeviceAuth()..succeed = true;
+            await tester.pumpWidget(MaterialApp(
+                home: ExpenseActivity(state: state),
+                builder: (context, child) => AppLockGate(state: state, auth: auth, child: child!),
+            ));
+            await tester.pumpAndSettle(); // Unlocked straight away
+            expect(find.text("Bujit is locked"), findsNothing);
+            expect(find.byIcon(Icons.lock), findsNothing);
+
+            // Swiping to the app switcher (inactive) covers it without locking...
+            tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+            await tester.pump();
+            expect(find.byIcon(Icons.lock), findsOneWidget);
+            expect(find.text("Bujit is locked"), findsNothing);
+
+            // ...and coming straight back uncovers it without asking again.
+            tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+            await tester.pump();
+            expect(find.byIcon(Icons.lock), findsNothing);
+            expect(auth.asked, 1);
+        });
+
         testWidgets("when off, nothing is locked", (tester) async {
             final AppState state = _sampleState();
             await tester.pumpWidget(MaterialApp(

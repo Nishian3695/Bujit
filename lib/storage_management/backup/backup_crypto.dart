@@ -43,6 +43,9 @@ class BackupCrypto {
     static const int currentVersion = 1;
     static const String kdf = "PBKDF2WithHmacSHA256";
     static const int iterations = 210000;
+    // The most a file may ask for: room for stronger settings later, but a crafted
+    // file can't freeze the app deriving a key for hours.
+    static const int maxIterations = 10000000;
     static const int _saltLength = 16;
     static const int _ivLength = 12;
     static const int _tagLength = 16;
@@ -116,7 +119,7 @@ class BackupCrypto {
         } catch (_) {
             throw const BackupCryptoException(BackupFailure.malformedEnvelope, "Malformed backup file");
         }
-        if (sealed.length < _tagLength || iterationCount <= 0) {
+        if (sealed.length < _tagLength || iterationCount <= 0 || iterationCount > maxIterations) {
             throw const BackupCryptoException(BackupFailure.malformedEnvelope, "Malformed backup file");
         }
         try {
