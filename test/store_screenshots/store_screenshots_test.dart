@@ -54,7 +54,11 @@ const List<StoreDevice> devices = [
 ];
 
 void main() {
-    setUpAll(_loadFonts);
+    // Only when generating: in normal runs every test here is skipped, and the
+    // fonts' location in the Flutter SDK differs between machines (CI included).
+    setUpAll(() async {
+        if (_enabled) await _loadFonts();
+    });
 
     for (final StoreDevice device in devices) {
         for (final (int i, Shot shot) in shots.indexed) {
