@@ -51,3 +51,6 @@ firebase-debug*.log
 *.p8
 # Personal notes and reminders, not committed
 TODO.local.md
+
+# Store screenshots, made by test/store_screenshots (not committed: the repo root is the website)
+/store-screenshots/
